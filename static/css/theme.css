@@ -1,0 +1,35 @@
+:root {
+  --brand-primary: #2d4a3f;
+  --brand-primary-dark: #233a32;
+  --brand-accent: #c9a23f;
+  --brand-bg: #f5f1e8;
+  --brand-surface: #ffffff;
+  --brand-text: #1f1f1f;
+}
+
+body {
+  color: var(--brand-text);
+}
+
+.btn-primary {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--brand-primary-dark);
+  border-color: var(--brand-primary-dark);
+}
+
+.btn-outline-secondary {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #ffffff;
+}

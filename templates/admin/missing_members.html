@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div class="content">
+    <h1>Missing Members</h1>
+    {% if service %}
+      <p>Service: <strong>{{ service.label }}</strong> ({{ service.date }})</p>
+      <p>
+        <a class="button" href="/admin/missing-members/?format=csv">Export CSV</a>
+      </p>
+      {% if missing_members %}
+        <div class="module">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Address</th>
+                <th>City</th>
+                <th>State/Province</th>
+                <th>Postal Code</th>
+                <th>Country</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for person in missing_members %}
+                <tr>
+                  <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
+                  <td>{{ person.phone }}</td>
+                  <td>{{ person.email }}</td>
+                  <td>{{ person.street_address }}</td>
+                  <td>{{ person.city }}</td>
+                  <td>{{ person.state_province }}</td>
+                  <td>{{ person.postal_code }}</td>
+                  <td>{{ person.country }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>All active members checked in for this service.</p>
+      {% endif %}
+    {% else %}
+      <p>No services found yet.</p>
+    {% endif %}
+  </div>
+{% endblock %}

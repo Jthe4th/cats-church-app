@@ -1,0 +1,135 @@
+.kiosk-body {
+  background: radial-gradient(circle at top, #ffffff 0%, var(--brand-bg) 60%);
+  min-height: 100vh;
+  --kiosk-scale: 1;
+  font-size: calc(16px * var(--kiosk-scale));
+}
+
+.kiosk-body .display-4 {
+  font-size: calc(4.5rem * var(--kiosk-scale));
+}
+
+.kiosk-body .lead {
+  font-size: calc(1.6rem * var(--kiosk-scale));
+}
+
+.kiosk-body .btn,
+.kiosk-body .form-control,
+.kiosk-body .form-select,
+.kiosk-body .list-group-item,
+.kiosk-body .card,
+.kiosk-body label,
+.kiosk-body p,
+.kiosk-body h2,
+.kiosk-body h4,
+.kiosk-body h5,
+.kiosk-body h6,
+.kiosk-body small,
+.kiosk-body .kb-key {
+  font-size: calc(1.3rem * var(--kiosk-scale));
+}
+
+.card {
+  border-radius: 1rem;
+}
+
+input.form-control-lg {
+  height: calc(3.5rem * var(--kiosk-scale));
+  font-size: calc(1.25rem * var(--kiosk-scale));
+}
+
+.kiosk-logo {
+  max-width: 240px;
+  width: 60%;
+  height: auto;
+  margin-top: -1.5rem;
+}
+
+#kiosk-title {
+  margin-top: 1rem;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2ecc71;
+  margin-right: 6px;
+}
+
+.status-dot.offline {
+  background: #e67e22;
+}
+.visitor-hidden {
+  display: none;
+}
+
+.kiosk-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kb-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.kb-key {
+  min-width: calc(3.75rem * var(--kiosk-scale));
+  padding: calc(0.95rem * var(--kiosk-scale)) calc(1.3rem * var(--kiosk-scale));
+  border-radius: 0.75rem;
+  border: 2px solid #d0d7de;
+  background: #ffffff;
+  font-size: calc(1.35rem * var(--kiosk-scale));
+  font-weight: 600;
+}
+
+.kb-key:active {
+  transform: translateY(1px);
+}
+
+.kb-backspace {
+  min-width: calc(10rem * var(--kiosk-scale));
+}
+
+.kb-space {
+  min-width: calc(15rem * var(--kiosk-scale));
+}
+
+.kb-clear {
+  min-width: calc(7.5rem * var(--kiosk-scale));
+}
+
+.dark-mode {
+  background: radial-gradient(circle at top, #24272d 0%, #14161a 60%);
+  color: #f7f7f7;
+}
+
+.dark-mode .card {
+  background-color: #1b1f26;
+  color: #f7f7f7;
+  border-color: #343a44;
+}
+
+.dark-mode .form-control,
+.dark-mode .form-select {
+  background-color: #101318;
+  color: #f7f7f7;
+  border-color: #343a44;
+}
+
+.dark-mode .list-group-item {
+  background-color: #1b1f26;
+  color: #f7f7f7;
+  border-color: #343a44;
+}
+
+.dark-mode .kb-key {
+  background: #101318;
+  color: #f7f7f7;
+  border-color: #343a44;
+}

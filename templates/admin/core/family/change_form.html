@@ -1,0 +1,75 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_related_objects %}
+  {{ block.super }}
+
+  <div class="module">
+    <h2>Print Nametags</h2>
+    {% if family_members %}
+      <div style="margin-bottom: 0.5rem;">
+        <label>
+          <input type="checkbox" id="select-all-members" />
+          Select all
+        </label>
+      </div>
+      <div style="display: grid; gap: 0.35rem;">
+        {% for member in family_members %}
+          <label>
+            <input type="checkbox" name="person_ids" value="{{ member.id }}" checked />
+            {{ member.first_name }} {% if member.middle_initial %}{{ member.middle_initial }}.{% endif %} {{ member.last_name }}
+          </label>
+        {% endfor %}
+      </div>
+      <div style="margin-top: 0.75rem;">
+        <button class="button" type="button" id="print-family-nametags">Print selected nametags</button>
+      </div>
+      <script>
+        (function () {
+          const selectAll = document.getElementById("select-all-members");
+          const printButton = document.getElementById("print-family-nametags");
+          const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value || "";
+          if (selectAll) {
+            selectAll.addEventListener("change", () => {
+              const boxes = document.querySelectorAll("input[name='person_ids']");
+              boxes.forEach((box) => {
+                box.checked = selectAll.checked;
+              });
+            });
+          }
+          if (!printButton) return;
+          printButton.addEventListener("click", () => {
+            const boxes = Array.from(document.querySelectorAll("input[name='person_ids']"));
+            const selected = boxes.filter((box) => box.checked).map((box) => box.value);
+            if (!selected.length) {
+              alert("Select at least one person.");
+              return;
+            }
+            const formData = new FormData();
+            formData.append("csrfmiddlewaretoken", csrfToken);
+            selected.forEach((id) => formData.append("person_ids", id));
+            fetch("/admin/print-selected/", {
+              method: "POST",
+              body: formData,
+              headers: { "X-Requested-With": "XMLHttpRequest" },
+            })
+              .then((resp) => {
+                return resp.json();
+              })
+              .then((data) => {
+                if (data.print_url) {
+                  window.open(data.print_url, "_blank", "noopener,noreferrer");
+                } else {
+                  alert("Print failed.");
+                }
+              })
+              .catch(() => {
+                alert("Print failed.");
+              });
+          });
+        })();
+      </script>
+    {% else %}
+      <p>No family members found.</p>
+    {% endif %}
+  </div>
+{% endblock %}

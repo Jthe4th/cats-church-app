@@ -1,0 +1,176 @@
+#header {
+  background: var(--brand-primary);
+}
+
+#branding h1 a,
+#user-tools a {
+  color: #ffffff;
+}
+
+#user-tools a:focus,
+#user-tools a:hover {
+  color: var(--brand-accent);
+}
+
+.module caption,
+.module h2 {
+  background: var(--brand-primary);
+}
+
+.module caption a,
+.module h2 a {
+  color: #ffffff;
+}
+
+body,
+.content,
+.module,
+.module table,
+.results table {
+  color: #f2f2f2;
+}
+
+body {
+  background: #121316;
+}
+
+.admin-dashboard {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-left .module {
+  margin-bottom: 1rem;
+}
+
+.admin-right .module {
+  margin-bottom: 1rem;
+}
+
+.admin-left {
+  max-width: 320px;
+}
+
+.admin-right {
+  min-width: 0;
+}
+
+.admin-kiosk {
+  background: radial-gradient(circle at top, #24272d 0%, #14161a 60%);
+  border: 1px solid #2e323a;
+  border-radius: 1.5rem;
+  padding: 2.5rem 3rem 3rem;
+  min-height: 520px;
+}
+
+.admin-kiosk-header h2 {
+  margin: 0;
+  font-size: 2.5rem;
+}
+
+.admin-kiosk-header p {
+  margin: 0.5rem 0 1.5rem;
+  color: #c8cdd8;
+}
+
+.admin-kiosk-logo {
+  max-width: 220px;
+  width: 55%;
+  height: auto;
+  margin-bottom: 1rem;
+}
+
+.admin-search {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.admin-search input {
+  flex: 1;
+  padding: 0.85rem 1.2rem;
+  font-size: 1.2rem;
+  border-radius: 0.9rem;
+  border: 1px solid #2e323a;
+  background: #101318;
+  color: #f2f2f2;
+}
+
+.admin-search-results {
+  margin-top: 1.2rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.result-card {
+  background: #17191d;
+  border: 1px solid #2e323a;
+  border-radius: 0.9rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: #e6f0ff;
+}
+
+.member-row .muted {
+  color: #9aa3b2;
+}
+
+.module,
+.results,
+.results table {
+  background: #1b1d21;
+}
+
+.results table thead th,
+.results table tbody td,
+.module table thead th,
+.module table tbody td {
+  border-color: #2e323a;
+}
+
+.results table tbody tr:nth-child(odd) td {
+  background: #17191d;
+}
+
+.results table tbody tr:hover td {
+  background: #22252b;
+}
+
+.form-row input,
+.form-row select,
+.form-row textarea {
+  background: #121316;
+  color: #f2f2f2;
+  border-color: #2e323a;
+}
+
+.button,
+input[type=\"submit\"],
+input[type=\"button\"] {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #ffffff;
+}

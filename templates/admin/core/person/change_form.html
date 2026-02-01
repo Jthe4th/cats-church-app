@@ -1,0 +1,95 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_related_objects %}
+  {{ block.super }}
+
+  <div class="module">
+    <h2>Print Nametag</h2>
+    <button class="button" type="button" id="print-person-nametag">Print nametag</button>
+  </div>
+
+  <div class="module">
+    <h2>Attendance History</h2>
+    {% if attendances %}
+      <div class="results">
+        <table>
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Date</th>
+              <th>Check-in Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for attendance in attendances %}
+              <tr>
+                <td>{{ attendance.service.label }}</td>
+                <td>{{ attendance.service.date }}</td>
+                <td>{{ attendance.checked_in_at|date:"M d, Y g:i A" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>No attendance recorded yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="module">
+    <h2>Possible Duplicates</h2>
+    {% if possible_duplicates %}
+      <div class="results">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for person in possible_duplicates %}
+              <tr>
+                <td><a href="/admin/core/person/{{ person.id }}/change/">{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</a></td>
+                <td>{{ person.phone }}</td>
+                <td>{{ person.email }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>No potential duplicates found.</p>
+    {% endif %}
+  </div>
+
+  <script>
+    (function () {
+      const printButton = document.getElementById("print-person-nametag");
+      const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value || "";
+      if (!printButton) return;
+      printButton.addEventListener("click", () => {
+        const formData = new FormData();
+        formData.append("csrfmiddlewaretoken", csrfToken);
+        formData.append("person_ids", "{{ original.id }}");
+        fetch("/admin/print-selected/", {
+          method: "POST",
+          body: formData,
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        })
+          .then((resp) => resp.json())
+          .then((data) => {
+            if (data.print_url) {
+              window.open(data.print_url, "_blank", "noopener,noreferrer");
+            } else {
+              alert("Print failed.");
+            }
+          })
+          .catch(() => {
+            alert("Print failed.");
+          });
+      });
+    })();
+  </script>
+{% endblock %}

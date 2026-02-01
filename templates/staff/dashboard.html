@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CATS Staff Dashboard</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/admin/css/base.css" />
+  <link rel="stylesheet" href="/static/admin/css/dashboard.css" />
+  <link rel="stylesheet" href="/static/css/theme.css" />
+  <link rel="stylesheet" href="/static/css/kiosk.css" />
+  <link rel="stylesheet" href="/static/css/staff.css" />
+</head>
+<body class="kiosk-body">
+  <main class="container-fluid py-4">
+    <form method="post" style="display:none;">
+      {% csrf_token %}
+    </form>
+    <div class="staff-layout">
+      <aside class="staff-nav">
+        {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+        <a class="staff-link mt-3" href="/admin/missing-members/">Missing Members</a>
+      </aside>
+
+      <section class="staff-main">
+        <div class="admin-kiosk">
+          <div class="staff-actions">
+            <a class="btn btn-outline-secondary" href="/admin/core/person/">Manage People</a>
+            <a class="btn btn-outline-secondary" href="/admin/core/person/add/">Add Person</a>
+            <a class="btn btn-outline-secondary" href="/admin/core/family/">Manage Families</a>
+            <a class="btn btn-outline-secondary" href="/admin/core/family/add/">Add Family</a>
+            <a class="btn btn-outline-secondary" href="/admin/core/service/">Manage Church Services</a>
+            <a class="btn btn-outline-secondary" href="/admin/core/service/add/">Add Service</a>
+          </div>
+          <div class="admin-kiosk-header text-center">
+            <img class="admin-kiosk-logo mb-3" src="/static/img/EC-SDA-Church_Stacked_Final.png" alt="Church logo" />
+            <h1 class="display-5 fw-bold">Welcome</h1>
+            <p class="lead">Type a last name to check in.</p>
+          </div>
+
+          <div class="admin-search">
+            <input id="admin-search-q" type="text" placeholder="Last name" autocomplete="off" />
+            <button class="btn btn-outline-secondary" type="button" id="admin-search-clear">Clear</button>
+          </div>
+
+          <div class="results admin-search-results" id="admin-search-results">
+            <p class="quiet">Start typing to see matches.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("admin-search-q");
+      const results = document.getElementById("admin-search-results");
+      const clearButton = document.getElementById("admin-search-clear");
+      const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value || "";
+      if (!input || !results) return;
+
+      let timer;
+      const renderResults = (groups) => {
+        if (!groups.length) {
+          results.innerHTML = '<p class="quiet">No matches.</p>';
+          return;
+        }
+
+        const cards = groups
+          .map((group) => {
+            const title = group.family_name
+              ? `<div class="fw-semibold">${group.family_name}</div>`
+              : `<div class="fw-semibold">${group.members[0].name}</div>`;
+            const memberRows = group.members
+              .map((member) => {
+                return `
+                  <label class="member-row">
+                    <input class="form-check-input" type="checkbox" name="person_ids" value="${member.id}" checked />
+                    <span>${member.name}</span>
+                  </label>
+                `;
+              })
+              .join("");
+            return `
+              <div class="result-card">
+                <form method="post" action="/admin/print-selected/" class="result-form">
+                  <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}" />
+                  <input type="hidden" name="primary_person_id" value="${group.primary_id}" />
+                  <div class="result-header">
+                    ${title}
+                    <button class="btn btn-success" type="submit">Print Nametags</button>
+                  </div>
+                  <div class="member-list">
+                    ${memberRows}
+                  </div>
+                </form>
+              </div>
+            `;
+          })
+          .join("");
+        results.innerHTML = cards;
+      };
+
+      const doSearch = () => {
+        const value = input.value.trim();
+        if (value.length < 3) {
+          results.innerHTML = '<p class="quiet">Type at least 3 letters.</p>';
+          return;
+        }
+        const url = "/staff/people/search-groups/?q=" + encodeURIComponent(value);
+        fetch(url)
+          .then((resp) => resp.json())
+          .then((data) => renderResults(data.groups || []))
+          .catch(() => {
+            results.innerHTML = '<p class="quiet">Search failed.</p>';
+          });
+      };
+
+      input.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(doSearch, 250);
+      });
+
+      clearButton.addEventListener("click", () => {
+        input.value = "";
+        results.innerHTML = '<p class="quiet">Start typing to see matches.</p>';
+        input.focus();
+      });
+    });
+  </script>
+</body>
+</html>

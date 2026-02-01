@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Print Name Tags</title>
+  <link rel="stylesheet" href="/static/css/print.css" />
+</head>
+<body class="print-body batch-print" onload="window.print()">
+  {% for attendance in attendances %}
+    <div class="tag tag-page">
+      <div class="tag-name" data-name="{{ attendance.person.first_name }} {{ attendance.person.last_name }}">
+        {{ attendance.person.first_name }} {{ attendance.person.last_name }}
+      </div>
+      <div class="tag-sub"></div>
+    </div>
+  {% endfor %}
+  <script>
+    (function () {
+      const names = document.querySelectorAll(".tag-name");
+      names.forEach((nameEl) => {
+        const text = nameEl.textContent || "";
+        if (text.length > 28) {
+          nameEl.classList.add("tiny");
+        } else if (text.length > 20) {
+          nameEl.classList.add("small");
+        }
+      });
+    })();
+    window.addEventListener("afterprint", () => {
+      window.location.href = "/kiosk/";
+    });
+    setTimeout(() => {
+      window.location.href = "/kiosk/";
+    }, 3000);
+  </script>
+</body>
+</html>
