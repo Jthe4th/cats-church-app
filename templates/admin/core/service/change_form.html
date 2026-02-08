@@ -4,82 +4,14 @@
   {{ block.super }}
 
   <div class="module">
-    <h2>Attendees ({{ attendee_count }})</h2>
-    {% if attendees %}
-      <div class="results">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Check-in Time</th>
-              <th>Family</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for attendance in attendees %}
-              <tr>
-                <td>{{ attendance.person.first_name }} {% if attendance.person.middle_initial %}{{ attendance.person.middle_initial }}.{% endif %} {{ attendance.person.last_name }}</td>
-                <td>{{ attendance.checked_in_at|date:"M d, Y g:i A" }}</td>
-                <td>{% if attendance.person.family %}{{ attendance.person.family.name }}{% else %}-{% endif %}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p>No attendees recorded yet.</p>
-    {% endif %}
-  </div>
-
-  <div class="module">
-    <h2>Missing Members ({{ missing_member_count }})</h2>
-    {% if missing_members %}
-      <div class="results">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Address</th>
-              <th>City</th>
-              <th>State/Province</th>
-              <th>Postal Code</th>
-              <th>Country</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for person in missing_members %}
-              <tr>
-                <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
-                <td>{{ person.phone }}</td>
-                <td>{{ person.email }}</td>
-                <td>{{ person.street_address }}</td>
-                <td>{{ person.city }}</td>
-                <td>{{ person.state_province }}</td>
-                <td>{{ person.postal_code }}</td>
-                <td>{{ person.country }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <p>
-        <a class="button" href="/admin/missing-members/?format=csv">Export CSV</a>
-      </p>
-    {% else %}
-      <p>All active members checked in for this service.</p>
-    {% endif %}
-  </div>
-
-  <div class="module">
-    <h2>First-Time Visitors ({{ first_time_visitor_count }})</h2>
+    <h2>First-Time Visitors (<span id="first-time-count">{{ first_time_visitor_count }}</span>)</h2>
     {% if first_time_visitors %}
       <div class="results">
         <table>
           <thead>
             <tr>
               <th>Name</th>
+              <th>Check in</th>
               <th>Phone</th>
               <th>Email</th>
               <th>Address</th>
@@ -105,8 +37,138 @@
           </tbody>
         </table>
       </div>
+      <p>
+        <a class="button" href="{{ request.path }}?export=first_time">Export CSV</a>
+      </p>
     {% else %}
       <p>No first-time visitors for this service.</p>
     {% endif %}
   </div>
+
+  <div class="module">
+    <h2>Attendees (<span id="attendee-count">{{ attendee_count }}</span>)</h2>
+    {% if attendees %}
+      <div class="results">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Check-in Time</th>
+              <th>Family</th>
+            </tr>
+          </thead>
+          <tbody id="attendee-body">
+            {% for attendance in attendees %}
+              <tr>
+                <td>{{ attendance.person.first_name }} {% if attendance.person.middle_initial %}{{ attendance.person.middle_initial }}.{% endif %} {{ attendance.person.last_name }}</td>
+                <td>{{ attendance.checked_in_at|date:"M d, Y g:i A" }}</td>
+                <td>{% if attendance.person.family %}{{ attendance.person.family.name }}{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <a class="button" href="{{ request.path }}?export=attendees">Export CSV</a>
+      </p>
+    {% else %}
+      <p>No attendees recorded yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="module">
+    <h2>Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</h2>
+    {% if missing_members %}
+      <div class="results">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Address</th>
+              <th>City</th>
+              <th>State/Province</th>
+              <th>Postal Code</th>
+              <th>Country</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for person in missing_members %}
+              <tr>
+                <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
+                <td>
+                  <form method="post" class="checkin-form" data-name="{{ person.first_name }}{% if person.middle_initial %} {{ person.middle_initial }}.{% endif %} {{ person.last_name }}" data-family="{% if person.family %}{{ person.family.name }}{% endif %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="check_in_missing" />
+                    <input type="hidden" name="person_id" value="{{ person.id }}" />
+                    <button class="button" type="submit">Check in</button>
+                  </form>
+                </td>
+                <td>{{ person.phone }}</td>
+                <td>{{ person.email }}</td>
+                <td>{{ person.street_address }}</td>
+                <td>{{ person.city }}</td>
+                <td>{{ person.state_province }}</td>
+                <td>{{ person.postal_code }}</td>
+                <td>{{ person.country }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <a class="button" href="/admin/missing-members/?format=csv">Export CSV</a>
+      </p>
+    {% else %}
+      <p>All active members checked in for this service.</p>
+    {% endif %}
+  </div>
+
+  <script>
+    (function () {
+      const forms = document.querySelectorAll(".checkin-form");
+      forms.forEach((formEl) => {
+        formEl.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const formData = new FormData(formEl);
+          fetch(window.location.href, {
+            method: "POST",
+            body: formData,
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Check-in failed.");
+              }
+          const row = formEl.closest("tr");
+          if (row) {
+            row.remove();
+          }
+          const missingCount = document.getElementById("missing-count");
+          if (missingCount) {
+            const current = parseInt(missingCount.textContent || "0", 10);
+            missingCount.textContent = Math.max(current - 1, 0).toString();
+          }
+          const attendeeBody = document.getElementById("attendee-body");
+          const attendeeCount = document.getElementById("attendee-count");
+          if (attendeeBody) {
+            const name = formEl.dataset.name || "New attendee";
+            const family = formEl.dataset.family || "-";
+            const newRow = document.createElement("tr");
+            newRow.innerHTML = `<td>${name}</td><td>Just now</td><td>${family || "-"}</td>`;
+            attendeeBody.appendChild(newRow);
+            if (attendeeCount) {
+              const current = parseInt(attendeeCount.textContent || "0", 10);
+              attendeeCount.textContent = (current + 1).toString();
+            }
+          }
+        })
+            .catch(() => {
+              formEl.submit();
+            });
+        });
+      });
+    })();
+  </script>
 {% endblock %}

@@ -4,30 +4,71 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Print Name Tag</title>
-  <link rel="stylesheet" href="/static/css/print.css" />
+  <link rel="stylesheet" href="/static/css/print.css?v=20250205" />
 </head>
-<body class="print-body single-print" onload="window.print()">
+<body class="print-body single-print" style="font-family: {{ label_font }}, sans-serif;">
+  <div class="print-controls" {% if auto_print or iframe_mode %}style="display:none" aria-hidden="true"{% endif %}>
+    <button class="btn btn-primary" type="button" id="print-now">Print now</button>
+    <a class="btn btn-outline-secondary" href="/kiosk/">Back to kiosk</a>
+  </div>
   <div class="tag">
-    <div class="tag-name" id="tag-name">{{ attendance.person.first_name }} {{ attendance.person.last_name }}</div>
-    <div class="tag-sub"></div>
+    <div class="tag-first" id="tag-first" style="color: {{ first_name_color }};">{{ attendance.person.first_name|upper }}</div>
+    {% if not hide_last_name %}
+      <div class="tag-last" id="tag-last" style="color: {{ last_name_color }};">{{ attendance.person.last_name|upper }}</div>
+    {% endif %}
   </div>
   <script>
     (function () {
-      const nameEl = document.getElementById("tag-name");
-      if (!nameEl) return;
-      const text = nameEl.textContent || "";
-      if (text.length > 28) {
-        nameEl.classList.add("tiny");
-      } else if (text.length > 20) {
-        nameEl.classList.add("small");
+      const autoPrint = {{ auto_print|yesno:"true,false" }};
+      const printButton = document.getElementById("print-now");
+      if (autoPrint) {
+        if (printButton) {
+          printButton.closest(".print-controls").style.display = "none";
+        }
+        window.print();
+      } else if (printButton) {
+        printButton.addEventListener("click", () => window.print());
+      }
+      const firstEl = document.getElementById("tag-first");
+      const lastEl = document.getElementById("tag-last");
+      if (!firstEl) return;
+      const firstText = firstEl.textContent || "";
+      const lastText = lastEl ? lastEl.textContent || "" : "";
+      if (firstText.length > 14) {
+        firstEl.classList.add("tiny");
+      } else if (firstText.length > 10) {
+        firstEl.classList.add("small");
+      }
+      if (lastEl) {
+        if (lastText.length > 12) {
+          lastEl.classList.add("tiny");
+        } else if (lastText.length > 9) {
+          lastEl.classList.add("small");
+        }
       }
     })();
+    const nextUrl = "{{ next_url|escapejs }}";
+    const iframeMode = {{ iframe_mode|yesno:"true,false" }};
+    const returnToKiosk = () => {
+      window.location.href = nextUrl || "/kiosk/";
+    };
+    const notifyParent = () => {
+      if (iframeMode && window.parent) {
+        window.parent.postMessage({ type: "kiosk-print-done" }, "*");
+      }
+    };
     window.addEventListener("afterprint", () => {
-      window.location.href = "/kiosk/";
+      if (iframeMode) {
+        notifyParent();
+        return;
+      }
+      if ({{ auto_print|yesno:"true,false" }}) {
+        returnToKiosk();
+      }
     });
-    setTimeout(() => {
-      window.location.href = "/kiosk/";
-    }, 3000);
+    if (!iframeMode) {
+      setTimeout(returnToKiosk, 5000);
+    }
   </script>
 </body>
 </html>

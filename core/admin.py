@@ -1,9 +1,12 @@
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.models import Group
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import redirect
 from django.utils.html import format_html
+import csv
 
-from .models import Attendance, Family, Person, Service, Tag
+from .models import Attendance, Family, Person, Service, SystemSetting, Tag
 
 
 class PersonInline(admin.TabularInline):
@@ -88,6 +91,16 @@ class ServiceAdmin(admin.ModelAdmin):
         missing_members = []
         first_time_visitors = []
         if object_id:
+            if request.method == "POST" and request.POST.get("action") == "check_in_missing":
+                person_id = request.POST.get("person_id")
+                if person_id and person_id.isdigit():
+                    Attendance.objects.get_or_create(
+                        person_id=int(person_id),
+                        service_id=object_id,
+                    )
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                    return HttpResponse(status=204)
+                return redirect(request.path)
             service = Service.objects.filter(id=object_id).first()
             attendees = list(
                 Attendance.objects.filter(service_id=object_id)
@@ -110,6 +123,81 @@ class ServiceAdmin(admin.ModelAdmin):
                     .exclude(id__in=prior_attendance_ids)
                     .order_by("last_name", "first_name")
                 )
+            export = request.GET.get("export")
+            if export in {"attendees", "first_time"} and service:
+                response = HttpResponse(content_type="text/csv; charset=utf-8")
+                suffix = "attendees" if export == "attendees" else "first_time_visitors"
+                response["Content-Disposition"] = (
+                    f'attachment; filename="{suffix}_{service.date}.csv"'
+                )
+                response.write("\ufeff")
+                writer = csv.writer(response)
+                if export == "attendees":
+                    writer.writerow(
+                        [
+                            "First Name",
+                            "Middle Initial",
+                            "Last Name",
+                            "Check-in Time",
+                            "Family",
+                            "Phone",
+                            "Email",
+                            "Address",
+                            "City",
+                            "State/Province",
+                            "Postal Code",
+                            "Country",
+                        ]
+                    )
+                    for attendance in attendees:
+                        person = attendance.person
+                        writer.writerow(
+                            [
+                                person.first_name,
+                                person.middle_initial or "",
+                                person.last_name,
+                                attendance.checked_in_at.isoformat() if attendance.checked_in_at else "",
+                                person.family.name if person.family else "",
+                                person.phone or "",
+                                person.email or "",
+                                person.street_address or "",
+                                person.city or "",
+                                person.state_province or "",
+                                person.postal_code or "",
+                                person.country or "",
+                            ]
+                        )
+                else:
+                    writer.writerow(
+                        [
+                            "First Name",
+                            "Middle Initial",
+                            "Last Name",
+                            "Phone",
+                            "Email",
+                            "Address",
+                            "City",
+                            "State/Province",
+                            "Postal Code",
+                            "Country",
+                        ]
+                    )
+                    for person in first_time_visitors:
+                        writer.writerow(
+                            [
+                                person.first_name,
+                                person.middle_initial or "",
+                                person.last_name,
+                                person.phone or "",
+                                person.email or "",
+                                person.street_address or "",
+                                person.city or "",
+                                person.state_province or "",
+                                person.postal_code or "",
+                                person.country or "",
+                            ]
+                        )
+                return response
         extra_context["attendees"] = attendees
         extra_context["attendee_count"] = len(attendees)
         extra_context["missing_members"] = missing_members
@@ -148,3 +236,33 @@ admin.site.unregister(Group)
 class TagAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
+
+
+@admin.register(SystemSetting)
+class SystemSettingAdmin(admin.ModelAdmin):
+    list_display = ("key", "value")
+    search_fields = ("key", "value")
+    change_form_template = "admin/core/systemsetting/change_form.html"
+
+    class Form(forms.ModelForm):
+        FONT_CHOICES = [
+            ("Arial", "Arial"),
+            ("Helvetica", "Helvetica"),
+            ("Georgia", "Georgia"),
+            ("Times New Roman", "Times New Roman"),
+            ("Trebuchet MS", "Trebuchet MS"),
+            ("Verdana", "Verdana"),
+        ]
+
+        class Meta:
+            model = SystemSetting
+            fields = "__all__"
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            if self.instance and self.instance.key == "label_font":
+                self.fields["value"] = forms.ChoiceField(choices=self.FONT_CHOICES)
+                for value, _label in self.FONT_CHOICES:
+                    self.fields["value"].widget.choices = self.FONT_CHOICES
+
+    form = Form

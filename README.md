@@ -43,6 +43,12 @@ Cross-platform helpers that create a venv, install deps, run migrations, and sta
 - macOS/Linux: `./scripts/run_dev.sh`
 - Windows (PowerShell): `scripts\run_dev.ps1`
 
+## Starting/Restarting The Server
+- Start (macOS/Linux): `source .venv/bin/activate` then `python manage.py runserver 0.0.0.0:8000`
+- Start (Windows): `.\.venv\Scripts\activate` then `python manage.py runserver 0.0.0.0:8000`
+- Stop: press `Ctrl+C` in the terminal where the server is running
+- Restart: stop with `Ctrl+C`, then run the start command again
+
 ## Printing
 Label sizing is controlled in `static/css/print.css`. Batch printing uses one label per page and auto-returns to `/kiosk/` after printing. Update the `@page` size once the printer model is confirmed.
 

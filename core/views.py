@@ -7,9 +7,12 @@ import csv
 from django.contrib import admin
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from .forms import PersonForm
 from .models import Attendance, Person, Service
+from .settings_store import get_setting
 
 
 def _service_label(service_date: date) -> str:
@@ -28,6 +31,8 @@ def _get_or_create_service() -> Service:
 def checkin(request, *, kiosk_mode: bool = False):
     query = request.GET.get("q", "").strip()
     match_groups = []
+    auto_print = get_setting("kiosk_print_mode", "No").strip().lower() in {"yes", "true", "1"}
+    iframe_print = get_setting("kiosk_print_iframe", "No").strip().lower() in {"yes", "true", "1"}
     if query:
         matches = (
             Person.objects.filter(
@@ -79,7 +84,11 @@ def checkin(request, *, kiosk_mode: bool = False):
                     )
                     attendance_ids.append(attendance.id)
                 ids_param = ",".join(str(aid) for aid in attendance_ids)
-                return redirect(f"/print-batch/?ids={ids_param}")
+                auto_param = "&auto=1" if auto_print else ""
+                print_url = f"/print-batch/?ids={ids_param}{auto_param}"
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                    return JsonResponse({"print_url": print_url})
+                return redirect(print_url)
         else:
             person_id = request.POST.get("person_id")
             if person_id:
@@ -112,7 +121,12 @@ def checkin(request, *, kiosk_mode: bool = False):
                 person=person,
                 service=service,
             )
-            return redirect("print_tag", attendance_id=attendance.id)
+            url = reverse("print_tag", kwargs={"attendance_id": attendance.id})
+            if auto_print:
+                url = f"{url}?auto=1"
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"print_url": url})
+            return redirect(url)
 
     return render(
         request,
@@ -121,6 +135,7 @@ def checkin(request, *, kiosk_mode: bool = False):
             "query": query,
             "match_groups": match_groups,
             "kiosk_mode": kiosk_mode,
+            "iframe_print": iframe_print,
         },
     )
 
@@ -129,18 +144,88 @@ def kiosk(request):
     return checkin(request, kiosk_mode=True)
 
 
+@xframe_options_sameorigin
 def print_tag(request, attendance_id: int):
     attendance = get_object_or_404(Attendance, pk=attendance_id)
-    return render(request, "kiosk/print.html", {"attendance": attendance})
+    hide_last_name = get_setting("hide_last_name", "No").strip().lower() in {"yes", "true", "1"}
+    auto_print = request.GET.get("auto") == "1"
+    iframe_mode = request.GET.get("iframe") == "1"
+    next_raw = request.GET.get("next", "")
+    next_ids = [value for value in next_raw.split(",") if value.isdigit()]
+    next_url = ""
+    if next_ids:
+        next_id = int(next_ids[0])
+        remaining = ",".join(next_ids[1:])
+        params = []
+        if auto_print:
+            params.append("auto=1")
+        if iframe_mode:
+            params.append("iframe=1")
+        if remaining:
+            params.append(f"next={remaining}")
+        query = "&".join(params)
+        next_url = reverse("print_tag", kwargs={"attendance_id": next_id})
+        if query:
+            next_url = f"{next_url}?{query}"
+    return render(
+        request,
+        "kiosk/print.html",
+        {
+            "attendance": attendance,
+            "first_name_color": get_setting("first_name_color", "#000000"),
+            "last_name_color": get_setting("last_name_color", "#000000"),
+            "hide_last_name": hide_last_name,
+            "label_font": get_setting("label_font", "Arial"),
+            "auto_print": auto_print,
+            "next_url": next_url,
+            "iframe_mode": iframe_mode,
+        },
+    )
 
 
+@xframe_options_sameorigin
 def print_batch(request):
     ids_raw = request.GET.get("ids", "")
     ids = [int(value) for value in ids_raw.split(",") if value.isdigit()]
     attendances = list(Attendance.objects.filter(id__in=ids).select_related("person", "service"))
     attendance_by_id = {att.id: att for att in attendances}
     ordered = [attendance_by_id[att_id] for att_id in ids if att_id in attendance_by_id]
-    return render(request, "kiosk/print_batch.html", {"attendances": ordered})
+    hide_last_name = get_setting("hide_last_name", "No").strip().lower() in {"yes", "true", "1"}
+    auto_print = request.GET.get("auto") == "1"
+    iframe_mode = request.GET.get("iframe") == "1"
+    ua = request.META.get("HTTP_USER_AGENT", "")
+    serial = request.GET.get("serial") == "1"
+    if not serial and "Chrome/109" in ua and "Windows NT 6.1" in ua:
+        serial = True
+    if serial and ordered:
+        ids_list = [att.id for att in ordered]
+        first_id = ids_list[0]
+        remaining = ",".join(str(att_id) for att_id in ids_list[1:])
+        params = []
+        if auto_print:
+            params.append("auto=1")
+        if iframe_mode:
+            params.append("iframe=1")
+        if remaining:
+            params.append(f"next={remaining}")
+        query = "&".join(params)
+        url = reverse("print_tag", kwargs={"attendance_id": first_id})
+        if query:
+            url = f"{url}?{query}"
+        return redirect(url)
+    return render(
+        request,
+        "kiosk/print_batch.html",
+        {
+            "attendances": ordered,
+            "first_name_color": get_setting("first_name_color", "#000000"),
+            "last_name_color": get_setting("last_name_color", "#000000"),
+            "hide_last_name": hide_last_name,
+            "label_font": get_setting("label_font", "Arial"),
+            "auto_print": auto_print,
+            "iframe_mode": iframe_mode,
+        },
+    )
 
 
 def _is_staff(user) -> bool:

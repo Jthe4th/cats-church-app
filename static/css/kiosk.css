@@ -1,16 +1,16 @@
 .kiosk-body {
   background: radial-gradient(circle at top, #ffffff 0%, var(--brand-bg) 60%);
   min-height: 100vh;
-  --kiosk-scale: 1;
+  --kiosk-scale: 1.12;
   font-size: calc(16px * var(--kiosk-scale));
 }
 
 .kiosk-body .display-4 {
-  font-size: calc(4.5rem * var(--kiosk-scale));
+  font-size: calc(3.2rem * var(--kiosk-scale));
 }
 
 .kiosk-body .lead {
-  font-size: calc(1.6rem * var(--kiosk-scale));
+  font-size: calc(1.75rem * var(--kiosk-scale));
 }
 
 .kiosk-body .btn,
@@ -26,7 +26,7 @@
 .kiosk-body h6,
 .kiosk-body small,
 .kiosk-body .kb-key {
-  font-size: calc(1.3rem * var(--kiosk-scale));
+  font-size: calc(1.45rem * var(--kiosk-scale));
 }
 
 .card {
@@ -34,19 +34,19 @@
 }
 
 input.form-control-lg {
-  height: calc(3.5rem * var(--kiosk-scale));
-  font-size: calc(1.25rem * var(--kiosk-scale));
+  height: calc(3.9rem * var(--kiosk-scale));
+  font-size: calc(1.5rem * var(--kiosk-scale));
 }
 
 .kiosk-logo {
-  max-width: 240px;
+  max-width: 200px;
   width: 60%;
   height: auto;
-  margin-top: -1.5rem;
+  margin-top: -0.75rem;
 }
 
 #kiosk-title {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .status-dot {
@@ -65,6 +65,64 @@ input.form-control-lg {
   display: none;
 }
 
+.print-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 14, 0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1050;
+}
+
+.print-modal.is-visible {
+  display: flex;
+}
+
+.print-modal-content {
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  max-width: 900px;
+  width: min(92vw, 900px);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.print-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.print-modal iframe {
+  width: 100%;
+  height: 60vh;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.print-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.dark-mode .print-modal-content {
+  background: #1b1f26;
+  color: #f7f7f7;
+}
+
+.dark-mode .print-modal iframe {
+  border-color: #343a44;
+  background: #101318;
+}
+
 .kiosk-keyboard {
   display: flex;
   flex-direction: column;
@@ -79,12 +137,12 @@ input.form-control-lg {
 }
 
 .kb-key {
-  min-width: calc(3.75rem * var(--kiosk-scale));
-  padding: calc(0.95rem * var(--kiosk-scale)) calc(1.3rem * var(--kiosk-scale));
+  min-width: calc(4.9rem * var(--kiosk-scale));
+  padding: calc(1.35rem * var(--kiosk-scale)) calc(1.9rem * var(--kiosk-scale));
   border-radius: 0.75rem;
   border: 2px solid #d0d7de;
   background: #ffffff;
-  font-size: calc(1.35rem * var(--kiosk-scale));
+  font-size: calc(2rem * var(--kiosk-scale));
   font-weight: 600;
 }
 
@@ -93,15 +151,15 @@ input.form-control-lg {
 }
 
 .kb-backspace {
-  min-width: calc(10rem * var(--kiosk-scale));
+  min-width: calc(14.3rem * var(--kiosk-scale));
 }
 
 .kb-space {
-  min-width: calc(15rem * var(--kiosk-scale));
+  min-width: calc(21.5rem * var(--kiosk-scale));
 }
 
 .kb-clear {
-  min-width: calc(7.5rem * var(--kiosk-scale));
+  min-width: calc(10.7rem * var(--kiosk-scale));
 }
 
 .dark-mode {
@@ -132,4 +190,52 @@ input.form-control-lg {
   background: #101318;
   color: #f7f7f7;
   border-color: #343a44;
+}
+
+@media (max-height: 800px) {
+  .kiosk-body .container {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .kiosk-logo {
+    max-width: 150px;
+  }
+
+  .kiosk-body .display-4 {
+    font-size: calc(2.4rem * var(--kiosk-scale));
+  }
+
+  .kiosk-body .lead {
+    font-size: calc(1.35rem * var(--kiosk-scale));
+  }
+
+  input.form-control-lg {
+    height: calc(3rem * var(--kiosk-scale));
+  }
+
+  .kiosk-keyboard {
+    gap: 0.35rem;
+  }
+
+  .kb-row {
+    gap: 0.35rem;
+  }
+
+  .kb-key {
+    min-width: calc(3.2rem * var(--kiosk-scale));
+    padding: calc(0.7rem * var(--kiosk-scale)) calc(1rem * var(--kiosk-scale));
+  }
+
+  .kb-backspace {
+    min-width: calc(8.5rem * var(--kiosk-scale));
+  }
+
+  .kb-space {
+    min-width: calc(12.5rem * var(--kiosk-scale));
+  }
+
+  .kb-clear {
+    min-width: calc(6.25rem * var(--kiosk-scale));
+  }
 }

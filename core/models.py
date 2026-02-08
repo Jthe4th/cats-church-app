@@ -1,3 +1,5 @@
+import re
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -12,6 +14,14 @@ class Family(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def clean(self):
+        if self.name:
+            self.name = re.sub(r"\s+family\s*$", "", self.name.strip(), flags=re.IGNORECASE)
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
 
 class Person(models.Model):
@@ -76,6 +86,18 @@ class Tag(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class SystemSetting(models.Model):
+    key = models.CharField(max_length=100, unique=True)
+    value = models.TextField(blank=True)
+    description = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["key"]
+
+    def __str__(self) -> str:
+        return self.key
 
 
 class Service(models.Model):

@@ -1,0 +1,23 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_related_objects %}
+  {{ block.super }}
+  {% if original and original.key == "label_font" %}
+    <div class="module">
+      <h2>Font Preview</h2>
+      <p id="font-preview" style="font-size: 20px;">Sample: John Doe</p>
+    </div>
+    <script>
+      (function () {
+        const select = document.querySelector("#id_value");
+        const preview = document.getElementById("font-preview");
+        if (!select || !preview) return;
+        const apply = () => {
+          preview.style.fontFamily = select.value + ", sans-serif";
+        };
+        select.addEventListener("change", apply);
+        apply();
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

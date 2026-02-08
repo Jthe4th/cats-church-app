@@ -1,5 +1,5 @@
 @page {
-  size: 2.5in 1.5in;
+  size: 2.4in 1.1in;
   margin: 0;
 }
 
@@ -8,12 +8,25 @@ html, body {
 }
 
 .single-print {
-  width: 2.5in;
-  height: 1.5in;
+  width: 2.4in;
+  height: 1.1in;
 }
 
 .print-body {
   font-family: "Arial", sans-serif;
+}
+
+.print-controls {
+  position: fixed;
+  top: 0.2in;
+  right: 0.2in;
+  z-index: 10;
+}
+
+@media print {
+  .print-controls {
+    display: none;
+  }
 }
 
 .single-print {
@@ -29,7 +42,7 @@ html, body {
 .tag {
   width: 100%;
   height: 100%;
-  padding: 0.2in;
+  padding: 0.125in;
   box-sizing: border-box;
   text-align: center;
   display: flex;
@@ -39,30 +52,47 @@ html, body {
 }
 
 .tag-page {
-  width: 2.5in;
-  height: 1.5in;
-  page-break-after: always;
-  break-after: page;
+  width: 2.4in;
+  height: 1.1in;
   break-inside: avoid;
 }
 
-.tag-page:last-child {
-  page-break-after: auto;
+@media print {
+  .tag-page {
+    page-break-after: auto;
+    break-after: auto;
+  }
 }
 
-.tag-name {
-  font-size: clamp(18pt, 10vw, 28pt);
-  font-weight: 700;
-  line-height: 1.1;
-  word-break: break-word;
+.tag-first {
+  font-size: clamp(22pt, 13vw, 36pt);
+  font-weight: 800;
+  line-height: 1.02;
+  max-width: 100%;
+  margin-bottom: 0.08in;
 }
 
-.tag-name.small {
+.tag-first.small {
+  font-size: 18pt;
+}
+
+.tag-first.tiny {
   font-size: 16pt;
 }
 
-.tag-name.tiny {
-  font-size: 13pt;
+.tag-last {
+  font-size: clamp(10pt, 6vw, 16pt);
+  font-weight: 600;
+  line-height: 1.1;
+  max-width: 100%;
+}
+
+.tag-last.small {
+  font-size: 9pt;
+}
+
+.tag-last.tiny {
+  font-size: 8pt;
 }
 
 .tag-sub {

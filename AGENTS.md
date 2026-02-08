@@ -105,3 +105,4 @@ Option B: Tauri (smaller)
 Future Enhancements
 - Add `/api/print-job/` endpoint so the native wrapper can trigger print jobs directly.
 - Add printer configuration UI (select printer, label size).
+- Add an on-screen “Exit kiosk” helper that explains how to safely exit Chrome kiosk mode when no keyboard is available (e.g., prompt staff to plug in a keyboard or use OS-level kiosk escape).
