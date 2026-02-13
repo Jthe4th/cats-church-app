@@ -19,6 +19,7 @@ urlpatterns = [
     path("", views.checkin, name="checkin"),
     path("kiosk/", views.kiosk, name="kiosk"),
     path("kiosk/logout/", views.kiosk_logout, name="kiosk_logout"),
+    path("kiosk/status/", views.kiosk_status, name="kiosk_status"),
     path("kiosk/search-groups/", views.kiosk_search_groups, name="kiosk_search_groups"),
     path("print/<int:attendance_id>/", views.print_tag, name="print_tag"),
     path("print-batch/", views.print_batch, name="print_batch"),

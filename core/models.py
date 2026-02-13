@@ -102,8 +102,16 @@ class SystemSetting(models.Model):
 
 
 class Service(models.Model):
+    OPEN = "open"
+    CLOSED = "closed"
+    STATUS_CHOICES = [
+        (OPEN, "Open"),
+        (CLOSED, "Closed"),
+    ]
+
     date = models.DateField()
     label = models.CharField(max_length=100, default="Sunday Service")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN)
     notes = models.TextField(blank=True)
 
     class Meta:

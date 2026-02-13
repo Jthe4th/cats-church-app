@@ -1,5 +1,5 @@
 # Repository Guidelines
-Current version: `0.6.1-alpha`
+Current version: `0.6.2-alpha`
 
 ## Project Direction
 CATS (Church Attendance Tracking System) is a lightweight, local-network, web-based check-in system. The primary goals are:
@@ -28,6 +28,7 @@ CATS (Church Attendance Tracking System) is a lightweight, local-network, web-ba
 
 ## Core Workflows
 - Kiosk check-in: greeter login -> search (last name or last 4 phone digits) -> select family members -> print or check in only
+- Service control: staff can close/reopen a service from Manage Church Service; closed services block kiosk check-in
 - Attendance tracking: one attendance record per person per service
 - Staff management: CRUD for families, people, services, attendance via Django admin
 - Kiosk batch print: select multiple people (family group) and print all nametags
@@ -48,7 +49,7 @@ CATS (Church Attendance Tracking System) is a lightweight, local-network, web-ba
 ## Data Model Notes
 - People can belong to a Family (optional) to track households.
 - Attendance links a Person to a Service (one per service).
-- Services default to the current date with a simple label (expandable later).
+- Services include a status (`open` or `closed`); past services default to `closed`.
 - Person fields include name (with middle initial), address, email, phone, birth month/day, and an optional photo file.
 
 ## UI and Accessibility
@@ -65,6 +66,7 @@ CATS (Church Attendance Tracking System) is a lightweight, local-network, web-ba
 - Show already-checked-in members with a visual status and allow reprint.
 - Disable “Check in only” when the full family is already checked in.
 - Open “I'm new here 🙂” as a modal instead of inline form.
+- If current service is closed, kiosk auto-logs out and check-in/search actions are blocked.
 
 ## Printing and Label Size
 - Print view uses `static/css/print.css` with `@page` sizing.

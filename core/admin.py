@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.contrib.auth.models import Group
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path
@@ -100,7 +100,7 @@ class PersonAdmin(admin.ModelAdmin):
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ("label", "date")
+    list_display = ("label", "date", "status")
     list_filter = ("label",)
     search_fields = ("label",)
     change_form_template = "admin/core/service/change_form.html"
@@ -111,7 +111,43 @@ class ServiceAdmin(admin.ModelAdmin):
         missing_members = []
         first_time_visitors = []
         if object_id:
+            if request.method == "POST" and request.POST.get("action") in {"close_service", "reopen_service"}:
+                service = Service.objects.filter(id=object_id).first()
+                if service:
+                    if request.POST.get("action") == "close_service":
+                        service.status = Service.CLOSED
+                    else:
+                        service.status = Service.OPEN
+                    service.save(update_fields=["status"])
+                return redirect(request.path)
+            if request.method == "GET" and request.GET.get("live_counts") == "1":
+                attended_ids = list(
+                    Attendance.objects.filter(service_id=object_id).values_list("person_id", flat=True)
+                )
+                service = Service.objects.filter(id=object_id).first()
+                first_time_count = 0
+                if service and attended_ids:
+                    prior_attendance_ids = Attendance.objects.filter(
+                        person_id__in=attended_ids,
+                        service__date__lt=service.date,
+                    ).values_list("person_id", flat=True)
+                    first_time_count = (
+                        Person.objects.filter(id__in=attended_ids, member_type=Person.VISITOR)
+                        .exclude(id__in=prior_attendance_ids)
+                        .count()
+                    )
+                return JsonResponse(
+                    {
+                        "attendee_count": len(attended_ids),
+                        "first_time_visitor_count": first_time_count,
+                    }
+                )
             if request.method == "POST" and request.POST.get("action") == "check_in_missing":
+                service = Service.objects.filter(id=object_id).first()
+                if service and service.status == Service.CLOSED:
+                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                        return HttpResponse(status=409)
+                    return redirect(request.path)
                 person_id = request.POST.get("person_id")
                 if person_id and person_id.isdigit():
                     Attendance.objects.get_or_create(
@@ -219,6 +255,9 @@ class ServiceAdmin(admin.ModelAdmin):
                         )
                 return response
         extra_context["attendees"] = attendees
+        extra_context["service_status"] = (
+            Service.objects.filter(id=object_id).values_list("status", flat=True).first() if object_id else Service.OPEN
+        )
         extra_context["attendee_count"] = len(attendees)
         extra_context["missing_members"] = missing_members
         extra_context["missing_member_count"] = len(missing_members)

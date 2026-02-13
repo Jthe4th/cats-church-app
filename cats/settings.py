@@ -2,7 +2,7 @@
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CATS_VERSION = "0.6.1-alpha"
+CATS_VERSION = "0.6.2-alpha"
 
 SECRET_KEY = "change-me-in-production"
 DEBUG = True

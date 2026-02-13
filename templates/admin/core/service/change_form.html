@@ -1,6 +1,109 @@
 {% extends "admin/change_form.html" %}
 
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    .cats-service-dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin: 0 0 16px;
+    }
+    .cats-service-card {
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: var(--darkened-bg);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .cats-service-label {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--body-quiet-color);
+      font-weight: 600;
+    }
+    .cats-service-value {
+      margin: 6px 0 0;
+      font-size: 32px;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--body-fg);
+    }
+    .cats-status-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--hairline-color);
+      background: var(--darkened-bg);
+    }
+    .cats-status-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .cats-status-pill-open {
+      background: #d8f5d6;
+      color: #1d6a1d;
+    }
+    .cats-status-pill-closed {
+      background: #f9d8d8;
+      color: #8d1c1c;
+    }
+  </style>
+{% endblock %}
+
+{% block content_title %}
+  <h1>Manage Church Service</h1>
+{% endblock %}
+
 {% block after_related_objects %}
+  <div class="cats-status-toolbar">
+    <div class="d-flex align-items-center gap-2">
+      <strong>Status:</strong>
+      <span class="cats-status-pill {% if service_status == 'closed' %}cats-status-pill-closed{% else %}cats-status-pill-open{% endif %}">
+        {{ service_status|title }}
+      </span>
+    </div>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      {% if service_status == "closed" %}
+        <button class="button" type="submit" name="action" value="reopen_service">Reopen service</button>
+      {% else %}
+        <button
+          class="button"
+          type="submit"
+          name="action"
+          value="close_service"
+          onclick="return confirm('Close this service? No more guests will be able to check in until it is reopened.');"
+        >
+          Close service
+        </button>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="cats-service-dashboard">
+    <div class="cats-service-card">
+      <p class="cats-service-label">Checked in</p>
+      <p class="cats-service-value" id="dashboard-attendee-count">{{ attendee_count }}</p>
+    </div>
+    <div class="cats-service-card">
+      <p class="cats-service-label">First-time visitors checked in</p>
+      <p class="cats-service-value" id="dashboard-first-time-count">{{ first_time_visitor_count }}</p>
+    </div>
+  </div>
+
   {{ block.super }}
 
   <div class="module">
@@ -79,6 +182,16 @@
   <div class="module">
     <h2>Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</h2>
     {% if missing_members %}
+      <p>
+        <label for="missing-search"><strong>Find person:</strong></label>
+        <input
+          id="missing-search"
+          type="text"
+          placeholder="Type first or last name..."
+          autocomplete="off"
+          style="max-width: 320px; margin-left: 8px;"
+        />
+      </p>
       <div class="results">
         <table>
           <thead>
@@ -95,15 +208,19 @@
           </thead>
           <tbody>
             {% for person in missing_members %}
-              <tr>
+              <tr class="missing-row" data-search="{{ person.first_name|lower }} {{ person.last_name|lower }} {% if person.middle_initial %}{{ person.middle_initial|lower }}{% endif %}">
                 <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
                 <td>
-                  <form method="post" class="checkin-form" data-name="{{ person.first_name }}{% if person.middle_initial %} {{ person.middle_initial }}.{% endif %} {{ person.last_name }}" data-family="{% if person.family %}{{ person.family.name }}{% endif %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="check_in_missing" />
-                    <input type="hidden" name="person_id" value="{{ person.id }}" />
-                    <button class="button" type="submit">Check in</button>
-                  </form>
+                  {% if service_status == "closed" %}
+                    <button class="button" type="button" disabled title="Service is closed">Check in</button>
+                  {% else %}
+                    <form method="post" class="checkin-form" data-name="{{ person.first_name }}{% if person.middle_initial %} {{ person.middle_initial }}.{% endif %} {{ person.last_name }}" data-family="{% if person.family %}{{ person.family.name }}{% endif %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="check_in_missing" />
+                      <input type="hidden" name="person_id" value="{{ person.id }}" />
+                      <button class="button" type="submit">Check in</button>
+                    </form>
+                  {% endif %}
                 </td>
                 <td>{{ person.phone }}</td>
                 <td>{{ person.email }}</td>
@@ -127,7 +244,46 @@
 
   <script>
     (function () {
+      const updateCountText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = String(value);
+        }
+      };
+
+      const pollCounts = () => {
+        fetch(`${window.location.pathname}?live_counts=1`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Count refresh failed");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            updateCountText("dashboard-attendee-count", data.attendee_count || 0);
+            updateCountText("dashboard-first-time-count", data.first_time_visitor_count || 0);
+            updateCountText("attendee-count", data.attendee_count || 0);
+            updateCountText("first-time-count", data.first_time_visitor_count || 0);
+          })
+          .catch(() => {});
+      };
+
+      pollCounts();
+      window.setInterval(pollCounts, 10000);
+
       const forms = document.querySelectorAll(".checkin-form");
+      const missingSearch = document.getElementById("missing-search");
+      if (missingSearch) {
+        missingSearch.addEventListener("input", () => {
+          const query = missingSearch.value.trim().toLowerCase();
+          document.querySelectorAll(".missing-row").forEach((row) => {
+            const haystack = row.dataset.search || "";
+            row.style.display = !query || haystack.includes(query) ? "" : "none";
+          });
+        });
+      }
       forms.forEach((formEl) => {
         formEl.addEventListener("submit", (event) => {
           event.preventDefault();
@@ -152,6 +308,7 @@
           }
           const attendeeBody = document.getElementById("attendee-body");
           const attendeeCount = document.getElementById("attendee-count");
+          const dashboardAttendeeCount = document.getElementById("dashboard-attendee-count");
           if (attendeeBody) {
             const name = formEl.dataset.name || "New attendee";
             const family = formEl.dataset.family || "-";
@@ -160,7 +317,11 @@
             attendeeBody.appendChild(newRow);
             if (attendeeCount) {
               const current = parseInt(attendeeCount.textContent || "0", 10);
-              attendeeCount.textContent = (current + 1).toString();
+              const next = (current + 1).toString();
+              attendeeCount.textContent = next;
+              if (dashboardAttendeeCount) {
+                dashboardAttendeeCount.textContent = next;
+              }
             }
           }
         })

@@ -1,5 +1,5 @@
 # CATS — Church Attendance Tracking System
-Version: `0.6.1-alpha`
+Version: `0.6.2-alpha`
 
 CATS is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance tracking, and printable name tags.
 

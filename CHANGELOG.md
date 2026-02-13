@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.2-alpha] - 2026-02-13
+- Added Church Service status (`open`/`closed`) with admin controls to close/reopen a service.
+- Defaulted existing past services to `closed` during migration.
+- Added a status toolbar on Manage Church Service with clear open/closed badge and action buttons.
+- Added live service dashboard counters for attendees and first-time visitors (auto-refresh every 10s).
+- Added live filter search box for the Not checked in / Missing list.
+- Blocked kiosk check-in/search when the service is closed and auto-logout kiosks when status changes to closed.
+- Added kiosk info menu service line (`Service: ...` or `No service open`) and refined version/logout sizing.
+- Disabled Missing-list check-in buttons when managing a closed service (with server-side enforcement).
+
 ## [0.6.1-alpha] - 2026-02-13
 - Added groups-based kiosk login gate (`Greeter`/`Admin`) and kiosk logout path.
 - Added Pastor-only confidential notes field for people records in admin/staff flows.

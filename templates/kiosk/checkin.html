@@ -45,8 +45,15 @@
               <span class="status-dot" id="status-dot-menu"></span>
               <span class="status-text" id="status-text-menu">Server online</span>
             </div>
-            <div class="small text-muted mb-3">Version v{{ app_version }}</div>
-            <a class="btn btn-outline-danger btn-sm w-100" href="/kiosk/logout/">Log out</a>
+            <div class="text-muted mb-3" id="version-line-menu" style="font-size: 0.72rem;">v{{ app_version }}</div>
+            <div class="text-muted mb-3" id="service-line-menu" style="font-size: 0.72rem;">
+              {% if service_open %}
+                Service: {{ service_label }}
+              {% else %}
+                No service open
+              {% endif %}
+            </div>
+            <a class="btn btn-outline-danger btn-sm w-100" href="/kiosk/logout/" style="font-size: 0.8rem; padding: 0.3rem 0.5rem;">Log out</a>
           </div>
         </div>
       </div>
@@ -196,6 +203,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     (function () {
+      const kioskMode = {{ kiosk_mode|yesno:"true,false" }};
       const iframePrintEnabled = {{ iframe_print|yesno:"true,false" }};
       const form = document.getElementById("search-form");
       const input = document.getElementById("search-input");
@@ -344,7 +352,12 @@
             "X-Requested-With": "XMLHttpRequest",
             "X-CSRFToken": csrfToken,
           },
-        }).then((response) => response.json());
+        }).then((response) => {
+          if (response.status === 423) {
+            return { service_closed: true };
+          }
+          return response.json();
+        });
       };
 
       const performSearch = (value) => {
@@ -357,8 +370,17 @@
         fetch(`/kiosk/search-groups/?q=${encodeURIComponent(value)}`, {
           headers: { "X-Requested-With": "XMLHttpRequest" },
         })
-          .then((response) => response.json())
+          .then((response) => {
+            if (response.status === 423) {
+              return { groups: [], service_closed: true };
+            }
+            return response.json();
+          })
           .then((data) => {
+            if (data.service_closed) {
+              window.location.href = "/kiosk/logout/?service_closed=1";
+              return;
+            }
             const groups = data.groups || [];
             if (resultsList) {
               resultsList.innerHTML = groups.map((group, index) => createGroupMarkup(group, index)).join("");
@@ -419,6 +441,10 @@
             }
             submitAttendance(formData)
               .then((data) => {
+                if (data && data.service_closed) {
+                  window.location.href = "/kiosk/logout/?service_closed=1";
+                  return;
+                }
                 if (!data || !data.print_url) return;
                 if (iframePrintEnabled) {
                   showPrintModal(data.print_url);
@@ -446,6 +472,10 @@
           selected.forEach((personId) => formData.append("person_ids", personId));
           submitAttendance(formData)
             .then((data) => {
+              if (data && data.service_closed) {
+                window.location.href = "/kiosk/logout/?service_closed=1";
+                return;
+              }
               if (!data) return;
               if (data.print_url) {
                 if (resultsModal) {
@@ -504,6 +534,7 @@
       const statusEl = document.getElementById("connection-status");
       const statusDot = document.getElementById("status-dot-menu");
       const statusText = document.getElementById("status-text-menu");
+      const serviceLine = document.getElementById("service-line-menu");
       const setStatus = (isOnline) => {
         if (statusDot) statusDot.classList.toggle("offline", !isOnline);
         if (statusText) statusText.textContent = isOnline ? "Server online" : "Server offline (queued)";
@@ -517,11 +548,31 @@
           .then((response) => setStatus(response.ok))
           .catch(() => setStatus(false));
       };
+      const pollServiceOpen = () => {
+        if (!kioskMode || !navigator.onLine) {
+          return;
+        }
+        fetch("/kiosk/status/", { cache: "no-store" })
+          .then((response) => response.json())
+          .then((data) => {
+            if (serviceLine) {
+              serviceLine.textContent = data && data.service_open && data.service_label
+                ? `Service: ${data.service_label}`
+                : "No service open";
+            }
+            if (data && (data.logout || data.service_open === false)) {
+              window.location.href = "/kiosk/logout/?service_closed=1";
+            }
+          })
+          .catch(() => {});
+      };
       if (statusEl) {
         updateStatus();
         window.addEventListener("online", updateStatus);
         window.addEventListener("offline", updateStatus);
         setInterval(updateStatus, 15000);
+        pollServiceOpen();
+        setInterval(pollServiceOpen, 15000);
       }
 
       const queueKey = "kioskOfflineQueue";

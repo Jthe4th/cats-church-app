@@ -76,6 +76,23 @@ def _get_or_create_service() -> Service:
     return service
 
 
+def _is_current_service_open() -> bool:
+    return _get_or_create_service().status == Service.OPEN
+
+
+def kiosk_status(request):
+    if not _user_has_kiosk_access(request.user):
+        return JsonResponse({"service_open": False, "service_label": "", "logout": True}, status=403)
+    service = _get_or_create_service()
+    return JsonResponse(
+        {
+            "service_open": service.status == Service.OPEN,
+            "service_label": service.label if service.status == Service.OPEN else "",
+            "logout": False,
+        }
+    )
+
+
 def checkin(request, *, kiosk_mode: bool = False):
     query = request.GET.get("q", "").strip()
     match_groups = []
@@ -90,8 +107,13 @@ def checkin(request, *, kiosk_mode: bool = False):
     )
     if query:
         match_groups = _build_match_groups(query)
+    current_service = _get_or_create_service()
 
     if request.method == "POST":
+        if kiosk_mode and not _is_current_service_open():
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"service_closed": True, "message": "This service is closed."}, status=423)
+            return redirect("/kiosk/logout/?service_closed=1")
         action = request.POST.get("action")
         if action in {"print_selected", "check_in_selected"}:
             person_ids = [pid for pid in request.POST.getlist("person_ids") if pid.isdigit()]
@@ -182,6 +204,8 @@ def checkin(request, *, kiosk_mode: bool = False):
             "welcome_heading": get_setting("welcome_heading", "Welcome") or "Welcome",
             "welcome_heading_font_family": welcome_heading_font_family,
             "google_font_hrefs": [welcome_heading_font_href] if welcome_heading_font_href else [],
+            "service_open": current_service.status == Service.OPEN,
+            "service_label": current_service.label if current_service.status == Service.OPEN else "",
         },
     )
 
@@ -189,6 +213,8 @@ def checkin(request, *, kiosk_mode: bool = False):
 def kiosk(request):
     if not _user_has_kiosk_access(request.user):
         return _kiosk_login(request)
+    if not _is_current_service_open():
+        return redirect("/kiosk/logout/?service_closed=1")
     return checkin(request, kiosk_mode=True)
 
 
@@ -196,6 +222,8 @@ def kiosk(request):
 def kiosk_search_groups(request):
     if not _user_has_kiosk_access(request.user):
         return JsonResponse({"groups": []}, status=403)
+    if not _is_current_service_open():
+        return JsonResponse({"groups": [], "service_closed": True}, status=423)
     query = request.GET.get("q", "").strip()
     if len(query) < 3:
         return JsonResponse({"groups": []})
@@ -226,6 +254,8 @@ def kiosk_search_groups(request):
 
 def kiosk_logout(request):
     logout(request)
+    if request.GET.get("service_closed") == "1":
+        return redirect("/kiosk/?service_closed=1")
     return redirect("kiosk")
 
 
@@ -238,18 +268,7 @@ def _user_has_kiosk_access(user) -> bool:
 
 
 def _kiosk_login(request):
-    error = ""
-    if request.method == "POST":
-        username = request.POST.get("username", "").strip()
-        password = request.POST.get("password", "")
-        user = authenticate(request, username=username, password=password)
-        if user and _user_has_kiosk_access(user):
-            login(request, user)
-            return redirect("kiosk")
-        if user:
-            error = "Access requires a Greeter or Admin role."
-        else:
-            error = "Invalid username or password."
+    error = "Service is closed. Ask staff to reopen it in Admin." if request.GET.get("service_closed") == "1" else ""
     enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
     welcome_heading_font_family, welcome_heading_font_href = _resolve_font(
         get_setting("welcome_heading_font", "Arial"),
@@ -257,6 +276,20 @@ def _kiosk_login(request):
         enable_google_fonts,
         fallback="Arial",
     )
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "")
+        user = authenticate(request, username=username, password=password)
+        if user and _user_has_kiosk_access(user):
+            if not _is_current_service_open():
+                error = "Service is closed. Ask staff to reopen it in Admin."
+            else:
+                login(request, user)
+                return redirect("kiosk")
+        if user:
+            error = "Access requires a Greeter or Admin role."
+        else:
+            error = "Invalid username or password."
     return render(
         request,
         "kiosk/login.html",
