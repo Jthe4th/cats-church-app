@@ -43,7 +43,7 @@
       </caption>
       {% for app in app_list %}
         {% for model in app.models %}
-          {% if model.object_name == "User" or model.object_name == "SystemSetting" %}
+          {% if model.object_name == "User" %}
             <tr class="model-{{ model.object_name|lower }}">
               {% if model.admin_url %}
                 <th scope="row"><a href="{{ model.admin_url }}">{{ model.name }}</a></th>
@@ -66,6 +66,11 @@
           {% endif %}
         {% endfor %}
       {% endfor %}
+      <tr class="model-systemsetting-bulk">
+        <th scope="row"><a href="{% url 'admin:core_systemsetting_bulk' %}">System settings</a></th>
+        <td></td>
+        <td><a href="{% url 'admin:core_systemsetting_bulk' %}" class="changelink">{% translate 'Edit' %}</a></td>
+      </tr>
     </table>
   </div>
 {% else %}

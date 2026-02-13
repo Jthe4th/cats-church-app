@@ -1,4 +1,5 @@
 # Repository Guidelines
+Current version: `0.6.1-alpha`
 
 ## Project Direction
 CATS (Church Attendance Tracking System) is a lightweight, local-network, web-based check-in system. The primary goals are:
@@ -23,23 +24,26 @@ CATS (Church Attendance Tracking System) is a lightweight, local-network, web-ba
 - `python manage.py migrate` — create/update the SQLite database
 - `python manage.py createsuperuser` — create an admin user
 - `python manage.py runserver 0.0.0.0:8000` — run locally on the network
+- Use `runserver` with auto-reload by default; avoid `--noreload` unless explicitly requested for debugging.
 
 ## Core Workflows
-- Kiosk check-in: search by first/last name -> select family members -> print labels
+- Kiosk check-in: greeter login -> search (last name or last 4 phone digits) -> select family members -> print or check in only
 - Attendance tracking: one attendance record per person per service
 - Staff management: CRUD for families, people, services, attendance via Django admin
- - Kiosk batch print: select multiple people (family group) and print all nametags
+- Kiosk batch print: select multiple people (family group) and print all nametags
 
 ## Roles and Usage
 - Kiosk devices (3-4): full-screen browser locked to the check-in page (`/kiosk/`)
 - Staff laptops (1-2): admin access at `/admin/` for records, families, and attendance
 - Optional staff UI: `/staff/people/` for a friendly person profile editor (login required)
+- Groups: `Greeter`, `Admin`, `Pastor` (kiosk access requires Greeter/Admin; confidential notes are Pastor-only)
 
 ## Current URLs
 - Kiosk: `/kiosk/`
 - Admin: `/admin/`
 - Staff editor: `/staff/people/`
 - Missing members report: `/admin/missing-members/`
+- Bulk system settings: `/admin/core/systemsetting/bulk/`
 
 ## Data Model Notes
 - People can belong to a Family (optional) to track households.
@@ -51,21 +55,24 @@ CATS (Church Attendance Tracking System) is a lightweight, local-network, web-ba
 - Large text, high contrast, and oversized touch targets for older users.
 - Single-screen primary flow; avoid multi-step wizards.
 - Bootstrap is used via CDN for rapid, consistent UI.
-- Kiosk uses an on-screen keyboard for letter-only input.
+- Kiosk uses an on-screen keyboard with letters + number row.
 - Admin report: missing members for latest service at `/admin/missing-members/`.
 
 ## Kiosk UX Rules
-- Search only by first/last name.
-- Auto-search after 3 characters with a short debounce.
+- Search by last name or last 4 phone digits.
+- Search results are shown in a modal after pressing Search.
 - Keep results grouped by family and pre-check all members.
-- Hide the visitor form until the “I'm a visitor 🙂” button is used.
-- Keep admin access hidden unless the long-press reveal is used.
+- Show already-checked-in members with a visual status and allow reprint.
+- Disable “Check in only” when the full family is already checked in.
+- Open “I'm new here 🙂” as a modal instead of inline form.
 
 ## Printing and Label Size
 - Print view uses `static/css/print.css` with `@page` sizing.
 - Update the label size once the printer model is confirmed.
 - Printing is triggered by the browser using `window.print()`.
 - Batch print uses one label per page and auto-returns to `/kiosk/` after printing.
+- Kiosk supports iframe print mode and Chrome kiosk printing flow.
+- System settings control label font family/source, first/last name colors, and optional last-name hiding.
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indentation, snake_case functions/variables, PascalCase classes

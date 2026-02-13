@@ -1,0 +1,66 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div id="content-main">
+    <div class="module">
+      <form method="post">
+        {% csrf_token %}
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 260px;">Setting</th>
+              <th style="width: 420px;">Value</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for field, setting_obj in rows %}
+                <tr>
+                  <td><strong>{{ setting_obj.key }}</strong></td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      {{ field }}
+                      {% if setting_obj.key == "first_name_color" or setting_obj.key == "last_name_color" or setting_obj.key == "kiosk_background_color" or setting_obj.key == "kiosk_background_color_darkmode" %}
+                        <input type="color" class="bulk-color-picker" data-target="{{ field.id_for_label }}" value="{{ field.value|default:'#ffffff' }}" />
+                      {% endif %}
+                    </div>
+                    {% if field.help_text %}
+                      <div class="help">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                      <div style="color: #b30000;">{{ field.errors }}</div>
+                    {% endif %}
+                  </td>
+                  <td>{{ setting_obj.description|default:"-" }}</td>
+                </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div style="margin-top: 14px;">
+          <button type="submit" class="default">Save all settings</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const isHex = (value) => /^#[0-9a-fA-F]{6}$/.test(value || "");
+      document.querySelectorAll(".bulk-color-picker").forEach((picker) => {
+        const targetId = picker.getAttribute("data-target");
+        const textInput = targetId ? document.getElementById(targetId) : null;
+        if (!textInput) return;
+        if (isHex(textInput.value)) {
+          picker.value = textInput.value;
+        }
+        picker.addEventListener("input", () => {
+          textInput.value = picker.value;
+        });
+        textInput.addEventListener("input", () => {
+          if (isHex(textInput.value)) {
+            picker.value = textInput.value;
+          }
+        });
+      });
+    })();
+  </script>
+{% endblock %}

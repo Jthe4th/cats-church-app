@@ -1,15 +1,23 @@
 # CATS — Church Attendance Tracking System
+Version: `0.6.1-alpha`
 
 CATS is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance tracking, and printable name tags.
 
 ## Highlights
-- Kiosk check-in (first/last name search)
-- Visitor creation on the spot
+- Kiosk check-in with Greeter login gate
+- Search by last name or last 4 phone digits
+- Search results shown in a modal for no-scroll kiosk UX
+- Check-in without printing (`Check in only`)
+- Reprint per checked-in person from search results
+- Visitor creation in a modal
+- Kiosk info menu with 15-second server health polling
 - Attendance tracking by service date
-- Staff management via Django admin
+- Staff/admin management via Django admin + staff pages
+- Pastor-only confidential notes on people records
 - Label printing with a dedicated print stylesheet
 - On-screen keyboard for kiosk devices
 - Batch printing for families
+- Bulk system settings editor in admin
 
 ## Tech Stack
 - Python + Django
@@ -54,6 +62,8 @@ Label sizing is controlled in `static/css/print.css`. Batch printing uses one la
 
 ## Admin
 Django admin is available at `/admin/` for managing families, people, services, and attendance.
+After login, `/admin/` redirects to Church Services.
+System settings are edited in one place at `/admin/core/systemsetting/bulk/`.
 
 ## Staff Pages
 Staff-only pages (login required) live under `/staff/`, starting with `/staff/people/` for a friendly person editor that supports photo uploads.

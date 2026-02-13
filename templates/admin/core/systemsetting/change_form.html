@@ -20,4 +20,32 @@
       })();
     </script>
   {% endif %}
+  {% if original and original.key == "kiosk_background_color" or original and original.key == "kiosk_background_color_darkmode" %}
+    <div class="module">
+      <h2>Color Picker</h2>
+      <div style="margin-bottom: 10px;">
+        <label for="kiosk-color-picker" style="display: block; margin-bottom: 6px;">Color picker</label>
+        <input id="kiosk-color-picker" type="color" value="#ffffff" />
+      </div>
+    </div>
+    <script>
+      (function () {
+        const input = document.querySelector("#id_value");
+        const picker = document.getElementById("kiosk-color-picker");
+        if (!input || !picker) return;
+        const normalizeHex = (value) => /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#ffffff";
+        const apply = () => {
+          const hex = normalizeHex(input.value);
+          picker.value = hex;
+        };
+        picker.addEventListener("input", () => {
+          input.value = picker.value;
+          apply();
+        });
+        input.addEventListener("input", apply);
+        input.addEventListener("change", apply);
+        apply();
+      })();
+    </script>
+  {% endif %}
 {% endblock %}

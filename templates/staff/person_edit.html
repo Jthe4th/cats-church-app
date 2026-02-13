@@ -81,6 +81,12 @@
                 <label class="form-label">Notes</label>
                 {{ form.notes }}
               </div>
+              {% if form.confidential_notes %}
+                <div class="col-12">
+                  <label class="form-label">Confidential notes (Pastor only)</label>
+                  {{ form.confidential_notes }}
+                </div>
+              {% endif %}
               <div class="col-md-6">
                 <label class="form-label">Phone</label>
                 {{ form.phone }}

@@ -3,9 +3,12 @@ from django.contrib import admin
 from django.contrib.auth.models import Group
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+from django.urls import path
 from django.utils.html import format_html
 import csv
 
+from .fonts import ALL_FONT_CHOICES
 from .models import Attendance, Family, Person, Service, SystemSetting, Tag
 
 
@@ -48,6 +51,23 @@ class PersonAdmin(admin.ModelAdmin):
     search_fields = ("first_name", "middle_initial", "last_name", "phone", "email")
     autocomplete_fields = ("family", "tags")
     change_form_template = "admin/core/person/change_form.html"
+
+    def get_exclude(self, request, obj=None):
+        exclude = list(super().get_exclude(request, obj) or [])
+        if request.user.is_superuser or request.user.groups.filter(name="Pastor").exists():
+            return exclude
+        exclude.append("confidential_notes")
+        return exclude
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        confidential = form.base_fields.get("confidential_notes")
+        if confidential:
+            confidential.label = "Confidential notes (Pastor only)"
+            confidential.help_text = 'Confidential note is only visible to users in the "pastor" group.'
+            existing_class = confidential.widget.attrs.get("class", "")
+            confidential.widget.attrs["class"] = f"{existing_class} confidential-notes-field".strip()
+        return form
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -105,7 +125,7 @@ class ServiceAdmin(admin.ModelAdmin):
             attendees = list(
                 Attendance.objects.filter(service_id=object_id)
                 .select_related("person")
-                .order_by("person__last_name", "person__first_name")
+                .order_by("-checked_in_at", "person__last_name", "person__first_name")
             )
             attended_ids = Attendance.objects.filter(service_id=object_id).values_list("person_id", flat=True)
             missing_members = (
@@ -244,15 +264,13 @@ class SystemSettingAdmin(admin.ModelAdmin):
     search_fields = ("key", "value")
     change_form_template = "admin/core/systemsetting/change_form.html"
 
+    YES_NO_KEYS = {"hide_last_name", "kiosk_print_mode", "kiosk_print_iframe", "enable_google_fonts"}
+    SOURCE_KEYS = {"welcome_heading_font_source", "label_font_source"}
+    FONT_KEYS = {"label_font", "welcome_heading_font"}
+
     class Form(forms.ModelForm):
-        FONT_CHOICES = [
-            ("Arial", "Arial"),
-            ("Helvetica", "Helvetica"),
-            ("Georgia", "Georgia"),
-            ("Times New Roman", "Times New Roman"),
-            ("Trebuchet MS", "Trebuchet MS"),
-            ("Verdana", "Verdana"),
-        ]
+        FONT_CHOICES = ALL_FONT_CHOICES
+        SOURCE_CHOICES = [("system", "System"), ("google", "Google")]
 
         class Meta:
             model = SystemSetting
@@ -260,9 +278,115 @@ class SystemSettingAdmin(admin.ModelAdmin):
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            if self.instance and self.instance.key == "label_font":
+            if self.instance and self.instance.key in SystemSettingAdmin.FONT_KEYS:
                 self.fields["value"] = forms.ChoiceField(choices=self.FONT_CHOICES)
-                for value, _label in self.FONT_CHOICES:
-                    self.fields["value"].widget.choices = self.FONT_CHOICES
+                self.fields["value"].widget.choices = self.FONT_CHOICES
+            if self.instance and self.instance.key in SystemSettingAdmin.YES_NO_KEYS:
+                self.fields["value"] = forms.ChoiceField(choices=[("No", "No"), ("Yes", "Yes")])
+            if self.instance and self.instance.key in SystemSettingAdmin.SOURCE_KEYS:
+                self.fields["value"] = forms.ChoiceField(choices=self.SOURCE_CHOICES)
+            if self.instance and self.instance.key in {"kiosk_background_color", "kiosk_background_color_darkmode"}:
+                self.fields["value"] = forms.RegexField(
+                    regex=r"^#[0-9a-fA-F]{6}$",
+                    widget=forms.TextInput(attrs={"placeholder": "#ffffff"}),
+                    help_text='Hex color value, e.g. "#ffffff".',
+                    error_messages={"invalid": "Enter a valid hex color in the format #RRGGBB."},
+                )
 
     form = Form
+
+    COLOR_KEYS = {
+        "first_name_color",
+        "last_name_color",
+        "kiosk_background_color",
+        "kiosk_background_color_darkmode",
+    }
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "bulk/",
+                self.admin_site.admin_view(self.bulk_edit_view),
+                name="core_systemsetting_bulk",
+            )
+        ]
+        return custom_urls + urls
+
+    def bulk_edit_view(self, request):
+        settings_qs = list(SystemSetting.objects.order_by("key"))
+        field_to_setting = {f"setting_{item.id}": item for item in settings_qs}
+
+        class BulkSettingsForm(forms.Form):
+            pass
+
+        for field_name, setting_obj in field_to_setting.items():
+            initial_value = setting_obj.value or ""
+            if setting_obj.key in self.COLOR_KEYS:
+                field = forms.RegexField(
+                    regex=r"^#[0-9a-fA-F]{6}$",
+                    initial=initial_value or "#ffffff",
+                    widget=forms.TextInput(attrs={"placeholder": "#ffffff", "class": "vTextField"}),
+                    help_text='Hex color value, e.g. "#ffffff".',
+                    error_messages={"invalid": "Enter a valid hex color in the format #RRGGBB."},
+                    required=False,
+                    label=setting_obj.key,
+                )
+            elif setting_obj.key in self.YES_NO_KEYS:
+                field = forms.ChoiceField(
+                    choices=[("No", "No"), ("Yes", "Yes")],
+                    initial=initial_value or "No",
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.Select(attrs={"class": "vSelect"}),
+                )
+            elif setting_obj.key in self.SOURCE_KEYS:
+                field = forms.ChoiceField(
+                    choices=[("system", "System"), ("google", "Google")],
+                    initial=initial_value or "system",
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.Select(attrs={"class": "vSelect"}),
+                )
+            elif setting_obj.key in self.FONT_KEYS:
+                field = forms.ChoiceField(
+                    choices=ALL_FONT_CHOICES,
+                    initial=initial_value or "Arial",
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.Select(attrs={"class": "vSelect"}),
+                )
+            else:
+                field = forms.CharField(
+                    initial=initial_value,
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.TextInput(attrs={"class": "vTextField"}),
+                )
+            BulkSettingsForm.base_fields[field_name] = field
+
+        if request.method == "POST":
+            form = BulkSettingsForm(request.POST)
+            if form.is_valid():
+                for field_name, setting_obj in field_to_setting.items():
+                    setting_obj.value = form.cleaned_data.get(field_name, "")
+                    setting_obj.save(update_fields=["value"])
+                self.message_user(request, "System settings updated.")
+                return redirect("admin:core_systemsetting_bulk")
+        else:
+            form = BulkSettingsForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "System settings",
+            "form": form,
+            "rows": [(form[field_name], setting_obj) for field_name, setting_obj in field_to_setting.items()],
+            "has_view_permission": True,
+            "has_change_permission": True,
+        }
+        return TemplateResponse(request, "admin/core/systemsetting/bulk_edit.html", context)
+
+    def get_model_perms(self, request):
+        # Hide regular per-row editor from admin app list; use bulk settings page instead.
+        return {}

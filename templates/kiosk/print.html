@@ -4,9 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Print Name Tag</title>
+  {% for font_href in google_font_hrefs %}
+    <link rel="stylesheet" href="{{ font_href }}" />
+  {% endfor %}
   <link rel="stylesheet" href="/static/css/print.css?v=20250205" />
 </head>
-<body class="print-body single-print" style="font-family: {{ label_font }}, sans-serif;">
+<body class="print-body single-print" style="font-family: {{ label_font_family }};">
   <div class="print-controls" {% if auto_print or iframe_mode %}style="display:none" aria-hidden="true"{% endif %}>
     <button class="btn btn-primary" type="button" id="print-now">Print now</button>
     <a class="btn btn-outline-secondary" href="/kiosk/">Back to kiosk</a>

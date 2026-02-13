@@ -5,7 +5,10 @@ from .models import Person
 
 class PersonForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
+        include_confidential = kwargs.pop("include_confidential", False)
         super().__init__(*args, **kwargs)
+        if not include_confidential and "confidential_notes" in self.fields:
+            self.fields.pop("confidential_notes")
         for name, field in self.fields.items():
             widget = field.widget
             if name == "is_active":
@@ -30,6 +33,7 @@ class PersonForm(forms.ModelForm):
             "phone",
             "email",
             "notes",
+            "confidential_notes",
             "birth_month",
             "birth_day",
             "photo",

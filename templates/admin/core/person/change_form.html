@@ -1,5 +1,28 @@
 {% extends "admin/change_form.html" %}
 
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    .form-row.field-confidential_notes {
+      background: #fff4f4;
+      border: 2px solid #d9534f;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-row.field-confidential_notes label {
+      color: #8a1f1f;
+      font-weight: 700;
+    }
+
+    .form-row.field-confidential_notes .help {
+      color: #8a1f1f;
+      font-weight: 600;
+    }
+  </style>
+{% endblock %}
+
 {% block after_related_objects %}
   {{ block.super }}
 

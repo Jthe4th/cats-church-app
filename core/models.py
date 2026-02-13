@@ -48,6 +48,7 @@ class Person(models.Model):
     phone = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
     notes = models.TextField(blank=True)
+    confidential_notes = models.TextField(blank=True)
     birth_month = models.PositiveSmallIntegerField(
         null=True,
         blank=True,

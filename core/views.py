@@ -1,5 +1,8 @@
 from datetime import date
+import re
 
+from django.conf import settings
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
 import csv
@@ -10,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
+from .fonts import GOOGLE_FONT_HREFS, SYSTEM_FONT_CHOICES
 from .forms import PersonForm
 from .models import Attendance, Person, Service
 from .settings_store import get_setting
@@ -17,6 +21,50 @@ from .settings_store import get_setting
 
 def _service_label(service_date: date) -> str:
     return f"Sabbath Service {service_date.strftime('%m-%d-%Y')}"
+
+
+def _safe_hex_color(value: str, default: str) -> str:
+    if value and re.match(r"^#[0-9a-fA-F]{6}$", value):
+        return value
+    return default
+
+
+SYSTEM_FONT_SET = {name for name, _label in SYSTEM_FONT_CHOICES}
+
+
+def _is_yes(value: str, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"yes", "true", "1"}
+
+
+def _resolve_font(font_name: str, source: str, enable_google_fonts: bool, fallback: str = "Arial"):
+    font_name = (font_name or "").strip()
+    source = (source or "system").strip().lower()
+    if source == "google" and enable_google_fonts:
+        href = GOOGLE_FONT_HREFS.get(font_name)
+        if href:
+            return f'"{font_name}", Arial, sans-serif', href
+    # Auto-detect Google fonts even if source is accidentally left as "system".
+    if source == "system" and enable_google_fonts:
+        href = GOOGLE_FONT_HREFS.get(font_name)
+        if href:
+            return f'"{font_name}", Arial, sans-serif', href
+    if font_name in SYSTEM_FONT_SET:
+        return f'"{font_name}", Arial, sans-serif', None
+    return f'"{fallback}", Arial, sans-serif', None
+
+
+def admin_root_redirect(request):
+    target = reverse("admin:core_service_changelist")
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect(target)
+    login_url = reverse("admin:login")
+    return redirect(f"{login_url}?next={target}")
+
+
+def healthz(request):
+    return JsonResponse({"ok": True})
 
 
 def _get_or_create_service() -> Service:
@@ -33,41 +81,19 @@ def checkin(request, *, kiosk_mode: bool = False):
     match_groups = []
     auto_print = get_setting("kiosk_print_mode", "No").strip().lower() in {"yes", "true", "1"}
     iframe_print = get_setting("kiosk_print_iframe", "No").strip().lower() in {"yes", "true", "1"}
+    enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
+    welcome_heading_font_family, welcome_heading_font_href = _resolve_font(
+        get_setting("welcome_heading_font", "Arial"),
+        get_setting("welcome_heading_font_source", "system"),
+        enable_google_fonts,
+        fallback="Arial",
+    )
     if query:
-        matches = (
-            Person.objects.filter(
-                Q(first_name__icontains=query)
-                | Q(last_name__icontains=query)
-            )
-            .select_related("family")
-            .prefetch_related("family__person_set")
-            .order_by("last_name", "first_name")
-        )
-        seen_family_ids = set()
-        for person in matches:
-            if person.family_id:
-                if person.family_id in seen_family_ids:
-                    continue
-                seen_family_ids.add(person.family_id)
-                match_groups.append(
-                    {
-                        "family": person.family,
-                        "members": list(person.family.person_set.all().order_by("last_name", "first_name")),
-                        "primary": person,
-                    }
-                )
-            else:
-                match_groups.append(
-                    {
-                        "family": None,
-                        "members": [person],
-                        "primary": person,
-                    }
-                )
+        match_groups = _build_match_groups(query)
 
     if request.method == "POST":
         action = request.POST.get("action")
-        if action == "print_selected":
+        if action in {"print_selected", "check_in_selected"}:
             person_ids = [pid for pid in request.POST.getlist("person_ids") if pid.isdigit()]
             if not person_ids:
                 primary_id = request.POST.get("primary_person_id")
@@ -84,6 +110,10 @@ def checkin(request, *, kiosk_mode: bool = False):
                     )
                     attendance_ids.append(attendance.id)
                 ids_param = ",".join(str(aid) for aid in attendance_ids)
+                if action == "check_in_selected":
+                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                        return JsonResponse({"checked_in": True, "count": len(attendance_ids)})
+                    return redirect("kiosk" if kiosk_mode else "checkin")
                 auto_param = "&auto=1" if auto_print else ""
                 print_url = f"/print-batch/?ids={ids_param}{auto_param}"
                 if request.headers.get("x-requested-with") == "XMLHttpRequest":
@@ -121,6 +151,10 @@ def checkin(request, *, kiosk_mode: bool = False):
                 person=person,
                 service=service,
             )
+            if action == "check_in_only":
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                    return JsonResponse({"checked_in": True, "count": 1})
+                return redirect("kiosk" if kiosk_mode else "checkin")
             url = reverse("print_tag", kwargs={"attendance_id": attendance.id})
             if auto_print:
                 url = f"{url}?auto=1"
@@ -136,18 +170,160 @@ def checkin(request, *, kiosk_mode: bool = False):
             "match_groups": match_groups,
             "kiosk_mode": kiosk_mode,
             "iframe_print": iframe_print,
+            "app_version": settings.CATS_VERSION,
+            "kiosk_background_color": _safe_hex_color(
+                get_setting("kiosk_background_color", "#ffffff"),
+                "#ffffff",
+            ),
+            "kiosk_background_color_darkmode": _safe_hex_color(
+                get_setting("kiosk_background_color_darkmode", "#000000"),
+                "#000000",
+            ),
+            "welcome_heading": get_setting("welcome_heading", "Welcome") or "Welcome",
+            "welcome_heading_font_family": welcome_heading_font_family,
+            "google_font_hrefs": [welcome_heading_font_href] if welcome_heading_font_href else [],
         },
     )
 
 
 def kiosk(request):
+    if not _user_has_kiosk_access(request.user):
+        return _kiosk_login(request)
     return checkin(request, kiosk_mode=True)
+
+
+@login_required
+def kiosk_search_groups(request):
+    if not _user_has_kiosk_access(request.user):
+        return JsonResponse({"groups": []}, status=403)
+    query = request.GET.get("q", "").strip()
+    if len(query) < 3:
+        return JsonResponse({"groups": []})
+    service = _get_or_create_service()
+    groups_raw = _build_match_groups(query)
+    person_ids = [member.id for group in groups_raw for member in group["members"]]
+    attended_ids = set(
+        Attendance.objects.filter(service=service, person_id__in=person_ids).values_list("person_id", flat=True)
+    )
+    groups = []
+    for group in groups_raw:
+        groups.append(
+            {
+                "family_name": group["family"].name if group["family"] else "",
+                "primary_id": group["primary"].id,
+                "members": [
+                    {
+                        "id": member.id,
+                        "name": f"{member.first_name} {member.last_name}",
+                        "checked_in": member.id in attended_ids,
+                    }
+                    for member in group["members"]
+                ],
+            }
+        )
+    return JsonResponse({"groups": groups})
+
+
+def kiosk_logout(request):
+    logout(request)
+    return redirect("kiosk")
+
+
+def _user_has_kiosk_access(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=["Greeter", "Admin"]).exists()
+
+
+def _kiosk_login(request):
+    error = ""
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "")
+        user = authenticate(request, username=username, password=password)
+        if user and _user_has_kiosk_access(user):
+            login(request, user)
+            return redirect("kiosk")
+        if user:
+            error = "Access requires a Greeter or Admin role."
+        else:
+            error = "Invalid username or password."
+    enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
+    welcome_heading_font_family, welcome_heading_font_href = _resolve_font(
+        get_setting("welcome_heading_font", "Arial"),
+        get_setting("welcome_heading_font_source", "system"),
+        enable_google_fonts,
+        fallback="Arial",
+    )
+    return render(
+        request,
+        "kiosk/login.html",
+        {
+            "error": error,
+            "app_version": settings.CATS_VERSION,
+            "kiosk_background_color": _safe_hex_color(
+                get_setting("kiosk_background_color", "#ffffff"),
+                "#ffffff",
+            ),
+            "kiosk_background_color_darkmode": _safe_hex_color(
+                get_setting("kiosk_background_color_darkmode", "#000000"),
+                "#000000",
+            ),
+            "welcome_heading": get_setting("welcome_heading", "Welcome") or "Welcome",
+            "welcome_heading_font_family": welcome_heading_font_family,
+            "google_font_hrefs": [welcome_heading_font_href] if welcome_heading_font_href else [],
+        },
+    )
+
+
+def _build_match_groups(query: str):
+    filters = Q(first_name__icontains=query) | Q(last_name__icontains=query)
+    if query.isdigit() and len(query) == 4:
+        filters |= Q(phone__icontains=query)
+    matches = (
+        Person.objects.filter(filters)
+        .select_related("family")
+        .prefetch_related("family__person_set")
+        .order_by("last_name", "first_name")
+    )
+    groups = []
+    seen_family_ids = set()
+    for person in matches:
+        if person.family_id:
+            if person.family_id in seen_family_ids:
+                continue
+            seen_family_ids.add(person.family_id)
+            groups.append(
+                {
+                    "family": person.family,
+                    "members": list(person.family.person_set.all().order_by("last_name", "first_name")),
+                    "primary": person,
+                }
+            )
+        else:
+            groups.append(
+                {
+                    "family": None,
+                    "members": [person],
+                    "primary": person,
+                }
+            )
+    return groups
 
 
 @xframe_options_sameorigin
 def print_tag(request, attendance_id: int):
     attendance = get_object_or_404(Attendance, pk=attendance_id)
     hide_last_name = get_setting("hide_last_name", "No").strip().lower() in {"yes", "true", "1"}
+    enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
+    label_font_family, label_font_href = _resolve_font(
+        get_setting("label_font", "Arial"),
+        get_setting("label_font_source", "system"),
+        enable_google_fonts,
+        fallback="Arial",
+    )
     auto_print = request.GET.get("auto") == "1"
     iframe_mode = request.GET.get("iframe") == "1"
     next_raw = request.GET.get("next", "")
@@ -175,7 +351,8 @@ def print_tag(request, attendance_id: int):
             "first_name_color": get_setting("first_name_color", "#000000"),
             "last_name_color": get_setting("last_name_color", "#000000"),
             "hide_last_name": hide_last_name,
-            "label_font": get_setting("label_font", "Arial"),
+            "label_font_family": label_font_family,
+            "google_font_hrefs": [label_font_href] if label_font_href else [],
             "auto_print": auto_print,
             "next_url": next_url,
             "iframe_mode": iframe_mode,
@@ -191,6 +368,13 @@ def print_batch(request):
     attendance_by_id = {att.id: att for att in attendances}
     ordered = [attendance_by_id[att_id] for att_id in ids if att_id in attendance_by_id]
     hide_last_name = get_setting("hide_last_name", "No").strip().lower() in {"yes", "true", "1"}
+    enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
+    label_font_family, label_font_href = _resolve_font(
+        get_setting("label_font", "Arial"),
+        get_setting("label_font_source", "system"),
+        enable_google_fonts,
+        fallback="Arial",
+    )
     auto_print = request.GET.get("auto") == "1"
     iframe_mode = request.GET.get("iframe") == "1"
     ua = request.META.get("HTTP_USER_AGENT", "")
@@ -221,7 +405,8 @@ def print_batch(request):
             "first_name_color": get_setting("first_name_color", "#000000"),
             "last_name_color": get_setting("last_name_color", "#000000"),
             "hide_last_name": hide_last_name,
-            "label_font": get_setting("label_font", "Arial"),
+            "label_font_family": label_font_family,
+            "google_font_hrefs": [label_font_href] if label_font_href else [],
             "auto_print": auto_print,
             "iframe_mode": iframe_mode,
         },
@@ -230,6 +415,14 @@ def print_batch(request):
 
 def _is_staff(user) -> bool:
     return user.is_staff
+
+
+def _is_pastor(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name="Pastor").exists()
 
 
 @login_required
@@ -305,13 +498,19 @@ def staff_people(request):
 @user_passes_test(_is_staff)
 def staff_person(request, person_id: int):
     person = get_object_or_404(Person, pk=person_id)
+    include_confidential = _is_pastor(request.user)
     if request.method == "POST":
-        form = PersonForm(request.POST, request.FILES, instance=person)
+        form = PersonForm(
+            request.POST,
+            request.FILES,
+            instance=person,
+            include_confidential=include_confidential,
+        )
         if form.is_valid():
             form.save()
             return redirect("staff_person", person_id=person.id)
     else:
-        form = PersonForm(instance=person)
+        form = PersonForm(instance=person, include_confidential=include_confidential)
 
     return render(request, "staff/person_edit.html", {"person": person, "form": form})
 
