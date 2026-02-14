@@ -28,6 +28,6 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-admin.site.site_header = f"CATS [Church Attendance Tracking System] v{settings.CATS_VERSION}"
-admin.site.site_title = f"CATS [Church Attendance Tracking System] v{settings.CATS_VERSION}"
-admin.site.index_title = f"CATS Administration v{settings.CATS_VERSION}"
+admin.site.site_header = f"Welcome System v{settings.CATS_VERSION}"
+admin.site.site_title = f"Welcome System v{settings.CATS_VERSION}"
+admin.site.index_title = f"Welcome System Administration v{settings.CATS_VERSION}"

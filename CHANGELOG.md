@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.3-alpha] - 2026-02-13
+- Rebranded user-facing product name from CATS to Welcome System across docs and UI labels.
+- Added `ROADMAP.md` with phased delivery priorities, risks, and decision notes.
+- Updated developer guidance to keep internal `CATS_VERSION` while using Welcome System branding.
+
 ## [0.6.2-alpha] - 2026-02-13
 - Added Church Service status (`open`/`closed`) with admin controls to close/reopen a service.
 - Defaulted existing past services to `closed` during migration.
@@ -29,7 +34,7 @@ All notable changes to this project will be documented in this file.
 - Added admin root redirect so `/admin/` lands on Church Services list after login.
 
 ## [0.5-alpha] - 2026-02-11
-- Initial Django scaffold for CATS
+- Initial Django scaffold for Welcome System
 - Core models (Family, Person, Service, Attendance)
 - Kiosk check-in flow and label print view
 - Bootstrap-based UI and print stylesheet

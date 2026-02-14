@@ -1,4 +1,4 @@
-"""WSGI config for CATS."""
+"""WSGI config for Welcome System."""
 import os
 
 from django.core.wsgi import get_wsgi_application

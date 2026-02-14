@@ -1,8 +1,8 @@
-"""Django settings for CATS (Church Attendance Tracking System)."""
+"""Django settings for Welcome System."""
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CATS_VERSION = "0.6.2-alpha"
+CATS_VERSION = "0.6.3-alpha"
 
 SECRET_KEY = "change-me-in-production"
 DEBUG = True

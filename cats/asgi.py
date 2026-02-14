@@ -1,4 +1,4 @@
-"""ASGI config for CATS."""
+"""ASGI config for Welcome System."""
 import os
 
 from django.core.asgi import get_asgi_application

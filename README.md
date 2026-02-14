@@ -1,7 +1,9 @@
-# CATS — Church Attendance Tracking System
-Version: `0.6.2-alpha`
+# Welcome System
+Version: `0.6.3-alpha`
 
-CATS is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance tracking, and printable name tags.
+Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
+
+Planning and future feature priorities are tracked in `ROADMAP.md`.
 
 ## Highlights
 - Kiosk check-in with Greeter login gate
@@ -13,10 +15,9 @@ CATS is a lightweight, local-network check-in system for churches. It supports k
 - Kiosk info menu with 15-second server health polling
 - Attendance tracking by service date
 - Staff/admin management via Django admin + staff pages
-- Pastor-only confidential notes on people records
 - Label printing with a dedicated print stylesheet
 - On-screen keyboard for kiosk devices
-- Batch printing for families
+- Batch name tag printing for families
 - Bulk system settings editor in admin
 
 ## Tech Stack
@@ -41,9 +42,9 @@ Open `http://<host-ip>:8000/` on kiosk machines.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver 0.0.0.0:8000
+python3 manage.py migrate
+python3 manage.py createsuperuser
+python3 manage.py runserver 0.0.0.0:8000
 ```
 
 ## Convenience Scripts
@@ -52,10 +53,12 @@ Cross-platform helpers that create a venv, install deps, run migrations, and sta
 - Windows (PowerShell): `scripts\run_dev.ps1`
 
 ## Starting/Restarting The Server
-- Start (macOS/Linux): `source .venv/bin/activate` then `python manage.py runserver 0.0.0.0:8000`
+- Start (macOS/Linux): `source .venv/bin/activate` then `python3 manage.py runserver 0.0.0.0:8000`
 - Start (Windows): `.\.venv\Scripts\activate` then `python manage.py runserver 0.0.0.0:8000`
 - Stop: press `Ctrl+C` in the terminal where the server is running
 - Restart: stop with `Ctrl+C`, then run the start command again
+
+Tip (macOS): if shell aliases cause issues, run `.venv/bin/python manage.py runserver 0.0.0.0:8000` directly.
 
 ## Printing
 Label sizing is controlled in `static/css/print.css`. Batch printing uses one label per page and auto-returns to `/kiosk/` after printing. Update the `@page` size once the printer model is confirmed.

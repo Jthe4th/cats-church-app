@@ -1,13 +1,17 @@
 # Repository Guidelines
-Current version: `0.6.2-alpha`
+Current version: `0.6.3-alpha`
 
 ## Project Direction
-CATS (Church Attendance Tracking System) is a lightweight, local-network, web-based check-in system. The primary goals are:
+Welcome System is a lightweight, local-network, web-based check-in system. The primary goals are:
 - Fast kiosk check-in (search, confirm, print)
 - Reliable attendance history for members and visitors
 - Simple staff management via Django admin
 - Easy future updates and minimal infrastructure
  - Support batch printing for families and a missing-members report for staff
+
+## Naming Note
+- Product-facing name is **Welcome System**.
+- Internal Django setting key remains `CATS_VERSION` for backward compatibility.
 
 ## Project Structure & Module Organization
 - `cats/` — Django project settings and routing (`cats/settings.py`, `cats/urls.py`)
@@ -18,12 +22,13 @@ CATS (Church Attendance Tracking System) is a lightweight, local-network, web-ba
 - `requirements.txt` — Python dependencies
 
 ## Build, Test, and Development Commands
-- `python -m venv .venv` — create a virtual environment
+- `python3 -m venv .venv` — create a virtual environment on macOS/Linux (`python` on Windows)
 - `.venv\Scripts\activate` — activate on Windows PowerShell
 - `pip install -r requirements.txt` — install dependencies
-- `python manage.py migrate` — create/update the SQLite database
-- `python manage.py createsuperuser` — create an admin user
-- `python manage.py runserver 0.0.0.0:8000` — run locally on the network
+- `python3 manage.py migrate` — create/update the SQLite database on macOS/Linux
+- `python3 manage.py createsuperuser` — create an admin user on macOS/Linux
+- `python3 manage.py runserver 0.0.0.0:8000` — run locally on the network on macOS/Linux
+- Prefer `.venv/bin/python manage.py ...` on macOS if `python`/`python3` shell mapping is inconsistent.
 - Use `runserver` with auto-reload by default; avoid `--noreload` unless explicitly requested for debugging.
 
 ## Core Workflows
