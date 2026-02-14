@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Replaced MIT with a custom non-commercial license that prohibits sale/resale.
+- Updated `README.md` licensing section to match the new license terms.
 
 ## [0.6.3-alpha] - 2026-02-13
 - Rebranded user-facing product name from CATS to Welcome System across docs and UI labels.

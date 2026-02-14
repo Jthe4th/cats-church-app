@@ -86,3 +86,7 @@ Example:
 - Staff: open `/admin/` for management
 
 Ensure Windows Firewall allows inbound traffic on the chosen port (default `8000`).
+
+## License
+This project uses the **Welcome System Non-Commercial License v1.0**.
+Commercial use, sale, or resale is not permitted. See `LICENSE`.
