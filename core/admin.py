@@ -6,6 +6,7 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path
 from django.utils.html import format_html
+from django.utils import timezone
 import csv
 
 from .fonts import ALL_FONT_CHOICES
@@ -121,25 +122,70 @@ class ServiceAdmin(admin.ModelAdmin):
                     service.save(update_fields=["status"])
                 return redirect(request.path)
             if request.method == "GET" and request.GET.get("live_counts") == "1":
-                attended_ids = list(
-                    Attendance.objects.filter(service_id=object_id).values_list("person_id", flat=True)
+                attendees_qs = (
+                    Attendance.objects.filter(service_id=object_id)
+                    .select_related("person", "person__family")
+                    .order_by("person__last_name", "person__first_name", "-checked_in_at")
                 )
+                attended_ids = list(attendees_qs.values_list("person_id", flat=True))
                 service = Service.objects.filter(id=object_id).first()
                 first_time_count = 0
+                first_time_visitors = []
                 if service and attended_ids:
                     prior_attendance_ids = Attendance.objects.filter(
                         person_id__in=attended_ids,
                         service__date__lt=service.date,
                     ).values_list("person_id", flat=True)
-                    first_time_count = (
+                    first_time_qs = (
                         Person.objects.filter(id__in=attended_ids, member_type=Person.VISITOR)
                         .exclude(id__in=prior_attendance_ids)
-                        .count()
+                        .order_by("last_name", "first_name")
+                    )
+                    first_time_count = first_time_qs.count()
+                    for person in first_time_qs:
+                        middle = f" {person.middle_initial}." if person.middle_initial else ""
+                        first_time_visitors.append(
+                            {
+                                "person_id": person.id,
+                                "name": f"{person.first_name}{middle} {person.last_name}",
+                                "phone": person.phone or "",
+                                "email": person.email or "",
+                                "address": person.street_address or "",
+                                "city": person.city or "",
+                                "state_province": person.state_province or "",
+                                "postal_code": person.postal_code or "",
+                                "country": person.country or "",
+                            }
+                        )
+                missing_count = (
+                    Person.objects.filter(member_type=Person.MEMBER, is_active=True)
+                    .exclude(id__in=attended_ids)
+                    .count()
+                )
+                attendees = []
+                for attendance in attendees_qs:
+                    person = attendance.person
+                    middle = f" {person.middle_initial}." if person.middle_initial else ""
+                    attendees.append(
+                        {
+                            "person_id": person.id,
+                            "name": f"{person.first_name}{middle} {person.last_name}",
+                            "first_name": person.first_name,
+                            "last_name": person.last_name,
+                            "family": person.family.name if person.family else "-",
+                            "checked_in_at": timezone.localtime(attendance.checked_in_at).strftime("%b %d, %Y %I:%M %p"),
+                        }
                     )
                 return JsonResponse(
                     {
+                        "service_id": int(object_id),
+                        "service_label": service.label if service else "",
+                        "service_status": service.status if service else Service.OPEN,
                         "attendee_count": len(attended_ids),
                         "first_time_visitor_count": first_time_count,
+                        "first_time_visitors": first_time_visitors,
+                        "missing_member_count": missing_count,
+                        "attendees": attendees,
                     }
                 )
             if request.method == "POST" and request.POST.get("action") == "check_in_missing":

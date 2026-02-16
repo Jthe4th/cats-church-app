@@ -223,6 +223,9 @@
       const csrfToken = document.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
       if (toggle && visitorModal) {
         toggle.addEventListener("click", () => {
+          if (visitorForm) {
+            visitorForm.reset();
+          }
           visitorModal.show();
         });
       }
@@ -297,6 +300,9 @@
           }
         });
         visitorModalEl.addEventListener("hidden.bs.modal", () => {
+          if (visitorForm) {
+            visitorForm.reset();
+          }
           if (keyboard && printModal && !printModal.classList.contains("is-visible")) {
             keyboard.classList.remove("kiosk-keyboard-hidden");
           }

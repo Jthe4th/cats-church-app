@@ -60,6 +60,13 @@
       background: #f9d8d8;
       color: #8d1c1c;
     }
+    @keyframes cats-row-new-fade {
+      0% { background-color: #d7f4d9; }
+      100% { background-color: transparent; }
+    }
+    .cats-row-new {
+      animation: cats-row-new-fade 5s ease-out;
+    }
   </style>
 {% endblock %}
 
@@ -108,75 +115,68 @@
 
   <div class="module">
     <h2>First-Time Visitors (<span id="first-time-count">{{ first_time_visitor_count }}</span>)</h2>
-    {% if first_time_visitors %}
-      <div class="results">
-        <table>
-          <thead>
+    <div class="results">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Address</th>
+            <th>City</th>
+            <th>State/Province</th>
+            <th>Postal Code</th>
+            <th>Country</th>
+          </tr>
+        </thead>
+        <tbody id="first-time-body">
+          {% for person in first_time_visitors %}
             <tr>
-              <th>Name</th>
-              <th>Check in</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Address</th>
-              <th>City</th>
-              <th>State/Province</th>
-              <th>Postal Code</th>
-              <th>Country</th>
+              <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
+              <td>{{ person.phone }}</td>
+              <td>{{ person.email }}</td>
+              <td>{{ person.street_address }}</td>
+              <td>{{ person.city }}</td>
+              <td>{{ person.state_province }}</td>
+              <td>{{ person.postal_code }}</td>
+              <td>{{ person.country }}</td>
             </tr>
-          </thead>
-          <tbody>
-            {% for person in first_time_visitors %}
-              <tr>
-                <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
-                <td>{{ person.phone }}</td>
-                <td>{{ person.email }}</td>
-                <td>{{ person.street_address }}</td>
-                <td>{{ person.city }}</td>
-                <td>{{ person.state_province }}</td>
-                <td>{{ person.postal_code }}</td>
-                <td>{{ person.country }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <p>
-        <a class="button" href="{{ request.path }}?export=first_time">Export CSV</a>
-      </p>
-    {% else %}
-      <p>No first-time visitors for this service.</p>
-    {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p id="first-time-empty" {% if first_time_visitor_count %}style="display: none;"{% endif %}>No first-time visitors for this service.</p>
+    <p>
+      <a class="button" href="{{ request.path }}?export=first_time">Export CSV</a>
+    </p>
   </div>
 
   <div class="module">
     <h2>Attendees (<span id="attendee-count">{{ attendee_count }}</span>)</h2>
-    {% if attendees %}
-      <div class="results">
-        <table>
-          <thead>
+    <div class="results">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Check-in Time</th>
+            <th>Family</th>
+          </tr>
+        </thead>
+        <tbody id="attendee-body">
+          {% for attendance in attendees %}
             <tr>
-              <th>Name</th>
-              <th>Check-in Time</th>
-              <th>Family</th>
+              <td>{{ attendance.person.first_name }} {% if attendance.person.middle_initial %}{{ attendance.person.middle_initial }}.{% endif %} {{ attendance.person.last_name }}</td>
+              <td>{{ attendance.checked_in_at|date:"M d, Y g:i A" }}</td>
+              <td>{% if attendance.person.family %}{{ attendance.person.family.name }}{% else %}-{% endif %}</td>
             </tr>
-          </thead>
-          <tbody id="attendee-body">
-            {% for attendance in attendees %}
-              <tr>
-                <td>{{ attendance.person.first_name }} {% if attendance.person.middle_initial %}{{ attendance.person.middle_initial }}.{% endif %} {{ attendance.person.last_name }}</td>
-                <td>{{ attendance.checked_in_at|date:"M d, Y g:i A" }}</td>
-                <td>{% if attendance.person.family %}{{ attendance.person.family.name }}{% else %}-{% endif %}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <p>
-        <a class="button" href="{{ request.path }}?export=attendees">Export CSV</a>
-      </p>
-    {% else %}
-      <p>No attendees recorded yet.</p>
-    {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p id="attendee-empty" {% if attendee_count %}style="display: none;"{% endif %}>No attendees recorded yet.</p>
+    <p>
+      <a class="button" href="{{ request.path }}?export=attendees">Export CSV</a>
+    </p>
   </div>
 
   <div class="module">
@@ -244,6 +244,10 @@
 
   <script>
     (function () {
+      const seenAttendeeIds = new Set();
+      const seenFirstTimeIds = new Set();
+      let hasHydratedOnce = false;
+
       const updateCountText = (id, value) => {
         const el = document.getElementById(id);
         if (el) {
@@ -266,12 +270,73 @@
             updateCountText("dashboard-first-time-count", data.first_time_visitor_count || 0);
             updateCountText("attendee-count", data.attendee_count || 0);
             updateCountText("first-time-count", data.first_time_visitor_count || 0);
+            updateCountText("missing-count", data.missing_member_count || 0);
+            const attendeeBody = document.getElementById("attendee-body");
+            const attendeeEmpty = document.getElementById("attendee-empty");
+            const firstTimeBody = document.getElementById("first-time-body");
+            const firstTimeEmpty = document.getElementById("first-time-empty");
+            if (attendeeBody) {
+              const escapeHtml = (text) =>
+                String(text ?? "")
+                  .replaceAll("&", "&amp;")
+                  .replaceAll("<", "&lt;")
+                  .replaceAll(">", "&gt;")
+                  .replaceAll('"', "&quot;")
+                  .replaceAll("'", "&#39;");
+              const attendees = [...(data.attendees || [])].sort((a, b) => {
+                const aLast = String(a.last_name || "").toLowerCase();
+                const bLast = String(b.last_name || "").toLowerCase();
+                if (aLast !== bLast) return aLast < bLast ? -1 : 1;
+                const aFirst = String(a.first_name || "").toLowerCase();
+                const bFirst = String(b.first_name || "").toLowerCase();
+                if (aFirst !== bFirst) return aFirst < bFirst ? -1 : 1;
+                return 0;
+              });
+              const currentAttendeeIds = new Set();
+              const rows = attendees.map(
+                (item) => {
+                  const rowId = String(item.person_id ?? "");
+                  currentAttendeeIds.add(rowId);
+                  const isNew = hasHydratedOnce && rowId && !seenAttendeeIds.has(rowId);
+                  return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.checked_in_at)}</td><td>${escapeHtml(item.family)}</td></tr>`;
+                }
+              );
+              attendeeBody.innerHTML = rows.join("");
+              seenAttendeeIds.clear();
+              currentAttendeeIds.forEach((id) => seenAttendeeIds.add(id));
+              if (attendeeEmpty) {
+                attendeeEmpty.style.display = rows.length ? "none" : "";
+              }
+            }
+            if (firstTimeBody) {
+              const escapeHtml = (text) =>
+                String(text ?? "")
+                  .replaceAll("&", "&amp;")
+                  .replaceAll("<", "&lt;")
+                  .replaceAll(">", "&gt;")
+                  .replaceAll('"', "&quot;")
+                  .replaceAll("'", "&#39;");
+              const currentFirstTimeIds = new Set();
+              const rows = (data.first_time_visitors || []).map((item) => {
+                const rowId = String(item.person_id ?? "");
+                currentFirstTimeIds.add(rowId);
+                const isNew = hasHydratedOnce && rowId && !seenFirstTimeIds.has(rowId);
+                return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.phone)}</td><td>${escapeHtml(item.email)}</td><td>${escapeHtml(item.address)}</td><td>${escapeHtml(item.city)}</td><td>${escapeHtml(item.state_province)}</td><td>${escapeHtml(item.postal_code)}</td><td>${escapeHtml(item.country)}</td></tr>`;
+              });
+              firstTimeBody.innerHTML = rows.join("");
+              seenFirstTimeIds.clear();
+              currentFirstTimeIds.forEach((id) => seenFirstTimeIds.add(id));
+              if (firstTimeEmpty) {
+                firstTimeEmpty.style.display = rows.length ? "none" : "";
+              }
+            }
+            hasHydratedOnce = true;
           })
           .catch(() => {});
       };
 
       pollCounts();
-      window.setInterval(pollCounts, 10000);
+      window.setInterval(pollCounts, 5000);
 
       const forms = document.querySelectorAll(".checkin-form");
       const missingSearch = document.getElementById("missing-search");
@@ -308,21 +373,8 @@
           }
           const attendeeBody = document.getElementById("attendee-body");
           const attendeeCount = document.getElementById("attendee-count");
-          const dashboardAttendeeCount = document.getElementById("dashboard-attendee-count");
-          if (attendeeBody) {
-            const name = formEl.dataset.name || "New attendee";
-            const family = formEl.dataset.family || "-";
-            const newRow = document.createElement("tr");
-            newRow.innerHTML = `<td>${name}</td><td>Just now</td><td>${family || "-"}</td>`;
-            attendeeBody.appendChild(newRow);
-            if (attendeeCount) {
-              const current = parseInt(attendeeCount.textContent || "0", 10);
-              const next = (current + 1).toString();
-              attendeeCount.textContent = next;
-              if (dashboardAttendeeCount) {
-                dashboardAttendeeCount.textContent = next;
-              }
-            }
+          if (attendeeBody || attendeeCount) {
+            pollCounts();
           }
         })
             .catch(() => {

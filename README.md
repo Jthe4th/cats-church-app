@@ -1,5 +1,5 @@
 # Welcome System
-Version: `0.6.3-alpha`
+Version: `0.6.4-alpha`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
@@ -24,6 +24,7 @@ Planning and future feature priorities are tracked in `ROADMAP.md`.
 - Python + Django
 - SQLite (local file database)
 - Bootstrap (kiosk UI)
+- Waitress (recommended production server on Windows)
 
 ## Quick Start (Windows)
 ```powershell
@@ -51,10 +52,12 @@ python3 manage.py runserver 0.0.0.0:8000
 Cross-platform helpers that create a venv, install deps, run migrations, and start the server:
 - macOS/Linux: `./scripts/run_dev.sh`
 - Windows (PowerShell): `scripts\run_dev.ps1`
+- Windows production (PowerShell + Waitress): `scripts\run_prod.ps1`
 
 ## Starting/Restarting The Server
 - Start (macOS/Linux): `source .venv/bin/activate` then `python3 manage.py runserver 0.0.0.0:8000`
 - Start (Windows): `.\.venv\Scripts\activate` then `python manage.py runserver 0.0.0.0:8000`
+- Start (Windows production): `.\.venv\Scripts\activate` then `python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application`
 - Stop: press `Ctrl+C` in the terminal where the server is running
 - Restart: stop with `Ctrl+C`, then run the start command again
 
@@ -86,6 +89,29 @@ Example:
 - Staff: open `/admin/` for management
 
 Ensure Windows Firewall allows inbound traffic on the chosen port (default `8000`).
+
+For Windows hosts, prefer Waitress over `runserver` for live church use.
+
+## Windows Production Setup (Waitress)
+Use this for church-host deployment and longer runtime stability.
+
+```powershell
+cd C:\path\to\cats-app
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application
+```
+
+You can also use:
+- `scripts\run_prod.ps1` (sets up venv/dependencies, runs migrations, starts Waitress)
+
+Verification:
+- On host machine: `curl -I http://127.0.0.1:8000/admin/`
+- On LAN kiosk: open `http://<host-ip>:8000/kiosk/`
+
+For testing, keep the Waitress terminal window open. For always-on operation, run Waitress as a Windows service (NSSM or Task Scheduler).
 
 ## License
 This project uses the **Welcome System Non-Commercial License v1.0**.

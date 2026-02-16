@@ -1,5 +1,5 @@
 # Repository Guidelines
-Current version: `0.6.3-alpha`
+Current version: `0.6.4-alpha`
 
 ## Project Direction
 Welcome System is a lightweight, local-network, web-based check-in system. The primary goals are:
@@ -25,6 +25,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - `python3 -m venv .venv` — create a virtual environment on macOS/Linux (`python` on Windows)
 - `.venv\Scripts\activate` — activate on Windows PowerShell
 - `pip install -r requirements.txt` — install dependencies
+- `python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application` — recommended production server on Windows
 - `python3 manage.py migrate` — create/update the SQLite database on macOS/Linux
 - `python3 manage.py createsuperuser` — create an admin user on macOS/Linux
 - `python3 manage.py runserver 0.0.0.0:8000` — run locally on the network on macOS/Linux
@@ -37,6 +38,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - Attendance tracking: one attendance record per person per service
 - Staff management: CRUD for families, people, services, attendance via Django admin
 - Kiosk batch print: select multiple people (family group) and print all nametags
+- Manage Church Service auto-refreshes live every 5 seconds (counts, attendees, first-time visitors).
 
 ## Roles and Usage
 - Kiosk devices (3-4): full-screen browser locked to the check-in page (`/kiosk/`)
@@ -63,6 +65,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - Bootstrap is used via CDN for rapid, consistent UI.
 - Kiosk uses an on-screen keyboard with letters + number row.
 - Admin report: missing members for latest service at `/admin/missing-members/`.
+- New rows in Attendees/First-Time lists are highlighted briefly to show real-time check-ins.
 
 ## Kiosk UX Rules
 - Search by last name or last 4 phone digits.
@@ -97,6 +100,7 @@ Tests are not configured yet. When added, prefer Django's built-in test runner a
 ## Configuration & Secrets
 - The database is stored in `cats.sqlite3`
 - If environment variables are added, store local values in `.env` and provide `.env.example`
+- Windows production runtime should use Waitress (`cats.wsgi:application`) rather than Django `runserver`.
 
 ## Roadmap (Near-Term)
 - Confirm Brother printer model and set exact label size

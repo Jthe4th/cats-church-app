@@ -3,8 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Replaced MIT with a custom non-commercial license that prohibits sale/resale.
-- Updated `README.md` licensing section to match the new license terms.
+
+## [0.6.4-alpha] - 2026-02-16
+- Added Windows-first production runtime support using Waitress and a new `scripts/run_prod.ps1`.
+- Refactored default settings/group seeding from app startup into `post_migrate` to remove startup DB warnings.
+- Expanded service-page live polling payload with service metadata (`service_id`, `service_label`, `service_status`).
+- Live-refresh now updates both Attendees and First-Time Visitors tables, not just counts.
+- Service-page polling now runs every 5 seconds for faster updates during active check-in.
+- Added temporary green row highlighting (~5 seconds) for newly added Attendees and First-Time Visitors.
+- Ensured kiosk "I'm new here" modal form is reset whenever opened/closed.
+- Replaced MIT with a custom non-commercial license and updated README licensing text.
 
 ## [0.6.3-alpha] - 2026-02-13
 - Rebranded user-facing product name from CATS to Welcome System across docs and UI labels.
