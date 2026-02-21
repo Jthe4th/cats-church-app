@@ -3,6 +3,72 @@
 {% block extrahead %}
   {{ block.super }}
   <style>
+    .submit-row input[name="_addanother"],
+    .submit-row button[name="_addanother"],
+    .submit-row input[name="_continue"],
+    .submit-row button[name="_continue"],
+    .submit-row .deletelink,
+    .submit-row .historylink,
+    .object-tools .historylink,
+    .object-tools a[href$="/history/"] {
+      display: none !important;
+    }
+    .cats-full {
+      float: none !important;
+      clear: both !important;
+      width: 100% !important;
+    }
+    .cats-status-toolbar.cats-full {
+      display: flex !important;
+    }
+    .cats-service-dashboard.cats-full {
+      display: grid !important;
+    }
+    .cats-full h2 {
+      display: block !important;
+      float: none !important;
+      margin: 0 0 10px !important;
+    }
+    .cats-full .results {
+      overflow-x: auto;
+    }
+    .module.cats-full + .module.cats-full {
+      margin-top: 14px;
+    }
+    .cats-full table {
+      width: 100%;
+    }
+    .cats-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--body-bg);
+    }
+    .cats-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--darkened-bg);
+      border-bottom: 1px solid var(--hairline-color);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .cats-table th,
+    .cats-table td {
+      padding: 10px 12px;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--hairline-color);
+    }
+    .cats-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+    .cats-table tbody tr:nth-child(even) {
+      background: rgba(0, 0, 0, 0.015);
+    }
+    .cats-table tbody tr:hover {
+      background: rgba(67, 112, 138, 0.10);
+    }
     .cats-service-dashboard {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -10,26 +76,31 @@
       margin: 0 0 16px;
     }
     .cats-service-card {
-      border: 1px solid var(--hairline-color);
-      border-radius: 10px;
-      padding: 14px 16px;
-      background: var(--darkened-bg);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid #b9c7d1;
+      border-radius: 12px;
+      padding: 18px 20px;
+      background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
+      box-shadow: 0 4px 14px rgba(17, 24, 39, 0.08);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .cats-service-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
     }
     .cats-service-label {
       margin: 0;
-      font-size: 12px;
+      font-size: 17px;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--body-quiet-color);
-      font-weight: 600;
+      font-weight: 700;
     }
     .cats-service-value {
-      margin: 6px 0 0;
-      font-size: 32px;
+      margin: 10px 0 0;
+      font-size: 48px;
       line-height: 1;
-      font-weight: 700;
-      color: var(--body-fg);
+      font-weight: 800;
+      color: #0f172a;
     }
     .cats-status-toolbar {
       display: flex;
@@ -60,12 +131,86 @@
       background: #f9d8d8;
       color: #8d1c1c;
     }
+    .checkin-btn {
+      white-space: nowrap;
+      min-width: 88px;
+      text-align: center;
+    }
+    .ws-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      white-space: nowrap;
+    }
+    .ws-action-btn .ws-icon {
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+    .attendee-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .attendee-actions .button,
+    .attendee-actions .btn {
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    #id_notes {
+      min-height: 120px !important;
+      height: 120px !important;
+    }
     @keyframes cats-row-new-fade {
       0% { background-color: #d7f4d9; }
       100% { background-color: transparent; }
     }
     .cats-row-new {
       animation: cats-row-new-fade 5s ease-out;
+    }
+    .print-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.65);
+      z-index: 4000;
+      padding: 16px;
+      backdrop-filter: none;
+    }
+    .print-modal.is-visible {
+      display: flex;
+    }
+    .print-modal-content {
+      width: min(1080px, 94vw);
+      max-height: 95vh;
+      overflow: auto;
+      background: #ffffff;
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    }
+    .print-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .print-modal iframe {
+      width: 100%;
+      min-height: 520px;
+      border: 1px solid var(--hairline-color);
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 8px;
+    }
+    .print-modal-actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
     }
   </style>
 {% endblock %}
@@ -75,32 +220,44 @@
 {% endblock %}
 
 {% block after_related_objects %}
-  <div class="cats-status-toolbar">
+  <div class="cats-status-toolbar cats-full">
     <div class="d-flex align-items-center gap-2">
       <strong>Status:</strong>
       <span class="cats-status-pill {% if service_status == 'closed' %}cats-status-pill-closed{% else %}cats-status-pill-open{% endif %}">
         {{ service_status|title }}
       </span>
     </div>
-    <form method="post" class="d-flex gap-2">
-      {% csrf_token %}
+    <div class="d-flex gap-2">
       {% if service_status == "closed" %}
-        <button class="button" type="submit" name="action" value="reopen_service">Reopen service</button>
+        <button class="btn btn-sm btn-outline-success service-state-btn" type="button" data-action="reopen_service">Reopen service</button>
       {% else %}
         <button
-          class="button"
-          type="submit"
-          name="action"
-          value="close_service"
-          onclick="return confirm('Close this service? No more guests will be able to check in until it is reopened.');"
+          class="btn btn-sm btn-outline-danger service-state-btn"
+          type="button"
+          data-action="close_service"
+          data-confirm="Close this service? No more guests will be able to check in until it is reopened."
         >
           Close service
         </button>
       {% endif %}
-    </form>
+    </div>
   </div>
 
-  <div class="cats-service-dashboard">
+  <div class="print-modal" id="print-modal" aria-hidden="true">
+    <div class="print-modal-content">
+      <div class="print-modal-header">
+        <h2 class="h4 mb-0">Printing nametags</h2>
+        <button class="btn btn-outline-secondary" type="button" id="print-modal-close">Cancel</button>
+      </div>
+      <iframe title="Nametag print preview" id="print-frame"></iframe>
+      <p class="text-muted mb-0">After printing, close this dialog to continue.</p>
+      <div class="print-modal-actions">
+        <button class="btn btn-primary" type="button" id="print-modal-print">Print now</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cats-service-dashboard cats-full">
     <div class="cats-service-card">
       <p class="cats-service-label">Checked in</p>
       <p class="cats-service-value" id="dashboard-attendee-count">{{ attendee_count }}</p>
@@ -113,53 +270,42 @@
 
   {{ block.super }}
 
-  <div class="module">
-    <h2>First-Time Visitors (<span id="first-time-count">{{ first_time_visitor_count }}</span>)</h2>
+  <div class="module cats-full">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="mb-0">First-Time Visitors (<span id="first-time-count">{{ first_time_visitor_count }}</span>)</h2>
+      <a class="button" href="{{ request.path }}?export=first_time">Export CSV</a>
+    </div>
     <div class="results">
-      <table>
+      <table class="cats-table">
         <thead>
           <tr>
             <th>Name</th>
-            <th>Phone</th>
-            <th>Email</th>
-            <th>Address</th>
-            <th>City</th>
-            <th>State/Province</th>
-            <th>Postal Code</th>
-            <th>Country</th>
           </tr>
         </thead>
         <tbody id="first-time-body">
           {% for person in first_time_visitors %}
             <tr>
               <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
-              <td>{{ person.phone }}</td>
-              <td>{{ person.email }}</td>
-              <td>{{ person.street_address }}</td>
-              <td>{{ person.city }}</td>
-              <td>{{ person.state_province }}</td>
-              <td>{{ person.postal_code }}</td>
-              <td>{{ person.country }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     <p id="first-time-empty" {% if first_time_visitor_count %}style="display: none;"{% endif %}>No first-time visitors for this service.</p>
-    <p>
-      <a class="button" href="{{ request.path }}?export=first_time">Export CSV</a>
-    </p>
   </div>
 
-  <div class="module">
-    <h2>Attendees (<span id="attendee-count">{{ attendee_count }}</span>)</h2>
+  <div class="module cats-full">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="mb-0">Attendees (<span id="attendee-count">{{ attendee_count }}</span>)</h2>
+      <a class="button" href="{{ request.path }}?export=attendees">Export CSV</a>
+    </div>
     <div class="results">
-      <table>
+      <table class="cats-table">
         <thead>
           <tr>
             <th>Name</th>
             <th>Check-in Time</th>
-            <th>Family</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="attendee-body">
@@ -167,20 +313,45 @@
             <tr>
               <td>{{ attendance.person.first_name }} {% if attendance.person.middle_initial %}{{ attendance.person.middle_initial }}.{% endif %} {{ attendance.person.last_name }}</td>
               <td>{{ attendance.checked_in_at|date:"M d, Y g:i A" }}</td>
-              <td>{% if attendance.person.family %}{{ attendance.person.family.name }}{% else %}-{% endif %}</td>
+              <td>
+                <div class="attendee-actions">
+                  <button
+                    class="btn btn-sm btn-outline-primary ws-action-btn reprint-nametag-btn"
+                    type="button"
+                    data-print-url="/print/{{ attendance.id }}/{% if admin_auto_print %}?auto=1{% endif %}"
+                    title="Reprint nametag"
+                    aria-label="Reprint nametag"
+                  >
+                    <i class="ws-icon fas fa-print" aria-hidden="true"></i>
+                    <span>Reprint</span>
+                  </button>
+                  {% if service_status == "open" %}
+                    <button
+                      class="btn btn-sm btn-outline-secondary ws-action-btn js-undo-btn"
+                      type="button"
+                      data-attendance-id="{{ attendance.id }}"
+                      title="Undo check-in"
+                      aria-label="Undo check-in"
+                    >
+                      <i class="ws-icon fas fa-rotate-left" aria-hidden="true"></i>
+                      <span>Undo</span>
+                    </button>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     <p id="attendee-empty" {% if attendee_count %}style="display: none;"{% endif %}>No attendees recorded yet.</p>
-    <p>
-      <a class="button" href="{{ request.path }}?export=attendees">Export CSV</a>
-    </p>
   </div>
 
-  <div class="module">
-    <h2>Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</h2>
+  <div class="module cats-full">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="mb-0">Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</h2>
+      <a class="button" href="/admin/missing-members/?format=csv">Export CSV</a>
+    </div>
     {% if missing_members %}
       <p>
         <label for="missing-search"><strong>Find person:</strong></label>
@@ -193,17 +364,11 @@
         />
       </p>
       <div class="results">
-        <table>
+        <table class="cats-table">
           <thead>
             <tr>
               <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Address</th>
-              <th>City</th>
-              <th>State/Province</th>
-              <th>Postal Code</th>
-              <th>Country</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -212,31 +377,28 @@
                 <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
                 <td>
                   {% if service_status == "closed" %}
-                    <button class="button" type="button" disabled title="Service is closed">Check in</button>
+                    <button class="btn btn-sm btn-outline-secondary ws-action-btn" type="button" disabled title="Service is closed" aria-label="Check in disabled (service is closed)">
+                      <i class="ws-icon fas fa-check" aria-hidden="true"></i>
+                      <span>Check in</span>
+                    </button>
                   {% else %}
-                    <form method="post" class="checkin-form" data-name="{{ person.first_name }}{% if person.middle_initial %} {{ person.middle_initial }}.{% endif %} {{ person.last_name }}" data-family="{% if person.family %}{{ person.family.name }}{% endif %}">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="check_in_missing" />
-                      <input type="hidden" name="person_id" value="{{ person.id }}" />
-                      <button class="button" type="submit">Check in</button>
-                    </form>
+                    <button
+                      class="btn btn-sm btn-outline-primary ws-action-btn checkin-btn js-checkin-btn"
+                      type="button"
+                      data-person-id="{{ person.id }}"
+                      title="Check in"
+                      aria-label="Check in"
+                    >
+                      <i class="ws-icon fas fa-check" aria-hidden="true"></i>
+                      <span>Check in</span>
+                    </button>
                   {% endif %}
                 </td>
-                <td>{{ person.phone }}</td>
-                <td>{{ person.email }}</td>
-                <td>{{ person.street_address }}</td>
-                <td>{{ person.city }}</td>
-                <td>{{ person.state_province }}</td>
-                <td>{{ person.postal_code }}</td>
-                <td>{{ person.country }}</td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <p>
-        <a class="button" href="/admin/missing-members/?format=csv">Export CSV</a>
-      </p>
     {% else %}
       <p>All active members checked in for this service.</p>
     {% endif %}
@@ -244,9 +406,60 @@
 
   <script>
     (function () {
+      const iframePrintEnabled = {{ admin_iframe_print|yesno:"true,false" }};
+      const autoPrintEnabled = {{ admin_auto_print|yesno:"true,false" }};
+      const printModal = document.getElementById("print-modal");
+      const printFrame = document.getElementById("print-frame");
+      const printClose = document.getElementById("print-modal-close");
+      const printNow = document.getElementById("print-modal-print");
+      if (printModal && printModal.parentElement !== document.body) {
+        document.body.appendChild(printModal);
+      }
       const seenAttendeeIds = new Set();
       const seenFirstTimeIds = new Set();
       let hasHydratedOnce = false;
+
+      const showPrintModal = (url) => {
+        if (!printModal || !printFrame) return;
+        const iframeUrl = url.includes("?") ? `${url}&iframe=1` : `${url}?iframe=1`;
+        printFrame.src = iframeUrl;
+        printModal.classList.add("is-visible");
+        printModal.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      };
+      const closePrintModal = () => {
+        if (!printModal) return;
+        printModal.classList.remove("is-visible");
+        printModal.setAttribute("aria-hidden", "true");
+        if (printFrame) {
+          printFrame.src = "about:blank";
+        }
+        document.body.style.overflow = "";
+      };
+      const launchPrint = (url) => {
+        if (!url) return;
+        if (iframePrintEnabled) {
+          showPrintModal(url);
+          return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+      };
+
+      if (printClose) {
+        printClose.addEventListener("click", closePrintModal);
+      }
+      if (printNow) {
+        printNow.addEventListener("click", () => {
+          if (printFrame && printFrame.contentWindow) {
+            printFrame.contentWindow.print();
+          }
+        });
+      }
+      window.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "kiosk-print-done") {
+          closePrintModal();
+        }
+      });
 
       const updateCountText = (id, value) => {
         const el = document.getElementById(id);
@@ -254,6 +467,7 @@
           el.textContent = String(value);
         }
       };
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
 
       const pollCounts = () => {
         fetch(`${window.location.pathname}?live_counts=1`, {
@@ -283,22 +497,20 @@
                   .replaceAll(">", "&gt;")
                   .replaceAll('"', "&quot;")
                   .replaceAll("'", "&#39;");
-              const attendees = [...(data.attendees || [])].sort((a, b) => {
-                const aLast = String(a.last_name || "").toLowerCase();
-                const bLast = String(b.last_name || "").toLowerCase();
-                if (aLast !== bLast) return aLast < bLast ? -1 : 1;
-                const aFirst = String(a.first_name || "").toLowerCase();
-                const bFirst = String(b.first_name || "").toLowerCase();
-                if (aFirst !== bFirst) return aFirst < bFirst ? -1 : 1;
-                return 0;
-              });
+              const attendees = data.attendees || [];
               const currentAttendeeIds = new Set();
               const rows = attendees.map(
                 (item) => {
                   const rowId = String(item.person_id ?? "");
                   currentAttendeeIds.add(rowId);
                   const isNew = hasHydratedOnce && rowId && !seenAttendeeIds.has(rowId);
-                  return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.checked_in_at)}</td><td>${escapeHtml(item.family)}</td></tr>`;
+                  const reprintUrl = autoPrintEnabled
+                    ? `/print/${encodeURIComponent(item.attendance_id)}/?auto=1`
+                    : `/print/${encodeURIComponent(item.attendance_id)}/`;
+                  const undoHtml = data.service_status === "open"
+                    ? `<button class="btn btn-sm btn-outline-secondary ws-action-btn js-undo-btn" type="button" data-attendance-id="${escapeHtml(item.attendance_id)}" title="Undo check-in" aria-label="Undo check-in"><i class="ws-icon fas fa-rotate-left" aria-hidden="true"></i><span>Undo</span></button>`
+                    : "";
+                  return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.checked_in_at)}</td><td><div class="attendee-actions"><button class="btn btn-sm btn-outline-primary ws-action-btn reprint-nametag-btn" type="button" data-print-url="${escapeHtml(reprintUrl)}" title="Reprint nametag" aria-label="Reprint nametag"><i class="ws-icon fas fa-print" aria-hidden="true"></i><span>Reprint</span></button>${undoHtml}</div></td></tr>`;
                 }
               );
               attendeeBody.innerHTML = rows.join("");
@@ -321,7 +533,7 @@
                 const rowId = String(item.person_id ?? "");
                 currentFirstTimeIds.add(rowId);
                 const isNew = hasHydratedOnce && rowId && !seenFirstTimeIds.has(rowId);
-                return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.phone)}</td><td>${escapeHtml(item.email)}</td><td>${escapeHtml(item.address)}</td><td>${escapeHtml(item.city)}</td><td>${escapeHtml(item.state_province)}</td><td>${escapeHtml(item.postal_code)}</td><td>${escapeHtml(item.country)}</td></tr>`;
+                return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td></tr>`;
               });
               firstTimeBody.innerHTML = rows.join("");
               seenFirstTimeIds.clear();
@@ -338,7 +550,34 @@
       pollCounts();
       window.setInterval(pollCounts, 5000);
 
-      const forms = document.querySelectorAll(".checkin-form");
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest(".reprint-nametag-btn");
+        if (!button) return;
+        const url = button.getAttribute("data-print-url") || "";
+        launchPrint(url);
+      });
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest(".service-state-btn");
+        if (!button) return;
+        const action = button.getAttribute("data-action");
+        if (!action) return;
+        const confirmText = button.getAttribute("data-confirm");
+        if (confirmText && !window.confirm(confirmText)) {
+          return;
+        }
+        const formData = new FormData();
+        formData.append("csrfmiddlewaretoken", csrfToken);
+        formData.append("action", action);
+        fetch(window.location.href, {
+          method: "POST",
+          body: formData,
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        }).then((response) => {
+          if (response.ok || response.status === 204) {
+            window.location.reload();
+          }
+        });
+      });
       const missingSearch = document.getElementById("missing-search");
       if (missingSearch) {
         missingSearch.addEventListener("input", () => {
@@ -349,39 +588,58 @@
           });
         });
       }
-      forms.forEach((formEl) => {
-        formEl.addEventListener("submit", (event) => {
-          event.preventDefault();
-          const formData = new FormData(formEl);
-          fetch(window.location.href, {
-            method: "POST",
-            body: formData,
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-          })
-            .then((response) => {
-              if (!response.ok) {
-                throw new Error("Check-in failed.");
-              }
-          const row = formEl.closest("tr");
-          if (row) {
-            row.remove();
-          }
-          const missingCount = document.getElementById("missing-count");
-          if (missingCount) {
-            const current = parseInt(missingCount.textContent || "0", 10);
-            missingCount.textContent = Math.max(current - 1, 0).toString();
-          }
-          const attendeeBody = document.getElementById("attendee-body");
-          const attendeeCount = document.getElementById("attendee-count");
-          if (attendeeBody || attendeeCount) {
-            pollCounts();
-          }
-        })
-            .catch(() => {
-              formEl.submit();
-            });
+      const postAction = (payload) => {
+        const formData = new FormData();
+        formData.append("csrfmiddlewaretoken", csrfToken);
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, String(value));
         });
+        return fetch(window.location.href, {
+          method: "POST",
+          body: formData,
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+      };
+
+      document.addEventListener("click", (event) => {
+        const checkInBtn = event.target.closest(".js-checkin-btn");
+        if (!checkInBtn) return;
+        const personId = checkInBtn.getAttribute("data-person-id");
+        if (!personId) return;
+        postAction({ action: "check_in_missing", person_id: personId })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Update failed.");
+            }
+            const row = checkInBtn.closest("tr");
+            if (row) {
+              row.remove();
+            }
+            const missingCount = document.getElementById("missing-count");
+            if (missingCount) {
+              const current = parseInt(missingCount.textContent || "0", 10);
+              missingCount.textContent = Math.max(current - 1, 0).toString();
+            }
+            pollCounts();
+          })
+          .catch(() => {});
       });
+
+      document.addEventListener("click", (event) => {
+        const undoBtn = event.target.closest(".js-undo-btn");
+        if (!undoBtn) return;
+        const attendanceId = undoBtn.getAttribute("data-attendance-id");
+        if (!attendanceId) return;
+        postAction({ action: "undo_checkin", attendance_id: attendanceId })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Update failed.");
+            }
+            pollCounts();
+          })
+          .catch(() => {});
+      });
+
     })();
   </script>
 {% endblock %}

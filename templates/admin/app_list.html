@@ -71,6 +71,11 @@
         <td></td>
         <td><a href="{% url 'admin:core_systemsetting_bulk' %}" class="changelink">{% translate 'Edit' %}</a></td>
       </tr>
+      <tr class="model-audit-log-report">
+        <th scope="row"><a href="{% url 'audit_log_report' %}">Audit log</a></th>
+        <td></td>
+        <td><a href="{% url 'audit_log_report' %}" class="changelink">{% translate 'View' %}</a></td>
+      </tr>
     </table>
   </div>
 {% else %}

@@ -1,0 +1,64 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+  <form method="get" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
+    <div>
+      <label for="id_days">Days</label><br />
+      <input id="id_days" type="number" min="1" name="days" value="{{ days }}" />
+    </div>
+    <div>
+      <label for="id_action">Action</label><br />
+      <select id="id_action" name="action">
+        <option value="">All actions</option>
+        {% for value, label in action_choices %}
+          <option value="{{ value }}" {% if action == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_actor">Actor username</label><br />
+      <input id="id_actor" type="text" name="actor" value="{{ actor }}" />
+    </div>
+    <div>
+      <button class="button default" type="submit">Filter</button>
+    </div>
+  </form>
+
+  <table id="result_list">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Action</th>
+        <th>Actor</th>
+        <th>Person</th>
+        <th>Service</th>
+        <th>Message</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in logs %}
+        <tr>
+          <td>{{ item.created_at|date:"Y-m-d H:i:s" }}</td>
+          <td>{{ item.get_action_display }}</td>
+          <td>{% if item.actor %}{{ item.actor.username }}{% else %}-{% endif %}</td>
+          <td>
+            {% if item.person %}
+              <a href="{% url 'admin:core_person_change' item.person.id %}">{{ item.person }}</a>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>{% if item.service %}{{ item.service }}{% else %}-{% endif %}</td>
+          <td>{{ item.message|default:"-" }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="6">No audit entries found for the selected filters.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -28,7 +28,11 @@
 
   <div class="module">
     <h2>Print Nametag</h2>
-    <button class="button" type="button" id="print-person-nametag">Print nametag</button>
+    {% if original and original.id %}
+      <button class="button" type="button" id="print-person-nametag">Print nametag</button>
+    {% else %}
+      <p class="help">Save this person first, then print a nametag.</p>
+    {% endif %}
   </div>
 
   <div class="module">
@@ -93,9 +97,14 @@
       const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value || "";
       if (!printButton) return;
       printButton.addEventListener("click", () => {
+        const personId = "{{ original.id|default:'' }}";
+        if (!personId) {
+          alert("Save this person first, then print.");
+          return;
+        }
         const formData = new FormData();
         formData.append("csrfmiddlewaretoken", csrfToken);
-        formData.append("person_ids", "{{ original.id }}");
+        formData.append("person_ids", personId);
         fetch("/admin/print-selected/", {
           method: "POST",
           body: formData,

@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -140,3 +141,37 @@ class Attendance(models.Model):
 
     def __str__(self) -> str:
         return f"{self.person} @ {self.service}"
+
+
+class AuditLog(models.Model):
+    ACTION_CHECKIN = "checkin"
+    ACTION_UNDO_CHECKIN = "undo_checkin"
+    ACTION_PRINT = "print_nametag"
+    ACTION_SERVICE_CLOSE = "service_close"
+    ACTION_SERVICE_REOPEN = "service_reopen"
+    ACTION_SETTING_CHANGE = "setting_change"
+
+    ACTION_CHOICES = [
+        (ACTION_CHECKIN, "Check-in"),
+        (ACTION_UNDO_CHECKIN, "Undo Check-in"),
+        (ACTION_PRINT, "Print Nametag"),
+        (ACTION_SERVICE_CLOSE, "Service Close"),
+        (ACTION_SERVICE_REOPEN, "Service Reopen"),
+        (ACTION_SETTING_CHANGE, "Setting Change"),
+    ]
+
+    action = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL)
+    person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.SET_NULL)
+    attendance = models.ForeignKey(Attendance, null=True, blank=True, on_delete=models.SET_NULL)
+    message = models.CharField(max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        who = self.actor.username if self.actor_id else "system"
+        return f"{self.get_action_display()} by {who} at {self.created_at:%Y-%m-%d %H:%M:%S}"

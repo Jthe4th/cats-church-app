@@ -7,9 +7,12 @@
   {% for font_href in google_font_hrefs %}
     <link rel="stylesheet" href="{{ font_href }}" />
   {% endfor %}
-  <link rel="stylesheet" href="/static/css/print.css?v=20250205" />
+  <link rel="stylesheet" href="/static/css/print.css?v=20260217b" />
 </head>
-<body class="print-body single-print" style="font-family: {{ label_font_family }};">
+<body
+  class="print-body single-print{% if iframe_mode %} iframe-preview{% endif %}"
+  style="font-family: {{ label_font_family }}; --label-first-scale: {{ label_first_name_scale_factor }}; --label-last-scale: {{ label_last_name_scale_factor }};"
+>
   <div class="print-controls" {% if auto_print or iframe_mode %}style="display:none" aria-hidden="true"{% endif %}>
     <button class="btn btn-primary" type="button" id="print-now">Print now</button>
     <a class="btn btn-outline-secondary" href="/kiosk/">Back to kiosk</a>

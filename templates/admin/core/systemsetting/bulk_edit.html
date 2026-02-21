@@ -3,39 +3,55 @@
 {% block content %}
   <div id="content-main">
     <div class="module">
-      <form method="post">
+      <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 260px;">Setting</th>
-              <th style="width: 420px;">Value</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for field, setting_obj in rows %}
-                <tr>
-                  <td><strong>{{ setting_obj.key }}</strong></td>
-                  <td>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      {{ field }}
-                      {% if setting_obj.key == "first_name_color" or setting_obj.key == "last_name_color" or setting_obj.key == "kiosk_background_color" or setting_obj.key == "kiosk_background_color_darkmode" %}
-                        <input type="color" class="bulk-color-picker" data-target="{{ field.id_for_label }}" value="{{ field.value|default:'#ffffff' }}" />
+        {% for section in sections %}
+          <h3 style="margin-top: 14px;">{{ section.name }}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 280px;">Setting Name</th>
+                <th style="width: 420px;">Value</th>
+                <th>Description</th>
+                <th style="width: 260px;">Setting Key</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for field, setting_obj, friendly_label in section.rows %}
+                  <tr>
+                    <td><strong>{{ friendly_label }}</strong></td>
+                    <td>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        {{ field }}
+                        {% if setting_obj.key == "first_name_color" or setting_obj.key == "last_name_color" or setting_obj.key == "kiosk_background_color" or setting_obj.key == "kiosk_background_color_darkmode" %}
+                          <input type="color" class="bulk-color-picker" data-target="{{ field.id_for_label }}" value="{{ field.value|default:'#ffffff' }}" />
+                        {% endif %}
+                      </div>
+                      {% if field.help_text %}
+                        <div class="help">{{ field.help_text }}</div>
                       {% endif %}
-                    </div>
-                    {% if field.help_text %}
-                      <div class="help">{{ field.help_text }}</div>
-                    {% endif %}
-                    {% if field.errors %}
-                      <div style="color: #b30000;">{{ field.errors }}</div>
-                    {% endif %}
-                  </td>
-                  <td>{{ setting_obj.description|default:"-" }}</td>
-                </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+                      {% if setting_obj.key == "kiosk_logo_path" %}
+                        {% if setting_obj.value %}
+                          <div style="margin-top: 8px;">
+                            <img
+                              src="{{ setting_obj.value }}"
+                              alt="Current kiosk logo"
+                              style="max-height: 72px; width: auto; border: 1px solid #ddd; border-radius: 4px; padding: 4px; background: #fff;"
+                            />
+                          </div>
+                        {% endif %}
+                      {% endif %}
+                      {% if field.errors %}
+                        <div style="color: #b30000;">{{ field.errors }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ setting_obj.description|default:"-" }}</td>
+                    <td><code>{{ setting_obj.key }}</code></td>
+                  </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endfor %}
         <div style="margin-top: 14px;">
           <button type="submit" class="default">Save all settings</button>
         </div>

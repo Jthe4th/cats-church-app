@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.5-alpha] - 2026-02-21
+- Added admin audit log report page with filters and linked person names to their edit pages.
+- Added admin skin system setting (`admin_skin`) with Jazzmin theme selection and middleware-based apply/fallback behavior.
+- Added smoother Manage Church Service UX updates, including AJAX check-in/undo actions and improved section spacing.
+- Added migration `0012_seed_admin_skin_setting` to seed the new admin skin setting.
+
 ## [0.6.4-alpha] - 2026-02-16
 - Added Windows-first production runtime support using Waitress and a new `scripts/run_prod.ps1`.
 - Refactored default settings/group seeding from app startup into `post_migrate` to remove startup DB warnings.

@@ -1,0 +1,329 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    #content-main {
+      width: 100%;
+      max-width: none;
+    }
+    .ws-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 12px 0 20px;
+    }
+    .ws-card {
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      background: var(--darkened-bg);
+      padding: 14px 16px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+    .ws-card h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--body-quiet-color);
+      font-weight: 600;
+    }
+    .ws-number {
+      margin: 8px 0 0;
+      font-size: 2rem;
+      line-height: 1;
+      font-weight: 700;
+    }
+    .ws-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .ws-action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--hairline-color);
+      background: var(--darkened-bg);
+      text-decoration: none;
+      color: var(--body-fg);
+      font-weight: 600;
+    }
+    .ws-action:hover {
+      border-color: #7ea8bf;
+      background: rgba(89, 133, 161, 0.14);
+      text-decoration: none;
+      color: var(--body-fg);
+    }
+    .ws-service-note {
+      margin: 6px 0 0;
+      color: var(--body-quiet-color);
+      font-size: 0.9rem;
+    }
+    .ws-section {
+      margin-top: 22px;
+    }
+    .ws-analytics {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 12px;
+    }
+    .ws-panel {
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      background: var(--darkened-bg);
+      padding: 14px;
+    }
+    .ws-panel h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .ws-chart-list {
+      display: grid;
+      gap: 8px;
+    }
+    .ws-chart-row {
+      display: grid;
+      grid-template-columns: 58px 1fr 50px;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.86rem;
+    }
+    .ws-bar {
+      width: 100%;
+      height: 10px;
+      background: rgba(0, 0, 0, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .ws-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #46708a 0%, #2f9a8f 100%);
+    }
+    .ws-mini {
+      display: grid;
+      gap: 10px;
+    }
+    .ws-mini-item {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--hairline-color);
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .ws-mini-label {
+      font-size: 0.82rem;
+      color: var(--body-quiet-color);
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-weight: 700;
+    }
+    .ws-mini-value {
+      margin: 4px 0 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .ws-followup-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 4px;
+      font-size: 0.92rem;
+    }
+    .ws-mix {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .ws-mix-row {
+      display: grid;
+      grid-template-columns: 58px 1fr 44px;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.82rem;
+    }
+    .ws-mix-stacked {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.08);
+      display: grid;
+      grid-template-columns: var(--members, 0%) var(--visitors, 0%);
+    }
+    .ws-mix-members {
+      background: #4f7c99;
+    }
+    .ws-mix-visitors {
+      background: #54b8a9;
+    }
+    @media (max-width: 1200px) {
+      .ws-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .ws-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .ws-analytics {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 700px) {
+      .ws-grid,
+      .ws-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <h1>Today at a glance</h1>
+    {% if open_service %}
+      <p class="ws-service-note">Open service: <strong>{{ open_service.label }}</strong> ({{ open_service.date }})</p>
+    {% elif active_service %}
+      <p class="ws-service-note">No open service. Latest service: <strong>{{ active_service.label }}</strong> ({{ active_service.date }})</p>
+    {% else %}
+      <p class="ws-service-note">No services created yet.</p>
+    {% endif %}
+
+    <div class="ws-grid">
+      <div class="ws-card">
+        <h3>Checked in</h3>
+        <p class="ws-number">{{ attendee_count }}</p>
+      </div>
+      <div class="ws-card">
+        <h3>First-time visitors</h3>
+        <p class="ws-number">{{ first_time_count }}</p>
+      </div>
+      <div class="ws-card">
+        <h3>Not checked in</h3>
+        <p class="ws-number">{{ missing_count }}</p>
+      </div>
+      <div class="ws-card">
+        <h3>Total people</h3>
+        <p class="ws-number">{{ person_count }}</p>
+      </div>
+    </div>
+
+    <h2>Quick actions</h2>
+    <div class="ws-actions">
+      {% if active_service %}
+        <a class="ws-action" href="{% url 'admin:core_service_change' active_service.id %}">
+          <span>Manage Church Service</span>
+          <span>&rarr;</span>
+        </a>
+      {% endif %}
+      <a class="ws-action" href="{% url 'admin:core_person_changelist' %}">
+        <span>People</span>
+        <span>{{ person_count }}</span>
+      </a>
+      <a class="ws-action" href="{% url 'admin:core_family_changelist' %}">
+        <span>Families</span>
+        <span>{{ family_count }}</span>
+      </a>
+      <a class="ws-action" href="{% url 'admin:core_service_changelist' %}">
+        <span>Church Services</span>
+        <span>{{ services_count }}</span>
+      </a>
+      <a class="ws-action" href="{% url 'admin:core_systemsetting_bulk' %}">
+        <span>System Settings</span>
+        <span>&rarr;</span>
+      </a>
+      <a class="ws-action" href="{% url 'audit_log_report' %}">
+        <span>Audit Log</span>
+        <span>&rarr;</span>
+      </a>
+    </div>
+
+    <div class="ws-section ws-analytics">
+      <div class="ws-panel">
+        <h3>8-Week Attendance Trend</h3>
+        {% if trend_points %}
+          <div class="ws-chart-list">
+            {% for point in trend_points %}
+              <div class="ws-chart-row">
+                <span>{{ point.label }}</span>
+                <div class="ws-bar"><span style="width: {{ point.total_pct }}%;"></span></div>
+                <strong>{{ point.total }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="ws-service-note">No service data yet.</p>
+        {% endif %}
+      </div>
+      <div class="ws-panel">
+        <h3>Operational Snapshot</h3>
+        <div class="ws-mini">
+          <div class="ws-mini-item">
+            <p class="ws-mini-label">Check-in pace</p>
+            <p class="ws-mini-value">{% if checkin_pace %}{{ checkin_pace }}/hr{% else %}-{% endif %}</p>
+          </div>
+          <div class="ws-mini-item">
+            <p class="ws-mini-label">Last check-in</p>
+            <p class="ws-mini-value" style="font-size: 1.1rem;">{% if last_checkin_at %}{{ last_checkin_at|date:"M d, g:i A" }}{% else %}-{% endif %}</p>
+          </div>
+          <div class="ws-mini-item">
+            <p class="ws-mini-label">At-risk follow-up (missed 2+ services)</p>
+            <p class="ws-mini-value">{{ at_risk_count }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ws-section ws-analytics">
+      <div class="ws-panel">
+        <h3>First-Time Visitors Trend (8 Weeks)</h3>
+        {% if trend_points %}
+          <div class="ws-chart-list">
+            {% for point in trend_points %}
+              <div class="ws-chart-row">
+                <span>{{ point.label }}</span>
+                <div class="ws-bar"><span style="width: {{ point.first_time_pct }}%;"></span></div>
+                <strong>{{ point.first_time }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="ws-service-note">No service data yet.</p>
+        {% endif %}
+      </div>
+      <div class="ws-panel">
+        <h3>Member vs Visitor Mix</h3>
+        {% if trend_points %}
+          <div class="ws-mix">
+            {% for point in trend_points %}
+              <div class="ws-mix-row">
+                <span>{{ point.label }}</span>
+                <div class="ws-mix-stacked" style="--members: {{ point.member_pct }}%; --visitors: {{ point.visitor_pct }}%;">
+                  <span class="ws-mix-members"></span><span class="ws-mix-visitors"></span>
+                </div>
+                <strong>{{ point.member_pct }}/{{ point.visitor_pct }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="ws-service-note">No service data yet.</p>
+        {% endif %}
+        <hr />
+        <h3 style="margin-top: 0;">First-time Follow-up Queue</h3>
+        {% if first_time_followup %}
+          <ul class="ws-followup-list">
+            {% for person in first_time_followup %}
+              <li>{{ person.first_name }} {{ person.last_name }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="ws-service-note">No first-time visitors in the active/latest service.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

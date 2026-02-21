@@ -1,5 +1,5 @@
 # Repository Guidelines
-Current version: `0.6.4-alpha`
+Current version: `0.6.5-alpha`
 
 ## Project Direction
 Welcome System is a lightweight, local-network, web-based check-in system. The primary goals are:
@@ -26,6 +26,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - `.venv\Scripts\activate` — activate on Windows PowerShell
 - `pip install -r requirements.txt` — install dependencies
 - `python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application` — recommended production server on Windows
+- `python manage.py collectstatic --noinput` — prepare static files for production runtime
 - `python3 manage.py migrate` — create/update the SQLite database on macOS/Linux
 - `python3 manage.py createsuperuser` — create an admin user on macOS/Linux
 - `python3 manage.py runserver 0.0.0.0:8000` — run locally on the network on macOS/Linux
@@ -101,6 +102,7 @@ Tests are not configured yet. When added, prefer Django's built-in test runner a
 - The database is stored in `cats.sqlite3`
 - If environment variables are added, store local values in `.env` and provide `.env.example`
 - Windows production runtime should use Waitress (`cats.wsgi:application`) rather than Django `runserver`.
+- Static assets under Waitress are served via WhiteNoise; run `collectstatic` before production startup.
 
 ## Roadmap (Near-Term)
 - Confirm Brother printer model and set exact label size

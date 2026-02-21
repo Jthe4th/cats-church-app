@@ -1,5 +1,5 @@
 # Welcome System
-Version: `0.6.4-alpha`
+Version: `0.6.5-alpha`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
@@ -101,6 +101,7 @@ python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
+python manage.py collectstatic --noinput
 python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application
 ```
 
@@ -112,6 +113,7 @@ Verification:
 - On LAN kiosk: open `http://<host-ip>:8000/kiosk/`
 
 For testing, keep the Waitress terminal window open. For always-on operation, run Waitress as a Windows service (NSSM or Task Scheduler).
+Static files are served by WhiteNoise under Waitress.
 
 ## License
 This project uses the **Welcome System Non-Commercial License v1.0**.

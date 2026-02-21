@@ -13,11 +13,17 @@ DEFAULT_SETTINGS = {
     "last_name_color": "#000000",
     "kiosk_background_color": "#ffffff",
     "kiosk_background_color_darkmode": "#000000",
+    "kiosk_logo_path": "/static/img/EC-SDA-Church_Stacked_Final.png",
+    "kiosk_logo_width_px": "200",
+    "kiosk_logo_height_px": "",
     "hide_last_name": "No",
     "label_font": "Arial",
     "label_font_source": "system",
+    "label_first_name_scale": "100",
+    "label_last_name_scale": "100",
     "kiosk_print_mode": "No",
     "kiosk_print_iframe": "No",
+    "admin_skin": "default",
 }
 
 DEFAULT_SETTING_DESCRIPTIONS = {
@@ -29,11 +35,17 @@ DEFAULT_SETTING_DESCRIPTIONS = {
     "last_name_color": "Text color used for last names on printed nametags.",
     "kiosk_background_color": "Background color used for the kiosk in light mode.",
     "kiosk_background_color_darkmode": "Background color used for the kiosk in dark mode.",
+    "kiosk_logo_path": "Logo image shown on kiosk screens.",
+    "kiosk_logo_width_px": "Logo width in pixels for kiosk screens.",
+    "kiosk_logo_height_px": "Logo height in pixels for kiosk screens. Leave blank for auto height.",
     "hide_last_name": "Hide last names on printed nametags when set to Yes.",
     "label_font": "Font family used for printed nametags.",
     "label_font_source": "Choose whether the nametag font comes from system fonts or Google Fonts.",
+    "label_first_name_scale": "Scale first-name text size on labels as a percentage (100 = default).",
+    "label_last_name_scale": "Scale last-name text size on labels as a percentage (100 = default).",
     "kiosk_print_mode": "Automatically open print flow on check-in when set to Yes.",
     "kiosk_print_iframe": "Use in-page iframe print mode instead of navigating away when set to Yes.",
+    "admin_skin": "Jazzmin/Bootswatch skin used in the admin area.",
 }
 
 

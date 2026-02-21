@@ -1,0 +1,46 @@
+/* Shared admin polish + dark-mode fixes for custom pages. */
+#welcome-admin-darkmode-toggle {
+  padding: 0.35rem 0.6rem;
+}
+
+body.dark-mode .content-wrapper,
+body.dark-mode .content,
+body.dark-mode .card,
+body.dark-mode .module,
+body.dark-mode .results {
+  background-color: #1a1d24 !important;
+}
+
+body.dark-mode .ws-card,
+body.dark-mode .ws-action,
+body.dark-mode .ws-panel,
+body.dark-mode .ws-mini-item,
+body.dark-mode .cats-service-card,
+body.dark-mode .cats-status-toolbar,
+body.dark-mode .cats-table {
+  background: #222734 !important;
+  border-color: #3a4254 !important;
+  color: #e8edf7 !important;
+}
+
+body.dark-mode .cats-service-value {
+  color: #f8fbff !important;
+}
+
+body.dark-mode .cats-table thead th {
+  background: #2b3140 !important;
+}
+
+body.dark-mode .cats-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+body.dark-mode .cats-table tbody tr:hover {
+  background: rgba(108, 140, 191, 0.16) !important;
+}
+
+body.dark-mode .print-modal-content {
+  background: #202532 !important;
+  border-color: #3a4254 !important;
+  color: #e8edf7 !important;
+}

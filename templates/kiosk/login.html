@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ font_href }}" />
   {% endfor %}
   <link rel="stylesheet" href="/static/css/theme.css" />
-  <link rel="stylesheet" href="/static/css/kiosk.css?v=12" />
+  <link rel="stylesheet" href="/static/css/kiosk.css?v=13" />
 </head>
 <body
   class="kiosk-body"
@@ -20,7 +20,12 @@
 >
   <main class="container py-4">
     <div class="text-center mb-4">
-      <img class="kiosk-logo mb-3" src="/static/img/EC-SDA-Church_Stacked_Final.png" alt="Church logo" />
+      <img
+        class="kiosk-logo mb-3"
+        src="{{ kiosk_logo_path }}"
+        alt="Church logo"
+        style="width: {{ kiosk_logo_width_px }}px; {% if kiosk_logo_height_px %}height: {{ kiosk_logo_height_px }}px;{% else %}height: auto;{% endif %}"
+      />
       <h1 class="display-4 fw-bold" style="font-family: {{ welcome_heading_font_family }};">{{ welcome_heading }}</h1>
       <p class="lead">Greeter sign-in required to start check-in.</p>
     </div>
