@@ -17,7 +17,9 @@ def ensure_sabbath_service(sender, user, request, **kwargs):
     today = date.today()
     if today.weekday() != 5:  # Saturday
         return
-    Service.objects.get_or_create(
+    if Service.objects.filter(date=today).exists():
+        return
+    Service.objects.create(
         date=today,
         label=_service_label(today),
     )

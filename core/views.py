@@ -17,6 +17,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .audit import log_event
 from .fonts import GOOGLE_FONT_HREFS, SYSTEM_FONT_CHOICES
 from .forms import PersonForm
+from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service
 from .permissions import can_access_kiosk, can_access_staff_views, can_print_labels, can_view_confidential_notes
 from .settings_store import get_setting
@@ -107,7 +108,7 @@ def admin_root_redirect(request):
                     .count()
                 )
             missing_count = (
-                Person.objects.filter(member_type=Person.MEMBER, is_active=True)
+                members_active_for_service(active_service)
                 .exclude(id__in=attended_ids)
                 .count()
             )
@@ -215,11 +216,22 @@ def healthz(request):
 
 def _get_or_create_service() -> Service:
     today = date.today()
-    service, _created = Service.objects.get_or_create(
+    # Multiple same-day services may exist from historical data; pick a stable
+    # current record instead of raising MultipleObjectsReturned.
+    service = (
+        Service.objects.filter(date=today, status=Service.OPEN)
+        .order_by("-id")
+        .first()
+    )
+    if service:
+        return service
+    service = Service.objects.filter(date=today).order_by("-id").first()
+    if service:
+        return service
+    return Service.objects.create(
         date=today,
         label=_service_label(today),
     )
-    return service
 
 
 def _is_current_service_open() -> bool:
@@ -242,6 +254,7 @@ def kiosk_status(request):
 def checkin(request, *, kiosk_mode: bool = False):
     query = request.GET.get("q", "").strip()
     match_groups = []
+    initial_groups = []
     auto_print = get_setting("kiosk_print_mode", "No").strip().lower() in {"yes", "true", "1"}
     iframe_print = get_setting("kiosk_print_iframe", "No").strip().lower() in {"yes", "true", "1"}
     enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
@@ -254,6 +267,8 @@ def checkin(request, *, kiosk_mode: bool = False):
     if query:
         match_groups = _build_match_groups(query)
     current_service = _get_or_create_service()
+    if match_groups:
+        initial_groups = _serialize_kiosk_groups(match_groups, current_service)
     logo_width = _safe_px_size(get_setting("kiosk_logo_width_px", "200"), 200)
     logo_height = _safe_px_size(get_setting("kiosk_logo_height_px", "0"), 0)
     logo_path = get_setting("kiosk_logo_path", "/static/img/EC-SDA-Church_Stacked_Final.png") or "/static/img/EC-SDA-Church_Stacked_Final.png"
@@ -357,6 +372,7 @@ def checkin(request, *, kiosk_mode: bool = False):
         {
             "query": query,
             "match_groups": match_groups,
+            "initial_groups": initial_groups,
             "kiosk_mode": kiosk_mode,
             "iframe_print": iframe_print,
             "app_version": settings.CATS_VERSION,
@@ -399,26 +415,7 @@ def kiosk_search_groups(request):
         return JsonResponse({"groups": []})
     service = _get_or_create_service()
     groups_raw = _build_match_groups(query)
-    person_ids = [member.id for group in groups_raw for member in group["members"]]
-    attended_ids = set(
-        Attendance.objects.filter(service=service, person_id__in=person_ids).values_list("person_id", flat=True)
-    )
-    groups = []
-    for group in groups_raw:
-        groups.append(
-            {
-                "family_name": group["family"].name if group["family"] else "",
-                "primary_id": group["primary"].id,
-                "members": [
-                    {
-                        "id": member.id,
-                        "name": f"{member.first_name} {member.last_name}",
-                        "checked_in": member.id in attended_ids,
-                    }
-                    for member in group["members"]
-                ],
-            }
-        )
+    groups = _serialize_kiosk_groups(groups_raw, service)
     return JsonResponse({"groups": groups})
 
 
@@ -454,7 +451,7 @@ def _kiosk_login(request):
             else:
                 login(request, user)
                 return redirect("kiosk")
-        if user:
+        elif user:
             error = "Access requires a Greeter or Admin role."
         else:
             error = "Invalid username or password."
@@ -515,6 +512,30 @@ def _build_match_groups(query: str):
                     "primary": person,
                 }
             )
+    return groups
+
+
+def _serialize_kiosk_groups(groups_raw, service: Service):
+    person_ids = [member.id for group in groups_raw for member in group["members"]]
+    attended_ids = set(
+        Attendance.objects.filter(service=service, person_id__in=person_ids).values_list("person_id", flat=True)
+    )
+    groups = []
+    for group in groups_raw:
+        groups.append(
+            {
+                "family_name": group["family"].name if group["family"] else "",
+                "primary_id": group["primary"].id,
+                "members": [
+                    {
+                        "id": member.id,
+                        "name": f"{member.first_name} {member.last_name}",
+                        "checked_in": member.id in attended_ids,
+                    }
+                    for member in group["members"]
+                ],
+            }
+        )
     return groups
 
 
@@ -655,7 +676,7 @@ def missing_members_report(request):
     if service:
         attended_ids = Attendance.objects.filter(service=service).values_list("person_id", flat=True)
         missing_members = (
-            Person.objects.filter(member_type=Person.MEMBER, is_active=True)
+            members_active_for_service(service)
             .exclude(id__in=attended_ids)
             .order_by("last_name", "first_name")
         )

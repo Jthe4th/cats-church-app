@@ -41,6 +41,9 @@ Welcome System should provide fast, reliable church check-in for kiosks and staf
 ## Phase 3 (Later)
 - **Native kiosk packaging**
   - Evaluate Electron/Tauri for stable silent printing and stronger kiosk lock-down.
+- **Local HTTPS gateway**
+  - Add Caddy as a reverse proxy in front of Waitress for LAN TLS termination.
+  - Use trusted internal certificates and a stable local hostname (for example, `welcome.local`) to remove browser security warnings on kiosks.
 - **Security and recovery**
   - Add stronger auth controls and scheduled backup/restore workflows.
 - **Multi-service enhancements**

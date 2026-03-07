@@ -10,11 +10,13 @@ from django.utils.html import format_html
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import UploadedFile
+from django.db.models import Q
 from jazzmin.settings import THEMES
 import csv
 
 from .audit import log_event
 from .fonts import ALL_FONT_CHOICES
+from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service, SystemSetting, Tag
 from .permissions import can_manage_configuration, can_view_confidential_notes
 from .settings_store import get_setting
@@ -111,6 +113,8 @@ class ServiceAdmin(admin.ModelAdmin):
     list_display = ("label", "date", "status")
     list_filter = ("label",)
     search_fields = ("label",)
+    ordering = ("-date", "-id")
+    sortable_by = ()
     change_form_template = "admin/core/service/change_form.html"
     save_on_top = False
 
@@ -176,7 +180,7 @@ class ServiceAdmin(admin.ModelAdmin):
                             }
                         )
                 missing_count = (
-                    Person.objects.filter(member_type=Person.MEMBER, is_active=True)
+                    members_active_for_service(service)
                     .exclude(id__in=attended_ids)
                     .count()
                 )
@@ -204,6 +208,120 @@ class ServiceAdmin(admin.ModelAdmin):
                         "attendees": attendees,
                     }
                 )
+            if request.method == "GET" and request.GET.get("manual_search") is not None:
+                query = request.GET.get("manual_search", "").strip()
+                if len(query) < 2:
+                    return JsonResponse({"results": []})
+                people_qs = (
+                    Person.objects.filter(
+                        Q(first_name__icontains=query)
+                        | Q(last_name__icontains=query)
+                        | Q(phone__icontains=query)
+                        | Q(email__icontains=query)
+                    )
+                    .select_related("family")
+                    .order_by("last_name", "first_name")[:20]
+                )
+                person_ids = list(people_qs.values_list("id", flat=True))
+                checked_in_ids = set(
+                    Attendance.objects.filter(service_id=object_id, person_id__in=person_ids).values_list("person_id", flat=True)
+                )
+                results = []
+                for person in people_qs:
+                    middle = f" {person.middle_initial}." if person.middle_initial else ""
+                    results.append(
+                        {
+                            "id": person.id,
+                            "name": f"{person.first_name}{middle} {person.last_name}",
+                            "family": person.family.name if person.family else "",
+                            "phone": person.phone or "",
+                            "checked_in": person.id in checked_in_ids,
+                        }
+                    )
+                return JsonResponse({"results": results})
+            if request.method == "POST" and request.POST.get("action") in {"manual_checkin_person", "manual_print_person"}:
+                service = Service.objects.filter(id=object_id).first()
+                if service and service.status == Service.CLOSED:
+                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                        return HttpResponse(status=409)
+                    return redirect(request.path)
+                person_id = request.POST.get("person_id")
+                if person_id and person_id.isdigit():
+                    person = Person.objects.filter(id=int(person_id)).first()
+                    if person:
+                        attendance, created = Attendance.objects.get_or_create(
+                            person_id=person.id,
+                            service_id=object_id,
+                        )
+                        if created:
+                            log_event(
+                                AuditLog.ACTION_CHECKIN,
+                                user=request.user,
+                                service=service,
+                                person=person,
+                                attendance=attendance,
+                                message="Manual check-in from Manage Church Service.",
+                                metadata={"source": "manual_attendance"},
+                            )
+                        if request.POST.get("action") == "manual_print_person":
+                            auto_print = get_setting("kiosk_print_mode", "No").strip().lower() in {"yes", "true", "1"}
+                            print_url = f"/print/{attendance.id}/"
+                            if auto_print:
+                                print_url = f"{print_url}?auto=1"
+                            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                                return JsonResponse({"print_url": print_url})
+                            return redirect(print_url)
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                    return HttpResponse(status=204)
+                return redirect(request.path)
+            if request.method == "POST" and request.POST.get("action") in {"manual_create_visitor", "manual_create_visitor_print"}:
+                service = Service.objects.filter(id=object_id).first()
+                if service and service.status == Service.CLOSED:
+                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                        return HttpResponse(status=409)
+                    return redirect(request.path)
+                first_name = request.POST.get("first_name", "").strip()
+                last_name = request.POST.get("last_name", "").strip()
+                middle_initial = request.POST.get("middle_initial", "").strip()[:1]
+                phone = request.POST.get("phone", "").strip()
+                email = request.POST.get("email", "").strip()
+                if not first_name or not last_name:
+                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                        return JsonResponse({"error": "First and last name are required."}, status=400)
+                    return redirect(request.path)
+                person = Person.objects.create(
+                    first_name=first_name,
+                    middle_initial=middle_initial,
+                    last_name=last_name,
+                    phone=phone,
+                    email=email,
+                    member_type=Person.VISITOR,
+                )
+                attendance, created = Attendance.objects.get_or_create(
+                    person_id=person.id,
+                    service_id=object_id,
+                )
+                if created:
+                    log_event(
+                        AuditLog.ACTION_CHECKIN,
+                        user=request.user,
+                        service=service,
+                        person=person,
+                        attendance=attendance,
+                        message="Manual new visitor check-in from Manage Church Service.",
+                        metadata={"source": "manual_attendance_new"},
+                    )
+                if request.POST.get("action") == "manual_create_visitor_print":
+                    auto_print = get_setting("kiosk_print_mode", "No").strip().lower() in {"yes", "true", "1"}
+                    print_url = f"/print/{attendance.id}/"
+                    if auto_print:
+                        print_url = f"{print_url}?auto=1"
+                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                        return JsonResponse({"print_url": print_url})
+                    return redirect(print_url)
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                    return JsonResponse({"created_person_id": person.id, "checked_in": True})
+                return redirect(request.path)
             if request.method == "POST" and request.POST.get("action") == "check_in_missing":
                 service = Service.objects.filter(id=object_id).first()
                 if service and service.status == Service.CLOSED:
@@ -264,7 +382,7 @@ class ServiceAdmin(admin.ModelAdmin):
             )
             attended_ids = Attendance.objects.filter(service_id=object_id).values_list("person_id", flat=True)
             missing_members = (
-                Person.objects.filter(member_type=Person.MEMBER, is_active=True)
+                members_active_for_service(service)
                 .exclude(id__in=attended_ids)
                 .order_by("last_name", "first_name")
             )
@@ -412,6 +530,7 @@ class SystemSettingAdmin(admin.ModelAdmin):
     PX_INT_KEYS = {"kiosk_logo_width_px", "kiosk_logo_height_px"}
     PERCENT_INT_KEYS = {"label_first_name_scale", "label_last_name_scale"}
     ADMIN_SKIN_CHOICES = [(name, name.replace("_", " ").title()) for name in THEMES.keys()]
+    ADMIN_SKIN_PREVIEW_URL = "https://django-jazzmin.readthedocs.io/ui_customisation/"
 
     @staticmethod
     def _save_logo_file(uploaded: UploadedFile) -> str:
@@ -433,7 +552,13 @@ class SystemSettingAdmin(admin.ModelAdmin):
                 self.fields["value"] = forms.ChoiceField(choices=self.FONT_CHOICES)
                 self.fields["value"].widget.choices = self.FONT_CHOICES
             if self.instance and self.instance.key in SystemSettingAdmin.ADMIN_SKIN_KEYS:
-                self.fields["value"] = forms.ChoiceField(choices=SystemSettingAdmin.ADMIN_SKIN_CHOICES)
+                self.fields["value"] = forms.ChoiceField(
+                    choices=SystemSettingAdmin.ADMIN_SKIN_CHOICES,
+                    help_text=format_html(
+                        'Preview available skins in the <a href="{}" target="_blank" rel="noopener noreferrer">Jazzmin UI docs</a>.',
+                        SystemSettingAdmin.ADMIN_SKIN_PREVIEW_URL,
+                    ),
+                )
             if self.instance and self.instance.key in SystemSettingAdmin.YES_NO_KEYS:
                 self.fields["value"] = forms.ChoiceField(choices=[("No", "No"), ("Yes", "Yes")])
             if self.instance and self.instance.key in SystemSettingAdmin.SOURCE_KEYS:
@@ -599,6 +724,10 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     required=False,
                     label=setting_obj.key,
                     widget=forms.Select(attrs={"class": "vSelect"}),
+                    help_text=format_html(
+                        'Preview available skins in the <a href="{}" target="_blank" rel="noopener noreferrer">Jazzmin UI docs</a>.',
+                        self.ADMIN_SKIN_PREVIEW_URL,
+                    ),
                 )
             elif setting_obj.key in self.LOGO_UPLOAD_KEYS:
                 field = forms.FileField(

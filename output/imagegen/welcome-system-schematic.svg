@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-label="Welcome System workflow schematic">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="100%" stop-color="#eef6f8"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,6 L0,12 z" fill="#2f4f4f"/>
+    </marker>
+    <style>
+      .title { font: 700 44px Arial, sans-serif; fill: #0b3557; }
+      .subtitle { font: 400 22px Arial, sans-serif; fill: #325f74; }
+      .zone-label { font: 700 22px Arial, sans-serif; fill: #0b3557; }
+      .box-title { font: 700 24px Arial, sans-serif; fill: #0b3557; }
+      .box-text { font: 400 19px Arial, sans-serif; fill: #24495c; }
+      .small { font: 400 17px Arial, sans-serif; fill: #24495c; }
+      .pill { font: 700 18px Arial, sans-serif; fill: #ffffff; }
+      .arrow-label { font: 700 16px Arial, sans-serif; fill: #224b5f; stroke: #ffffff; stroke-width: 5; paint-order: stroke fill; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1000" fill="url(#bg)"/>
+
+  <text x="70" y="78" class="title">Welcome System Schematic</text>
+  <text x="70" y="112" class="subtitle">Church check-in flow from kiosk search to attendance reporting</text>
+
+  <rect x="55" y="150" width="1490" height="800" rx="24" fill="#ffffff" stroke="#d3e3ea" stroke-width="2"/>
+
+  <text x="90" y="205" class="zone-label">Kiosk Zone (3-4 devices)</text>
+  <rect x="90" y="230" width="420" height="190" rx="16" fill="#ebf5fa" stroke="#9dc5d8" stroke-width="2"/>
+  <text x="115" y="270" class="box-title">1) Greeter Kiosk</text>
+  <text x="115" y="304" class="box-text">Search by last name or last 4 phone digits</text>
+  <text x="115" y="336" class="box-text">Family members grouped and pre-selected</text>
+  <text x="115" y="368" class="box-text">Supports "I'm new here" modal</text>
+
+  <rect x="90" y="450" width="420" height="190" rx="16" fill="#ebf5fa" stroke="#9dc5d8" stroke-width="2"/>
+  <text x="115" y="490" class="box-title">2) Check-In Action</text>
+  <text x="115" y="524" class="box-text">Select members to check in</text>
+  <text x="115" y="556" class="box-text">Print one nametag per person</text>
+  <text x="115" y="588" class="box-text">If fully checked-in: allow reprint only</text>
+
+  <text x="580" y="205" class="zone-label">Application Layer (Django)</text>
+  <rect x="570" y="230" width="460" height="190" rx="16" fill="#edf8f3" stroke="#9ecfb6" stroke-width="2"/>
+  <text x="595" y="270" class="box-title">3) Service Gate + Business Rules</text>
+  <text x="595" y="304" class="box-text">Service status: Open / Closed</text>
+  <text x="595" y="336" class="box-text">Closed service blocks kiosk check-in</text>
+  <text x="595" y="368" class="box-text">One attendance record per person per service</text>
+
+  <rect x="570" y="450" width="460" height="190" rx="16" fill="#edf8f3" stroke="#9ecfb6" stroke-width="2"/>
+  <text x="595" y="490" class="box-title">4) Data Persistence</text>
+  <text x="595" y="524" class="box-text">Store families, people, services, attendance</text>
+  <text x="595" y="556" class="box-text">SQLite database (cats.sqlite3)</text>
+  <text x="595" y="588" class="box-text">Reliable attendance history for staff</text>
+
+  <text x="1105" y="205" class="zone-label">Staff Zone (1-2 laptops)</text>
+  <rect x="1085" y="230" width="420" height="190" rx="16" fill="#fff6ea" stroke="#e6c79f" stroke-width="2"/>
+  <text x="1110" y="270" class="box-title">5) Admin Dashboard</text>
+  <text x="1110" y="304" class="box-text">Live attendee counts (auto-refresh)</text>
+  <text x="1110" y="336" class="box-text">First-time visitors list highlight</text>
+  <text x="1110" y="368" class="box-text">Manage Church Service open/close control</text>
+
+  <rect x="1085" y="450" width="420" height="190" rx="16" fill="#fff6ea" stroke="#e6c79f" stroke-width="2"/>
+  <text x="1110" y="490" class="box-title">6) Reports + Follow-up</text>
+  <text x="1110" y="524" class="box-text">Missing Members report</text>
+  <text x="1110" y="556" class="box-text">Attendance exports and record review</text>
+  <text x="1110" y="588" class="box-text">Supports pastoral/staff workflows</text>
+
+  <rect x="690" y="690" width="220" height="56" rx="28" fill="#2f7d61"/>
+  <text x="712" y="726" class="pill">Print Nametags</text>
+
+  <rect x="500" y="770" width="620" height="130" rx="16" fill="#f0f6fb" stroke="#b8cfdf" stroke-width="2"/>
+  <text x="545" y="812" class="box-title">Primary Flow</text>
+  <text x="545" y="846" class="small">Kiosk Search -> Select Family Members -> Print/Check-In -> Attendance Stored</text>
+  <text x="545" y="872" class="small">-> Staff Dashboard + Missing Members Report</text>
+
+  <path d="M510 392 L555 392" stroke="#2f4f4f" stroke-width="4" marker-end="url(#arrow)" fill="none"/>
+  <text x="518" y="382" class="arrow-label">Search request</text>
+
+  <path d="M1030 392 L1070 392" stroke="#2f4f4f" stroke-width="4" marker-end="url(#arrow)" fill="none"/>
+  <text x="1036" y="382" class="arrow-label">Live updates</text>
+
+  <path d="M820 420 L820 448" stroke="#2f4f4f" stroke-width="4" marker-end="url(#arrow)" fill="none"/>
+  <text x="840" y="439" class="arrow-label">Write attendance</text>
+
+  <path d="M510 612 L555 612" stroke="#2f4f4f" stroke-width="4" marker-end="url(#arrow)" fill="none"/>
+  <text x="516" y="602" class="arrow-label">Check-in payload</text>
+
+  <path d="M1030 612 L1070 612" stroke="#2f4f4f" stroke-width="4" marker-end="url(#arrow)" fill="none"/>
+  <text x="1038" y="602" class="arrow-label">Report data</text>
+
+  <path d="M300 650 C300 710, 590 710, 690 718" stroke="#2f4f4f" stroke-width="4" marker-end="url(#arrow)" fill="none"/>
+  <text x="325" y="704" class="arrow-label">Batch label printing</text>
+
+  <rect x="620" y="118" width="210" height="42" rx="21" fill="#1f8a70"/>
+  <text x="655" y="145" class="pill">Service OPEN</text>
+
+  <rect x="840" y="118" width="230" height="42" rx="21" fill="#b04b4b"/>
+  <text x="875" y="145" class="pill">Service CLOSED</text>
+</svg>

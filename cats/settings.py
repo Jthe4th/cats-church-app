@@ -40,16 +40,16 @@ JAZZMIN_SETTINGS = {
     "custom_links": {
         "auth": [
             {
-                "name": "System settings",
-                "url": "admin:core_systemsetting_bulk",
-                "icon": "fas fa-gear",
-                "permissions": ["core.change_systemsetting"],
-            },
-            {
                 "name": "Audit log",
                 "url": "audit_log_report",
                 "icon": "fas fa-list-check",
                 "permissions": ["core.view_service"],
+            },
+            {
+                "name": "System settings",
+                "url": "admin:core_systemsetting_bulk",
+                "icon": "fas fa-gear",
+                "permissions": ["core.change_systemsetting"],
             },
             {
                 "name": "Log out",

@@ -92,6 +92,8 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 
 ## Testing Guidelines
 Tests are not configured yet. When added, prefer Django's built-in test runner and place tests in `core/tests.py` or `core/tests/`.
+- For user-requested UI/text changes, verify the change is actually visible in the rendered page before reporting completion.
+- If visibility cannot be verified in-session, explicitly state that and provide the exact manual check performed/needed.
 
 ## Commit & Pull Request Guidelines
 - Prefer Conventional Commits (e.g., `feat: add attendance kiosk flow`)
@@ -108,6 +110,7 @@ Tests are not configured yet. When added, prefer Django's built-in test runner a
 - Confirm Brother printer model and set exact label size
 - Add family assignment in kiosk flow (optional)
 - Add service selection when multiple services per week are introduced
+- Add optional local HTTPS via Caddy reverse proxy (TLS termination in front of Waitress with trusted internal certs and a stable LAN hostname)
 
 ## Roadmap (Packaging + Silent Print)
 Browsers cannot reliably bypass the print dialog, so true silent printing requires a native wrapper.

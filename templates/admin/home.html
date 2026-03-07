@@ -317,7 +317,7 @@
         {% if first_time_followup %}
           <ul class="ws-followup-list">
             {% for person in first_time_followup %}
-              <li>{{ person.first_name }} {{ person.last_name }}</li>
+              <li><a href="{% url 'admin:core_person_change' person.id %}">{{ person.first_name }} {{ person.last_name }}</a></li>
             {% endfor %}
           </ul>
         {% else %}

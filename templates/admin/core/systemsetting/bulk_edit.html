@@ -1,6 +1,12 @@
 {% extends "admin/base_site.html" %}
 
 {% block content %}
+  <style>
+    #content-main table tbody tr td {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+  </style>
   <div id="content-main">
     <div class="module">
       <form method="post" enctype="multipart/form-data">

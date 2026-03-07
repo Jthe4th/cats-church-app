@@ -9,8 +9,16 @@
     .submit-row button[name="_continue"],
     .submit-row .deletelink,
     .submit-row .historylink,
+    .submit-row input[name="_save"],
+    .submit-row button[name="_save"],
     .object-tools .historylink,
     .object-tools a[href$="/history/"] {
+      display: none !important;
+    }
+    .content-header .breadcrumb {
+      display: none !important;
+    }
+    #jazzy-actions .form-group {
       display: none !important;
     }
     .cats-full {
@@ -31,6 +39,7 @@
     }
     .cats-full .results {
       overflow-x: auto;
+      margin-bottom: 20px;
     }
     .module.cats-full + .module.cats-full {
       margin-top: 14px;
@@ -113,21 +122,170 @@
       border: 1px solid var(--hairline-color);
       background: var(--darkened-bg);
     }
-    .cats-status-pill {
+    .cats-quick-panel {
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      background: var(--body-bg);
+      padding: 14px;
+      margin: 0 0 14px;
+    }
+    .cats-quick-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .cats-quick-card {
+      border: 1px solid #b9c7d1;
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
+      box-shadow: 0 4px 14px rgba(17, 24, 39, 0.08);
+    }
+    .cats-quick-card-title {
+      margin: 0 0 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #2c3744;
+    }
+    .cats-quick-search-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .cats-quick-search-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 560px;
+    }
+    .cats-quick-search-row input {
+      min-width: 220px;
+      width: 100%;
+    }
+    .cats-quick-results {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .cats-quick-item {
+      border: 1px solid var(--hairline-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: var(--darkened-bg);
+    }
+    .cats-quick-item-meta {
+      font-size: 12px;
+      color: var(--body-quiet-color);
+    }
+    .cats-quick-item-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .cats-quick-item-badge {
       display: inline-flex;
       align-items: center;
       border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
+      padding: 3px 8px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 0.04em;
       text-transform: uppercase;
-    }
-    .cats-status-pill-open {
+      letter-spacing: 0.03em;
       background: #d8f5d6;
       color: #1d6a1d;
     }
-    .cats-status-pill-closed {
+    .cats-new-visitor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin: 8px 0 10px;
+    }
+    .cats-new-visitor-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .cats-service-details-summary {
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      background: var(--body-bg);
+      padding: 10px 12px;
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .cats-service-details-summary-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    .cats-service-details-summary-text {
+      font-size: 14px;
+      color: var(--body-quiet-color);
+    }
+    .cats-service-details-toggle {
+      white-space: nowrap;
+    }
+    .cats-service-details-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .cats-service-details-actions .submit-row {
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+    .cats-service-details-actions .submit-row input[name="_save"],
+    .cats-service-details-actions .submit-row button[name="_save"],
+    .cats-service-details-actions input[name="_save"] {
+      margin: 0 !important;
+    }
+    .cats-service-details-actions .cats-top-save-btn {
+      margin: 0 !important;
+      white-space: nowrap;
+    }
+    .cats-quick-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--body-quiet-color);
+    }
+    .cats-section-divider {
+      border: 0;
+      height: 2px;
+      background: rgba(67, 112, 138, 0.35);
+      margin: 8px 0 14px;
+    }
+    .cats-service-details-summary-text .cats-inline-status {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+    .cats-service-details-summary-text .cats-inline-status-open {
+      background: #d8f5d6;
+      color: #1d6a1d;
+    }
+    .cats-service-details-summary-text .cats-inline-status-closed {
       background: #f9d8d8;
       color: #8d1c1c;
     }
@@ -158,8 +316,8 @@
       font-weight: 600;
     }
     #id_notes {
-      min-height: 120px !important;
-      height: 120px !important;
+      min-height: 84px !important;
+      height: 84px !important;
     }
     @keyframes cats-row-new-fade {
       0% { background-color: #d7f4d9; }
@@ -219,30 +377,9 @@
   <h1>Manage Church Service</h1>
 {% endblock %}
 
-{% block after_related_objects %}
-  <div class="cats-status-toolbar cats-full">
-    <div class="d-flex align-items-center gap-2">
-      <strong>Status:</strong>
-      <span class="cats-status-pill {% if service_status == 'closed' %}cats-status-pill-closed{% else %}cats-status-pill-open{% endif %}">
-        {{ service_status|title }}
-      </span>
-    </div>
-    <div class="d-flex gap-2">
-      {% if service_status == "closed" %}
-        <button class="btn btn-sm btn-outline-success service-state-btn" type="button" data-action="reopen_service">Reopen service</button>
-      {% else %}
-        <button
-          class="btn btn-sm btn-outline-danger service-state-btn"
-          type="button"
-          data-action="close_service"
-          data-confirm="Close this service? No more guests will be able to check in until it is reopened."
-        >
-          Close service
-        </button>
-      {% endif %}
-    </div>
-  </div>
+{% block breadcrumbs %}{% endblock %}
 
+{% block after_related_objects %}
   <div class="print-modal" id="print-modal" aria-hidden="true">
     <div class="print-modal-content">
       <div class="print-modal-header">
@@ -268,6 +405,53 @@
     </div>
   </div>
 
+  <div class="cats-quick-panel cats-full">
+    <h2>Quick Check-In &amp; Print</h2>
+    {% if service_status == "closed" %}
+      <p class="mb-0">Service is closed. Reopen service to check in or print nametags.</p>
+    {% else %}
+      <div class="cats-quick-cards">
+        <div class="cats-quick-card">
+          <h3 class="cats-quick-card-title">Quick Check-In</h3>
+          <div class="cats-quick-search-row">
+            <label for="manual-person-search"><strong>Find existing person:</strong></label>
+            <div class="cats-quick-search-controls">
+              <input
+                id="manual-person-search"
+                type="text"
+                placeholder="Type first/last name, phone, or email..."
+                autocomplete="off"
+              />
+              <button id="manual-person-search-clear" type="button" class="btn btn-sm btn-outline-secondary ws-action-btn">
+                Clear
+              </button>
+            </div>
+          </div>
+          <div id="manual-person-results" class="cats-quick-results"></div>
+        </div>
+        <div class="cats-quick-card">
+          <h3 class="cats-quick-card-title">Add New Person</h3>
+          <div class="cats-new-visitor-grid">
+            <input id="manual-new-first-name" type="text" placeholder="First name*" autocomplete="off" />
+            <input id="manual-new-middle-initial" type="text" maxlength="1" placeholder="M.I." autocomplete="off" />
+            <input id="manual-new-last-name" type="text" placeholder="Last name*" autocomplete="off" />
+            <input id="manual-new-phone" type="text" placeholder="Phone (optional)" autocomplete="off" />
+            <input id="manual-new-email" type="email" placeholder="Email (optional)" autocomplete="off" />
+          </div>
+          <div class="cats-new-visitor-actions">
+            <button id="manual-new-checkin-btn" type="button" class="btn btn-sm btn-outline-primary ws-action-btn">
+              <i class="ws-icon fas fa-check" aria-hidden="true"></i><span>Check in only</span>
+            </button>
+            <button id="manual-new-print-btn" type="button" class="btn btn-sm btn-primary ws-action-btn">
+              <i class="ws-icon fas fa-print" aria-hidden="true"></i><span>Check in + print</span>
+            </button>
+          </div>
+          <div class="cats-quick-hint">Tip: “Check in + print” immediately opens nametag printing.</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
   {{ block.super }}
 
   <div class="module cats-full">
@@ -275,6 +459,7 @@
       <h2 class="mb-0">First-Time Visitors (<span id="first-time-count">{{ first_time_visitor_count }}</span>)</h2>
       <a class="button" href="{{ request.path }}?export=first_time">Export CSV</a>
     </div>
+    <hr class="cats-section-divider" />
     <div class="results">
       <table class="cats-table">
         <thead>
@@ -299,6 +484,7 @@
       <h2 class="mb-0">Attendees (<span id="attendee-count">{{ attendee_count }}</span>)</h2>
       <a class="button" href="{{ request.path }}?export=attendees">Export CSV</a>
     </div>
+    <hr class="cats-section-divider" />
     <div class="results">
       <table class="cats-table">
         <thead>
@@ -352,6 +538,7 @@
       <h2 class="mb-0">Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</h2>
       <a class="button" href="/admin/missing-members/?format=csv">Export CSV</a>
     </div>
+    <hr class="cats-section-divider" />
     {% if missing_members %}
       <p>
         <label for="missing-search"><strong>Find person:</strong></label>
@@ -412,8 +599,82 @@
       const printFrame = document.getElementById("print-frame");
       const printClose = document.getElementById("print-modal-close");
       const printNow = document.getElementById("print-modal-print");
+      const dateInput = document.getElementById("id_date");
+      const labelInput = document.getElementById("id_label");
+      const statusInput = document.getElementById("id_status");
+      const detailsCard = dateInput ? dateInput.closest(".card") : null;
       if (printModal && printModal.parentElement !== document.body) {
         document.body.appendChild(printModal);
+      }
+      if (detailsCard && detailsCard.parentElement) {
+        const summaryBox = document.createElement("div");
+        summaryBox.className = "cats-service-details-summary";
+        summaryBox.innerHTML = `
+          <div>
+            <span class="cats-service-details-summary-title">Service Details</span>
+            <span class="cats-service-details-summary-text" id="cats-service-details-summary-text"></span>
+          </div>
+          <div class="cats-service-details-actions" id="cats-service-details-actions">
+            <button type="submit" form="service_form" name="_save" value="Save" class="btn btn-sm btn-success cats-top-save-btn">
+              Save
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary cats-service-details-toggle" id="cats-service-details-toggle">
+              Edit Service Details
+            </button>
+            {% if service_status == "closed" %}
+              <button class="btn btn-sm btn-outline-success service-state-btn" type="button" data-action="reopen_service">Reopen service</button>
+            {% else %}
+              <button
+                class="btn btn-sm btn-outline-danger service-state-btn"
+                type="button"
+                data-action="close_service"
+                data-confirm="Close this service? No more guests will be able to check in until it is reopened."
+              >
+                Close service
+              </button>
+            {% endif %}
+          </div>
+        `;
+        detailsCard.parentElement.insertBefore(summaryBox, detailsCard);
+        const summaryTextEl = summaryBox.querySelector("#cats-service-details-summary-text");
+        const toggleBtn = summaryBox.querySelector("#cats-service-details-toggle");
+        const escapeSummary = (text) =>
+          String(text ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+        const updateDetailsSummary = () => {
+          const dateText = (dateInput?.value || "").trim() || "No date";
+          const labelText = (labelInput?.value || "").trim() || "No label";
+          const statusText = (statusInput?.options?.[statusInput.selectedIndex]?.text || statusInput?.value || "Unknown").trim();
+          const statusClass = statusText.toLowerCase() === "open" ? "cats-inline-status-open" : "cats-inline-status-closed";
+          if (summaryTextEl) {
+            summaryTextEl.innerHTML = `${escapeSummary(dateText)} • ${escapeSummary(labelText)} • <span class="cats-inline-status ${statusClass}">${escapeSummary(statusText)}</span>`;
+          }
+        };
+        let detailsCollapsed = true;
+        const setDetailsCollapsed = (collapsed) => {
+          detailsCollapsed = collapsed;
+          detailsCard.style.display = collapsed ? "none" : "";
+          if (toggleBtn) {
+            toggleBtn.textContent = collapsed ? "Edit Service Details" : "Hide Service Details";
+          }
+        };
+        [dateInput, labelInput].forEach((el) => {
+          if (!el) return;
+          el.addEventListener("input", updateDetailsSummary);
+          el.addEventListener("change", updateDetailsSummary);
+        });
+        if (statusInput) {
+          statusInput.addEventListener("change", updateDetailsSummary);
+        }
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", () => setDetailsCollapsed(!detailsCollapsed));
+        }
+        updateDetailsSummary();
+        setDetailsCollapsed(true);
       }
       const seenAttendeeIds = new Set();
       const seenFirstTimeIds = new Set();
@@ -579,6 +840,16 @@
         });
       });
       const missingSearch = document.getElementById("missing-search");
+      const manualSearchInput = document.getElementById("manual-person-search");
+      const manualSearchClearBtn = document.getElementById("manual-person-search-clear");
+      const manualResults = document.getElementById("manual-person-results");
+      const manualNewFirst = document.getElementById("manual-new-first-name");
+      const manualNewMiddle = document.getElementById("manual-new-middle-initial");
+      const manualNewLast = document.getElementById("manual-new-last-name");
+      const manualNewPhone = document.getElementById("manual-new-phone");
+      const manualNewEmail = document.getElementById("manual-new-email");
+      const manualNewCheckinBtn = document.getElementById("manual-new-checkin-btn");
+      const manualNewPrintBtn = document.getElementById("manual-new-print-btn");
       if (missingSearch) {
         missingSearch.addEventListener("input", () => {
           const query = missingSearch.value.trim().toLowerCase();
@@ -600,6 +871,89 @@
           headers: { "X-Requested-With": "XMLHttpRequest" },
         });
       };
+      const escapeHtmlText = (text) =>
+        String(text ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+
+      const renderManualResults = (items) => {
+        if (!manualResults) return;
+        if (!items.length) {
+          manualResults.innerHTML = "<div class=\"cats-quick-hint\">No matching people found.</div>";
+          return;
+        }
+        manualResults.innerHTML = items
+          .map((item) => {
+            const badge = item.checked_in ? '<span class="cats-quick-item-badge">Already checked in</span>' : "";
+            const actionsHtml = item.checked_in
+              ? ""
+              : `
+                  <button class="btn btn-sm btn-outline-primary ws-action-btn js-manual-checkin" type="button" data-person-id="${escapeHtmlText(item.id)}">
+                    <i class="ws-icon fas fa-check" aria-hidden="true"></i><span>Check in only</span>
+                  </button>
+                  <button class="btn btn-sm btn-primary ws-action-btn js-manual-print" type="button" data-person-id="${escapeHtmlText(item.id)}">
+                    <i class="ws-icon fas fa-print" aria-hidden="true"></i><span>Check in + print</span>
+                  </button>
+                `;
+            return `
+              <div class="cats-quick-item">
+                <div>
+                  <div><strong>${escapeHtmlText(item.name)}</strong> ${badge}</div>
+                  <div class="cats-quick-item-meta">${escapeHtmlText(item.family || "No family")}${item.phone ? " • " + escapeHtmlText(item.phone) : ""}</div>
+                </div>
+                ${actionsHtml ? `<div class="cats-quick-item-actions">${actionsHtml}</div>` : ""}
+              </div>
+            `;
+          })
+          .join("");
+      };
+
+      const fetchManualMatches = (query) => {
+        if (!manualResults) return;
+        if (!query || query.trim().length < 2) {
+          manualResults.innerHTML = "";
+          return;
+        }
+        fetch(`${window.location.pathname}?manual_search=${encodeURIComponent(query.trim())}`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Search failed");
+            }
+            return response.json();
+          })
+          .then((data) => renderManualResults(data.results || []))
+          .catch(() => {
+            manualResults.innerHTML = "<div class=\"cats-quick-hint\">Search is temporarily unavailable.</div>";
+          });
+      };
+
+      if (manualSearchInput) {
+        let manualSearchTimer = null;
+        manualSearchInput.addEventListener("input", () => {
+          window.clearTimeout(manualSearchTimer);
+          manualSearchTimer = window.setTimeout(() => fetchManualMatches(manualSearchInput.value), 200);
+        });
+        manualSearchInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            fetchManualMatches(manualSearchInput.value);
+          }
+        });
+      }
+      if (manualSearchClearBtn && manualSearchInput) {
+        manualSearchClearBtn.addEventListener("click", () => {
+          manualSearchInput.value = "";
+          if (manualResults) {
+            manualResults.innerHTML = "";
+          }
+          manualSearchInput.focus();
+        });
+      }
 
       document.addEventListener("click", (event) => {
         const checkInBtn = event.target.closest(".js-checkin-btn");
@@ -638,6 +992,109 @@
             pollCounts();
           })
           .catch(() => {});
+      });
+
+      document.addEventListener("click", (event) => {
+        const quickCheckinBtn = event.target.closest(".js-manual-checkin");
+        if (!quickCheckinBtn) return;
+        const personId = quickCheckinBtn.getAttribute("data-person-id");
+        if (!personId) return;
+        postAction({ action: "manual_checkin_person", person_id: personId })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Check-in failed");
+            }
+            pollCounts();
+            if (manualSearchInput) {
+              fetchManualMatches(manualSearchInput.value);
+            }
+          })
+          .catch(() => {});
+      });
+
+      document.addEventListener("click", (event) => {
+        const quickPrintBtn = event.target.closest(".js-manual-print");
+        if (!quickPrintBtn) return;
+        const personId = quickPrintBtn.getAttribute("data-person-id");
+        if (!personId) return;
+        postAction({ action: "manual_print_person", person_id: personId })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Check-in/print failed");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            pollCounts();
+            if (manualSearchInput) {
+              fetchManualMatches(manualSearchInput.value);
+            }
+            if (data.print_url) {
+              launchPrint(data.print_url);
+            }
+          })
+          .catch(() => {});
+      });
+
+      const submitNewVisitor = (printAfter) => {
+        if (!manualNewFirst || !manualNewLast) return;
+        const firstName = (manualNewFirst.value || "").trim();
+        const lastName = (manualNewLast.value || "").trim();
+        if (!firstName || !lastName) {
+          manualNewFirst.focus();
+          return;
+        }
+        const payload = {
+          action: printAfter ? "manual_create_visitor_print" : "manual_create_visitor",
+          first_name: firstName,
+          middle_initial: (manualNewMiddle?.value || "").trim(),
+          last_name: lastName,
+          phone: (manualNewPhone?.value || "").trim(),
+          email: (manualNewEmail?.value || "").trim(),
+        };
+        postAction(payload)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("New visitor check-in failed");
+            }
+            if (printAfter) {
+              return response.json();
+            }
+            return null;
+          })
+          .then((data) => {
+            if (manualNewFirst) manualNewFirst.value = "";
+            if (manualNewMiddle) manualNewMiddle.value = "";
+            if (manualNewLast) manualNewLast.value = "";
+            if (manualNewPhone) manualNewPhone.value = "";
+            if (manualNewEmail) manualNewEmail.value = "";
+            pollCounts();
+            if (data && data.print_url) {
+              launchPrint(data.print_url);
+            }
+          })
+          .catch(() => {});
+      };
+
+      if (manualNewCheckinBtn) {
+        manualNewCheckinBtn.addEventListener("click", () => submitNewVisitor(false));
+      }
+      if (manualNewPrintBtn) {
+        manualNewPrintBtn.addEventListener("click", () => submitNewVisitor(true));
+      }
+      [
+        manualNewFirst,
+        manualNewMiddle,
+        manualNewLast,
+        manualNewPhone,
+        manualNewEmail,
+      ].forEach((inputEl) => {
+        if (!inputEl) return;
+        inputEl.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+          }
+        });
       });
 
     })();

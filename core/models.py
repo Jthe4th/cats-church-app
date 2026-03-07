@@ -65,6 +65,7 @@ class Person(models.Model):
     family = models.ForeignKey(Family, on_delete=models.SET_NULL, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     tags = models.ManyToManyField("Tag", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         verbose_name = "Person"

@@ -204,6 +204,7 @@
         </div>
       </div>
     </div>
+    {{ initial_groups|json_script:"initial-search-groups-data" }}
   </main>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -215,17 +216,77 @@
       const visitorForm = document.getElementById("visitor-form");
       const toggle = document.getElementById("visitor-toggle");
       const visitorModalEl = document.getElementById("visitor-modal");
-      const visitorModal = visitorModalEl ? new bootstrap.Modal(visitorModalEl) : null;
       const resultsModalEl = document.getElementById("search-results-modal");
       const resultsList = document.getElementById("search-results-list");
       const resultsEmpty = document.getElementById("search-results-empty");
-      const resultsModal = resultsModalEl ? new bootstrap.Modal(resultsModalEl) : null;
       const printModal = document.getElementById("print-modal");
       const printFrame = document.getElementById("print-frame");
       const printClose = document.getElementById("print-modal-close");
       const printNow = document.getElementById("print-modal-print");
       const keyboard = document.getElementById("kiosk-keyboard");
       const csrfToken = document.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+      const initialGroupsEl = document.getElementById("initial-search-groups-data");
+      let initialGroups = [];
+      if (initialGroupsEl && initialGroupsEl.textContent) {
+        try {
+          initialGroups = JSON.parse(initialGroupsEl.textContent);
+        } catch (_err) {
+          initialGroups = [];
+        }
+      }
+      const hasBootstrapModal = Boolean(window.bootstrap && typeof window.bootstrap.Modal === "function");
+
+      const createModalController = (el) => {
+        if (!el) return null;
+        if (hasBootstrapModal) {
+          const modalInstance = new window.bootstrap.Modal(el);
+          return {
+            show() { modalInstance.show(); },
+            hide() { modalInstance.hide(); },
+            onShown(handler) { el.addEventListener("shown.bs.modal", handler); },
+            onHidden(handler) { el.addEventListener("hidden.bs.modal", handler); },
+          };
+        }
+        const shownHandlers = [];
+        const hiddenHandlers = [];
+        return {
+          show() {
+            el.classList.add("show");
+            el.classList.remove("fade");
+            el.style.display = "block";
+            el.setAttribute("aria-hidden", "false");
+            document.body.classList.add("modal-open");
+            shownHandlers.forEach((handler) => handler());
+          },
+          hide() {
+            el.classList.remove("show");
+            el.style.display = "none";
+            el.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("modal-open");
+            hiddenHandlers.forEach((handler) => handler());
+          },
+          onShown(handler) { shownHandlers.push(handler); },
+          onHidden(handler) { hiddenHandlers.push(handler); },
+        };
+      };
+
+      const visitorModal = createModalController(visitorModalEl);
+      const resultsModal = createModalController(resultsModalEl);
+
+      if (!hasBootstrapModal) {
+        document.querySelectorAll("[data-bs-dismiss='modal']").forEach((button) => {
+          button.addEventListener("click", () => {
+            const modalEl = button.closest(".modal");
+            if (!modalEl) return;
+            if (modalEl.id === "visitor-modal" && visitorModal) {
+              visitorModal.hide();
+            }
+            if (modalEl.id === "search-results-modal" && resultsModal) {
+              resultsModal.hide();
+            }
+          });
+        });
+      }
       if (toggle && visitorModal) {
         toggle.addEventListener("click", () => {
           if (visitorForm) {
@@ -286,25 +347,25 @@
           input.focus();
         }
       });
-      if (resultsModalEl) {
-        resultsModalEl.addEventListener("shown.bs.modal", () => {
+      if (resultsModal) {
+        resultsModal.onShown(() => {
           if (keyboard) {
             keyboard.classList.add("kiosk-keyboard-hidden");
           }
         });
-        resultsModalEl.addEventListener("hidden.bs.modal", () => {
+        resultsModal.onHidden(() => {
           if (keyboard && printModal && !printModal.classList.contains("is-visible")) {
             keyboard.classList.remove("kiosk-keyboard-hidden");
           }
         });
       }
-      if (visitorModalEl) {
-        visitorModalEl.addEventListener("shown.bs.modal", () => {
+      if (visitorModal) {
+        visitorModal.onShown(() => {
           if (keyboard) {
             keyboard.classList.add("kiosk-keyboard-hidden");
           }
         });
-        visitorModalEl.addEventListener("hidden.bs.modal", () => {
+        visitorModal.onHidden(() => {
           if (visitorForm) {
             visitorForm.reset();
           }
@@ -404,7 +465,7 @@
             }
           })
           .catch(() => {
-            // Keep kiosk stable even if search endpoint fails.
+            window.location.href = `/kiosk/?q=${encodeURIComponent(value)}`;
           });
       };
 
@@ -435,6 +496,16 @@
           resultsModal.hide();
         }
       });
+
+      if (initialGroups.length && resultsList) {
+        resultsList.innerHTML = initialGroups.map((group, index) => createGroupMarkup(group, index)).join("");
+        if (resultsEmpty) {
+          resultsEmpty.classList.toggle("d-none", initialGroups.length > 0);
+        }
+        if (resultsModal) {
+          resultsModal.show();
+        }
+      }
 
       if (resultsList) {
         resultsList.addEventListener("click", (event) => {

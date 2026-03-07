@@ -1,0 +1,69 @@
+<svg width="1400" height="980" viewBox="0 0 1400 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="980" fill="#ECEFF3"/>
+
+  <rect x="28" y="22" width="1344" height="74" rx="12" fill="#FFFFFF" stroke="#B8C4D1"/>
+  <text x="52" y="66" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#27313D">Manage Church Service</text>
+  <rect x="430" y="39" width="116" height="38" rx="19" fill="#D7F5D9"/>
+  <text x="459" y="64" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1E6A1E">OPEN</text>
+  <rect x="1128" y="36" width="216" height="44" rx="10" fill="#F9FBFD" stroke="#AFC0D2"/>
+  <text x="1176" y="64" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#2B3A49">Close Service</text>
+
+  <rect x="28" y="112" width="1344" height="88" rx="12" fill="#FFFFFF" stroke="#B8C4D1"/>
+  <text x="54" y="144" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#4B5561">Service Details</text>
+  <text x="54" y="174" font-family="Arial, sans-serif" font-size="16" fill="#4F5A66">Date: Feb 21, 2026</text>
+  <text x="330" y="174" font-family="Arial, sans-serif" font-size="16" fill="#4F5A66">Label: Sabbath Service 02-21-2026</text>
+  <text x="858" y="174" font-family="Arial, sans-serif" font-size="16" fill="#4F5A66">Notes: 2 lines</text>
+  <text x="1238" y="174" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1C6FD9">Edit Details ▾</text>
+
+  <rect x="28" y="216" width="662" height="112" rx="14" fill="#FFFFFF" stroke="#B8C4D1"/>
+  <text x="54" y="252" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#4B5561">CHECKED IN</text>
+  <text x="54" y="304" font-family="Arial, sans-serif" font-size="66" font-weight="700" fill="#0F1830">84</text>
+
+  <rect x="710" y="216" width="662" height="112" rx="14" fill="#FFFFFF" stroke="#B8C4D1"/>
+  <text x="736" y="252" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#4B5561">FIRST-TIME VISITORS</text>
+  <text x="736" y="304" font-family="Arial, sans-serif" font-size="66" font-weight="700" fill="#0F1830">9</text>
+
+  <rect x="28" y="346" width="1344" height="236" rx="12" fill="#FFFFFF" stroke="#B8C4D1"/>
+  <text x="54" y="382" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#2C3744">Quick Check-In &amp; Print</text>
+  <text x="54" y="414" font-family="Arial, sans-serif" font-size="16" fill="#5B6671">Find existing person:</text>
+  <rect x="226" y="392" width="690" height="40" rx="8" fill="#F9FBFD" stroke="#B8C4D1"/>
+  <text x="244" y="418" font-family="Arial, sans-serif" font-size="15" fill="#8B96A2">Type first/last name, phone, or email...</text>
+
+  <rect x="54" y="446" width="1260" height="52" rx="8" fill="#F7FAFC" stroke="#D0D9E3"/>
+  <text x="72" y="477" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#303B47">John Feezer</text>
+  <text x="244" y="477" font-family="Arial, sans-serif" font-size="14" fill="#697482">Feezer Family • 555-0102</text>
+  <rect x="916" y="456" width="146" height="30" rx="8" fill="#FFFFFF" stroke="#AFC0D2"/>
+  <text x="938" y="476" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#2E3A48">Check in only</text>
+  <rect x="1074" y="456" width="214" height="30" rx="8" fill="#1C6FD9"/>
+  <text x="1122" y="476" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">Check in + print</text>
+
+  <text x="54" y="534" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#2F3A47">Add New Person</text>
+  <rect x="54" y="546" width="252" height="36" rx="7" fill="#F9FBFD" stroke="#B8C4D1"/>
+  <text x="68" y="569" font-family="Arial, sans-serif" font-size="14" fill="#8B96A2">First name*</text>
+  <rect x="318" y="546" width="84" height="36" rx="7" fill="#F9FBFD" stroke="#B8C4D1"/>
+  <text x="346" y="569" font-family="Arial, sans-serif" font-size="14" fill="#8B96A2">M.I.</text>
+  <rect x="414" y="546" width="252" height="36" rx="7" fill="#F9FBFD" stroke="#B8C4D1"/>
+  <text x="428" y="569" font-family="Arial, sans-serif" font-size="14" fill="#8B96A2">Last name*</text>
+  <rect x="678" y="546" width="252" height="36" rx="7" fill="#F9FBFD" stroke="#B8C4D1"/>
+  <text x="692" y="569" font-family="Arial, sans-serif" font-size="14" fill="#8B96A2">Phone (optional)</text>
+  <rect x="942" y="546" width="372" height="36" rx="7" fill="#F9FBFD" stroke="#B8C4D1"/>
+  <text x="956" y="569" font-family="Arial, sans-serif" font-size="14" fill="#8B96A2">Email (optional)</text>
+
+  <rect x="54" y="596" width="146" height="34" rx="8" fill="#FFFFFF" stroke="#AFC0D2"/>
+  <text x="76" y="618" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#2E3A48">Check in only</text>
+  <rect x="212" y="596" width="184" height="34" rx="8" fill="#1C6FD9"/>
+  <text x="252" y="618" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">Check in + print</text>
+
+  <rect x="28" y="598" width="1344" height="1" fill="#D4DDE7"/>
+
+  <rect x="28" y="644" width="1344" height="308" rx="12" fill="#FFFFFF" stroke="#B8C4D1"/>
+  <text x="54" y="682" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#2B3643">Attendees (84)</text>
+  <line x1="54" y1="696" x2="1318" y2="696" stroke="#D1DAE4" stroke-width="2"/>
+  <rect x="54" y="714" width="1264" height="54" rx="8" fill="#F9FBFD"/>
+  <text x="72" y="748" font-family="Arial, sans-serif" font-size="16" fill="#384553">John Feezer</text>
+  <text x="468" y="748" font-family="Arial, sans-serif" font-size="16" fill="#4E5965">Feb 21, 2026 09:28 AM</text>
+  <rect x="1108" y="725" width="84" height="30" rx="8" fill="#FFFFFF" stroke="#AFC0D2"/>
+  <text x="1128" y="745" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#2E3A48">Reprint</text>
+  <rect x="1202" y="725" width="84" height="30" rx="8" fill="#FFFFFF" stroke="#AFC0D2"/>
+  <text x="1232" y="745" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#2E3A48">Undo</text>
+</svg>
