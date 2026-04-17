@@ -20,6 +20,7 @@ from .forms import PersonForm
 from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service
 from .permissions import can_access_kiosk, can_access_staff_views, can_print_labels, can_view_confidential_notes
+from .printnode import PrintNodeError, get_kiosk_printer_id, is_printnode_mode, submit_attendance_print_job, submit_test_print_job
 from .settings_store import get_setting
 
 
@@ -62,6 +63,10 @@ def _is_yes(value: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"yes", "true", "1"}
+
+
+def _request_kiosk_id(request) -> str:
+    return (request.POST.get("kiosk_id") or request.GET.get("kiosk") or "").strip()
 
 
 def _resolve_font(font_name: str, source: str, enable_google_fonts: bool, fallback: str = "Arial"):
@@ -238,6 +243,15 @@ def _is_current_service_open() -> bool:
     return _get_or_create_service().status == Service.OPEN
 
 
+def _get_latest_reporting_service() -> Service | None:
+    # Reports should default to the most recent completed service, not a
+    # same-day open service that may have been auto-created on staff login.
+    closed_service = Service.objects.filter(status=Service.CLOSED).order_by("-date", "-id").first()
+    if closed_service:
+        return closed_service
+    return Service.objects.order_by("-date", "-id").first()
+
+
 def kiosk_status(request):
     if not can_access_kiosk(request.user):
         return JsonResponse({"service_open": False, "service_label": "", "logout": True}, status=403)
@@ -249,6 +263,117 @@ def kiosk_status(request):
             "logout": False,
         }
     )
+
+
+def _submit_printnode_or_error(request, attendance_ids, service: Service):
+    kiosk_id = _request_kiosk_id(request)
+    try:
+        print_job_id = submit_attendance_print_job(attendance_ids, kiosk_id=kiosk_id, user=request.user)
+    except PrintNodeError as exc:
+        log_event(
+            AuditLog.ACTION_PRINTNODE_FAILURE,
+            user=request.user,
+            service=service,
+            message=str(exc),
+            metadata={"attendance_ids": attendance_ids, "kiosk_id": kiosk_id},
+        )
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"print_error": str(exc), "print_mode": "printnode"}, status=502)
+        return redirect("kiosk")
+
+    log_event(
+        AuditLog.ACTION_PRINTNODE_SUCCESS,
+        user=request.user,
+        service=service,
+        message="PrintNode nametag print job submitted.",
+        metadata={"attendance_ids": attendance_ids, "kiosk_id": kiosk_id, "print_job_id": print_job_id},
+    )
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse(
+            {
+                "printed": True,
+                "print_mode": "printnode",
+                "print_job_id": print_job_id,
+                "count": len(attendance_ids),
+            }
+        )
+    return redirect("kiosk")
+
+
+def _printnode_status_payload(kiosk_id: str):
+    if not is_printnode_mode():
+        return {
+            "enabled": False,
+            "status": "off",
+            "label": "PrintNode: off",
+            "detail": "Connected Printer mode is active.",
+        }
+    if not kiosk_id:
+        return {
+            "enabled": True,
+            "status": "missing_kiosk",
+            "label": "PrintNode: kiosk not set",
+            "detail": "Open this kiosk with ?kiosk=kiosk1, kiosk2, or kiosk3.",
+        }
+    if not (get_setting("printnode_api_key", "") or "").strip():
+        return {
+            "enabled": True,
+            "status": "missing_api_key",
+            "label": "PrintNode: API key missing",
+            "detail": "Add the PrintNode API key in System Settings.",
+        }
+    try:
+        printer_id = get_kiosk_printer_id(kiosk_id)
+    except PrintNodeError as exc:
+        return {
+            "enabled": True,
+            "status": "printer_not_mapped",
+            "label": "PrintNode: printer not mapped",
+            "detail": str(exc),
+        }
+    return {
+        "enabled": True,
+        "status": "ready",
+        "label": "PrintNode: ready",
+        "detail": f"Kiosk {kiosk_id} is mapped to printer {printer_id}.",
+        "printer_id": printer_id,
+    }
+
+
+@login_required
+@user_passes_test(can_access_kiosk)
+def kiosk_printnode_status(request):
+    return JsonResponse(_printnode_status_payload(_request_kiosk_id(request)))
+
+
+@login_required
+@user_passes_test(can_access_kiosk)
+def kiosk_test_print(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required."}, status=405)
+    kiosk_id = _request_kiosk_id(request)
+    status = _printnode_status_payload(kiosk_id)
+    if status.get("status") != "ready":
+        return JsonResponse({"printed": False, "print_error": status.get("detail") or status.get("label")}, status=400)
+
+    try:
+        print_job_id = submit_test_print_job(kiosk_id=kiosk_id)
+    except PrintNodeError as exc:
+        log_event(
+            AuditLog.ACTION_PRINTNODE_FAILURE,
+            user=request.user,
+            message=str(exc),
+            metadata={"source": "kiosk_test_print", "kiosk_id": kiosk_id},
+        )
+        return JsonResponse({"printed": False, "print_error": str(exc)}, status=502)
+
+    log_event(
+        AuditLog.ACTION_PRINTNODE_SUCCESS,
+        user=request.user,
+        message="PrintNode test label submitted.",
+        metadata={"source": "kiosk_test_print", "kiosk_id": kiosk_id, "print_job_id": print_job_id},
+    )
+    return JsonResponse({"printed": True, "print_job_id": print_job_id})
 
 
 def checkin(request, *, kiosk_mode: bool = False):
@@ -309,6 +434,8 @@ def checkin(request, *, kiosk_mode: bool = False):
                     if request.headers.get("x-requested-with") == "XMLHttpRequest":
                         return JsonResponse({"checked_in": True, "count": len(attendance_ids)})
                     return redirect("kiosk" if kiosk_mode else "checkin")
+                if kiosk_mode and is_printnode_mode():
+                    return _submit_printnode_or_error(request, attendance_ids, service)
                 auto_param = "&auto=1" if auto_print else ""
                 print_url = f"/print-batch/?ids={ids_param}{auto_param}"
                 if request.headers.get("x-requested-with") == "XMLHttpRequest":
@@ -359,6 +486,8 @@ def checkin(request, *, kiosk_mode: bool = False):
                 if request.headers.get("x-requested-with") == "XMLHttpRequest":
                     return JsonResponse({"checked_in": True, "count": 1})
                 return redirect("kiosk" if kiosk_mode else "checkin")
+            if kiosk_mode and is_printnode_mode():
+                return _submit_printnode_or_error(request, [attendance.id], service)
             url = reverse("print_tag", kwargs={"attendance_id": attendance.id})
             if auto_print:
                 url = f"{url}?auto=1"
@@ -375,6 +504,7 @@ def checkin(request, *, kiosk_mode: bool = False):
             "initial_groups": initial_groups,
             "kiosk_mode": kiosk_mode,
             "iframe_print": iframe_print,
+            "printnode_mode": kiosk_mode and is_printnode_mode(),
             "app_version": settings.CATS_VERSION,
             "kiosk_background_color": _safe_hex_color(
                 get_setting("kiosk_background_color", "#ffffff"),
@@ -671,7 +801,7 @@ def print_batch(request):
 @login_required
 @user_passes_test(can_access_staff_views)
 def missing_members_report(request):
-    service = Service.objects.order_by("-date", "label").first()
+    service = _get_latest_reporting_service()
     missing_members = []
     if service:
         attended_ids = Attendance.objects.filter(service=service).values_list("person_id", flat=True)
