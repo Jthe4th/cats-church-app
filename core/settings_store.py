@@ -23,6 +23,9 @@ DEFAULT_SETTINGS = {
     "label_last_name_scale": "100",
     "kiosk_print_mode": "No",
     "kiosk_print_iframe": "No",
+    "print_mode": "Connected Printer",
+    "printnode_api_key": "",
+    "printnode_printer_map": "{}",
     "admin_skin": "default",
 }
 
@@ -45,6 +48,9 @@ DEFAULT_SETTING_DESCRIPTIONS = {
     "label_last_name_scale": "Scale last-name text size on labels as a percentage (100 = default).",
     "kiosk_print_mode": "Automatically open print flow on check-in when set to Yes.",
     "kiosk_print_iframe": "Use in-page iframe print mode instead of navigating away when set to Yes.",
+    "print_mode": "Choose whether kiosks print through the connected browser printer or PrintNode silent printing.",
+    "printnode_api_key": "PrintNode API key used for silent kiosk printing.",
+    "printnode_printer_map": 'JSON object mapping kiosk ids to PrintNode printer ids, e.g. {"kiosk1": "123456"}.',
     "admin_skin": "Jazzmin/Bootswatch skin used in the admin area.",
 }
 

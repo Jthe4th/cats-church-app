@@ -3,7 +3,7 @@ from pathlib import Path
 from django.contrib.auth.apps import AuthConfig
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CATS_VERSION = "0.6.5-alpha"
+CATS_VERSION = "0.9.0-beta"
 
 # Rename the built-in auth app label in admin navigation.
 AuthConfig.verbose_name = "Configuration"

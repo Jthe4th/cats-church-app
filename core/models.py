@@ -148,6 +148,8 @@ class AuditLog(models.Model):
     ACTION_CHECKIN = "checkin"
     ACTION_UNDO_CHECKIN = "undo_checkin"
     ACTION_PRINT = "print_nametag"
+    ACTION_PRINTNODE_SUCCESS = "printnode_success"
+    ACTION_PRINTNODE_FAILURE = "printnode_failure"
     ACTION_SERVICE_CLOSE = "service_close"
     ACTION_SERVICE_REOPEN = "service_reopen"
     ACTION_SETTING_CHANGE = "setting_change"
@@ -156,6 +158,8 @@ class AuditLog(models.Model):
         (ACTION_CHECKIN, "Check-in"),
         (ACTION_UNDO_CHECKIN, "Undo Check-in"),
         (ACTION_PRINT, "Print Nametag"),
+        (ACTION_PRINTNODE_SUCCESS, "PrintNode Success"),
+        (ACTION_PRINTNODE_FAILURE, "PrintNode Failure"),
         (ACTION_SERVICE_CLOSE, "Service Close"),
         (ACTION_SERVICE_REOPEN, "Service Reopen"),
         (ACTION_SETTING_CHANGE, "Setting Change"),

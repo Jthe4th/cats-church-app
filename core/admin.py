@@ -13,12 +13,14 @@ from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Q
 from jazzmin.settings import THEMES
 import csv
+import json
 
 from .audit import log_event
 from .fonts import ALL_FONT_CHOICES
 from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service, SystemSetting, Tag
 from .permissions import can_manage_configuration, can_view_confidential_notes
+from .printnode import PRINT_MODE_CONNECTED, PRINT_MODE_PRINTNODE
 from .settings_store import get_setting
 
 
@@ -526,10 +528,14 @@ class SystemSettingAdmin(admin.ModelAdmin):
     SOURCE_KEYS = {"welcome_heading_font_source", "label_font_source"}
     FONT_KEYS = {"label_font", "welcome_heading_font"}
     ADMIN_SKIN_KEYS = {"admin_skin"}
+    PRINT_MODE_KEYS = {"print_mode"}
+    JSON_KEYS = {"printnode_printer_map"}
+    SECRET_KEYS = {"printnode_api_key"}
     LOGO_UPLOAD_KEYS = {"kiosk_logo_path"}
     PX_INT_KEYS = {"kiosk_logo_width_px", "kiosk_logo_height_px"}
     PERCENT_INT_KEYS = {"label_first_name_scale", "label_last_name_scale"}
     ADMIN_SKIN_CHOICES = [(name, name.replace("_", " ").title()) for name in THEMES.keys()]
+    PRINT_MODE_CHOICES = [(PRINT_MODE_CONNECTED, PRINT_MODE_CONNECTED), (PRINT_MODE_PRINTNODE, PRINT_MODE_PRINTNODE)]
     ADMIN_SKIN_PREVIEW_URL = "https://django-jazzmin.readthedocs.io/ui_customisation/"
 
     @staticmethod
@@ -537,6 +543,28 @@ class SystemSettingAdmin(admin.ModelAdmin):
         saved_path = default_storage.save(f"branding/{uploaded.name}", uploaded)
         normalized = saved_path.replace("\\", "/")
         return f"{settings.MEDIA_URL.rstrip('/')}/{normalized}"
+
+    @classmethod
+    def _audit_value(cls, setting_obj, value):
+        if setting_obj.key in cls.SECRET_KEYS and value:
+            return "********"
+        return value
+
+    @staticmethod
+    def _clean_printer_map(value):
+        value = value or {}
+        if not isinstance(value, dict):
+            raise forms.ValidationError("Enter a JSON object mapping kiosk ids to PrintNode printer ids.")
+        cleaned = {}
+        for kiosk_id, printer_id in value.items():
+            kiosk_id = str(kiosk_id).strip()
+            printer_id = str(printer_id).strip()
+            if not kiosk_id:
+                raise forms.ValidationError("Kiosk ids cannot be blank.")
+            if not printer_id.isdigit():
+                raise forms.ValidationError(f'Printer id for "{kiosk_id}" must be a number.')
+            cleaned[kiosk_id] = printer_id
+        return cleaned
 
     class Form(forms.ModelForm):
         FONT_CHOICES = ALL_FONT_CHOICES
@@ -558,6 +586,25 @@ class SystemSettingAdmin(admin.ModelAdmin):
                         'Preview available skins in the <a href="{}" target="_blank" rel="noopener noreferrer">Jazzmin UI docs</a>.',
                         SystemSettingAdmin.ADMIN_SKIN_PREVIEW_URL,
                     ),
+                )
+            if self.instance and self.instance.key in SystemSettingAdmin.PRINT_MODE_KEYS:
+                self.fields["value"] = forms.ChoiceField(choices=SystemSettingAdmin.PRINT_MODE_CHOICES)
+            if self.instance and self.instance.key in SystemSettingAdmin.SECRET_KEYS:
+                self.fields["value"] = forms.CharField(
+                    required=False,
+                    widget=forms.PasswordInput(render_value=True),
+                    help_text="Stored locally in the database. Leave blank to disable PrintNode printing.",
+                )
+            if self.instance and self.instance.key in SystemSettingAdmin.JSON_KEYS:
+                try:
+                    initial_json = json.loads(self.instance.value or "{}")
+                except json.JSONDecodeError:
+                    initial_json = self.instance.value or "{}"
+                self.fields["value"] = forms.JSONField(
+                    required=False,
+                    initial=initial_json,
+                    widget=forms.Textarea(attrs={"rows": 6, "cols": 70}),
+                    help_text='Example: {"kiosk1": "123456", "kiosk2": "123457"}',
                 )
             if self.instance and self.instance.key in SystemSettingAdmin.YES_NO_KEYS:
                 self.fields["value"] = forms.ChoiceField(choices=[("No", "No"), ("Yes", "Yes")])
@@ -592,6 +639,12 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     error_messages={"invalid": "Enter a valid hex color in the format #RRGGBB."},
                 )
 
+        def clean_value(self):
+            value = self.cleaned_data.get("value")
+            if self.instance and self.instance.key in SystemSettingAdmin.JSON_KEYS:
+                return SystemSettingAdmin._clean_printer_map(value)
+            return value
+
     form = Form
 
     COLOR_KEYS = {
@@ -611,6 +664,9 @@ class SystemSettingAdmin(admin.ModelAdmin):
         "kiosk_logo_height_px": "Kiosk Logo Height (px)",
         "kiosk_print_mode": "Auto Print Mode",
         "kiosk_print_iframe": "In-Page Print Preview Mode",
+        "print_mode": "Printer Mode",
+        "printnode_api_key": "PrintNode API Key",
+        "printnode_printer_map": "PrintNode Kiosk Printer Map",
         "admin_skin": "Admin Skin",
         "label_font": "Label Font",
         "label_font_source": "Label Font Source",
@@ -625,6 +681,7 @@ class SystemSettingAdmin(admin.ModelAdmin):
         "Kiosk Preferences",
         "Admin Appearance",
         "Label & Printing",
+        "PrintNode",
         "Font Platform",
         "Other",
     ]
@@ -650,6 +707,7 @@ class SystemSettingAdmin(admin.ModelAdmin):
             "kiosk_print_mode",
             "kiosk_print_iframe",
         },
+        "PrintNode": {"print_mode", "printnode_api_key", "printnode_printer_map"},
         "Admin Appearance": {"admin_skin"},
         "Font Platform": {"enable_google_fonts"},
     }
@@ -679,7 +737,14 @@ class SystemSettingAdmin(admin.ModelAdmin):
         field_to_setting = {f"setting_{item.id}": item for item in settings_qs}
 
         class BulkSettingsForm(forms.Form):
-            pass
+            def clean(self_inner):
+                cleaned_data = super().clean()
+                for form_field_name, form_setting_obj in field_to_setting.items():
+                    if form_setting_obj.key in SystemSettingAdmin.JSON_KEYS and form_field_name in cleaned_data:
+                        cleaned_data[form_field_name] = SystemSettingAdmin._clean_printer_map(
+                            cleaned_data.get(form_field_name)
+                        )
+                return cleaned_data
 
         for field_name, setting_obj in field_to_setting.items():
             initial_value = setting_obj.value or ""
@@ -729,6 +794,34 @@ class SystemSettingAdmin(admin.ModelAdmin):
                         self.ADMIN_SKIN_PREVIEW_URL,
                     ),
                 )
+            elif setting_obj.key in self.PRINT_MODE_KEYS:
+                field = forms.ChoiceField(
+                    choices=self.PRINT_MODE_CHOICES,
+                    initial=initial_value or PRINT_MODE_CONNECTED,
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.Select(attrs={"class": "vSelect"}),
+                )
+            elif setting_obj.key in self.SECRET_KEYS:
+                field = forms.CharField(
+                    initial=initial_value,
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.PasswordInput(attrs={"class": "vTextField"}, render_value=True),
+                    help_text="Stored locally in the database. Leave blank to disable PrintNode printing.",
+                )
+            elif setting_obj.key in self.JSON_KEYS:
+                try:
+                    parsed_initial = json.loads(initial_value or "{}")
+                except json.JSONDecodeError:
+                    parsed_initial = initial_value or "{}"
+                field = forms.JSONField(
+                    initial=parsed_initial,
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.Textarea(attrs={"class": "vLargeTextField", "rows": 6}),
+                    help_text='Example: {"kiosk1": "123456", "kiosk2": "123457"}',
+                )
             elif setting_obj.key in self.LOGO_UPLOAD_KEYS:
                 field = forms.FileField(
                     required=False,
@@ -777,6 +870,8 @@ class SystemSettingAdmin(admin.ModelAdmin):
                             new_value = self._save_logo_file(raw_value)
                         else:
                             new_value = old_value
+                    elif setting_obj.key in self.JSON_KEYS:
+                        new_value = json.dumps(raw_value or {}, indent=2, sort_keys=True)
                     else:
                         new_value = "" if raw_value in (None, 0) else str(raw_value)
                     if str(old_value) == str(new_value):
@@ -787,7 +882,11 @@ class SystemSettingAdmin(admin.ModelAdmin):
                         AuditLog.ACTION_SETTING_CHANGE,
                         user=request.user,
                         message=f'Setting "{setting_obj.key}" updated.',
-                        metadata={"key": setting_obj.key, "old_value": old_value, "new_value": new_value},
+                        metadata={
+                            "key": setting_obj.key,
+                            "old_value": self._audit_value(setting_obj, old_value),
+                            "new_value": self._audit_value(setting_obj, new_value),
+                        },
                     )
                 self.message_user(request, "System settings updated.")
                 return redirect("admin:core_systemsetting_bulk")
@@ -846,6 +945,8 @@ class SystemSettingAdmin(admin.ModelAdmin):
                 obj.value = old_value
             else:
                 obj.value = obj.value or ""
+        if obj.key in self.JSON_KEYS:
+            obj.value = json.dumps(form.cleaned_data.get("value") or {}, indent=2, sort_keys=True)
         super().save_model(request, obj, form, change)
         new_value = obj.value or ""
         if not change or str(old_value) != str(new_value):
@@ -853,7 +954,11 @@ class SystemSettingAdmin(admin.ModelAdmin):
                 AuditLog.ACTION_SETTING_CHANGE,
                 user=request.user,
                 message=f'Setting "{obj.key}" updated.',
-                metadata={"key": obj.key, "old_value": old_value, "new_value": new_value},
+                metadata={
+                    "key": obj.key,
+                    "old_value": self._audit_value(obj, old_value),
+                    "new_value": self._audit_value(obj, new_value),
+                },
             )
 
 

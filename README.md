@@ -1,5 +1,5 @@
 # Welcome System
-Version: `0.6.5-alpha`
+Version: `0.9.0-beta`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
@@ -65,6 +65,23 @@ Tip (macOS): if shell aliases cause issues, run `.venv/bin/python manage.py runs
 
 ## Printing
 Label sizing is controlled in `static/css/print.css`. Batch printing uses one label per page and auto-returns to `/kiosk/` after printing. Update the `@page` size once the printer model is confirmed.
+
+Kiosk printing can run in two modes from System Settings:
+- `Connected Printer`: current browser-based printing flow.
+- `PrintNode Printer`: kiosk check-ins submit a silent PrintNode job instead of opening the browser print dialog.
+
+For PrintNode mode, configure `printnode_api_key` and `printnode_printer_map`. The printer map is JSON that routes each kiosk id to a PrintNode printer id:
+
+```json
+{
+  "kiosk1": "123456",
+  "kiosk2": "123457"
+}
+```
+
+Open each kiosk with its id once, for example `/kiosk/?kiosk=kiosk1`; the browser stores that id locally and includes it with future kiosk print requests. Staff/admin print pages remain browser-printable as a fallback even when kiosk PrintNode mode is enabled.
+
+The kiosk info menu shows the saved kiosk id, PrintNode readiness, and a `Test Printer` button. The test button sends a test label to that kiosk's mapped PrintNode printer without creating attendance.
 
 ## Admin
 Django admin is available at `/admin/` for managing families, people, services, and attendance.

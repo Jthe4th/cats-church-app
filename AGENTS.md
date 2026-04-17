@@ -1,5 +1,5 @@
 # Repository Guidelines
-Current version: `0.6.5-alpha`
+Current version: `0.9.0-beta`
 
 ## Project Direction
 Welcome System is a lightweight, local-network, web-based check-in system. The primary goals are:
@@ -83,6 +83,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - Printing is triggered by the browser using `window.print()`.
 - Batch print uses one label per page and auto-returns to `/kiosk/` after printing.
 - Kiosk supports iframe print mode and Chrome kiosk printing flow.
+- Kiosk can use global PrintNode mode for silent printing; each kiosk identifies itself with `?kiosk=...` and maps to a PrintNode printer id through `printnode_printer_map`.
 - System settings control label font family/source, first/last name colors, and optional last-name hiding.
 
 ## Coding Style & Naming Conventions

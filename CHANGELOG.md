@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Added global printer mode setting with connected-printer and PrintNode silent-print options.
+- Added PrintNode API key and kiosk-to-printer JSON map settings for per-kiosk label routing.
+- Added server-side PrintNode print job submission for kiosk name tags while keeping staff/admin browser print pages available as fallback.
+- Added kiosk info-menu PrintNode readiness display and a Test Printer button that prints a test label without checking anyone in.
+
+## [0.9.0-beta] - 2026-04-16
+- Bumped software version to `0.9.0-beta`.
 
 ## [0.6.5-alpha] - 2026-02-21
 - Added admin audit log report page with filters and linked person names to their edit pages.
