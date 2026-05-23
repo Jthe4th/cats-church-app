@@ -224,6 +224,10 @@
         <span>People</span>
         <span>{{ person_count }}</span>
       </a>
+      <a class="ws-action" href="{% url 'member_import' %}">
+        <span>Import Members</span>
+        <span>&rarr;</span>
+      </a>
       <a class="ws-action" href="{% url 'admin:core_family_changelist' %}">
         <span>Families</span>
         <span>{{ family_count }}</span>
@@ -234,6 +238,10 @@
       </a>
       <a class="ws-action" href="{% url 'admin:core_systemsetting_bulk' %}">
         <span>System Settings</span>
+        <span>&rarr;</span>
+      </a>
+      <a class="ws-action" href="{% url 'database_backup' %}">
+        <span>Database Backup</span>
         <span>&rarr;</span>
       </a>
       <a class="ws-action" href="{% url 'audit_log_report' %}">

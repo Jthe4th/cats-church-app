@@ -1,0 +1,42 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 252.00 79.20] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 209 >>
+stream
+0.000 0.000 0.000 RG
+0.75 w
+5.76 5.76 240.48 67.68 re S
+BT
+0.000 0.000 0.000 rg
+/F1 30.00 Tf
+1 0 0 1 92.40 41.18 Tm
+(TEST) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F2 11.00 Tf
+1 0 0 1 89.04 22.18 Tm
+(KIOSK KIOSK1) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000359 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+619
+%%EOF

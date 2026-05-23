@@ -1,0 +1,146 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .backup-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.8fr) minmax(420px, 1.2fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .backup-card {
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      background: var(--darkened-bg);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .backup-card h2,
+    .backup-card h3 {
+      margin-top: 0;
+    }
+    .backup-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .backup-warning {
+      border-left: 4px solid #b45309;
+      background: rgba(180, 83, 9, 0.12);
+      padding: 10px 12px;
+      margin: 10px 0;
+    }
+    .backup-table {
+      width: 100%;
+    }
+    .backup-table th,
+    .backup-table td {
+      padding: 9px 8px;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--hairline-color);
+    }
+    .backup-table tr:last-child td {
+      border-bottom: 0;
+    }
+    .restore-fields {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    @media (max-width: 1000px) {
+      .backup-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <h1>Database Backup & Restore</h1>
+    <p>
+      Create a copy of the Welcome System database before service days, before updates, or before major data cleanup.
+      Backups are stored locally in the <code>backups</code> folder.
+    </p>
+
+    <div class="backup-grid">
+      <div>
+        <div class="backup-card">
+          <h2>Create Backup</h2>
+          <p>Create a timestamped SQLite backup of the current database.</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_backup" />
+            <button type="submit" class="default">Create backup now</button>
+          </form>
+        </div>
+
+        <div class="backup-card">
+          <h2>Upload Backup</h2>
+          <p>Upload an existing SQLite backup file so it can be restored from this page.</p>
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload_backup" />
+            <div class="restore-fields">
+              <input type="file" name="backup_file" accept=".sqlite3,.db,.sqlite" required />
+              <button type="submit">Upload and validate</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="backup-card">
+        <h2>Available Backups</h2>
+        {% if backups %}
+          <table class="backup-table">
+            <thead>
+              <tr>
+                <th>Backup</th>
+                <th>Created</th>
+                <th>Size</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for backup in backups %}
+                <tr>
+                  <td><code>{{ backup.name }}</code></td>
+                  <td>{{ backup.created_at|date:"M d, Y g:i A" }}</td>
+                  <td>{{ backup.size_bytes|filesizeformat }}</td>
+                  <td>
+                    <div class="backup-actions">
+                      <a href="{% url 'database_backup_download' backup.name %}" class="button">Download</a>
+                    </div>
+                    <form method="post" style="margin-top: 8px;">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="restore_backup" />
+                      <input type="hidden" name="backup_name" value="{{ backup.name }}" />
+                      <div class="backup-warning">
+                        Restore replaces the current database. A pre-restore backup is created first.
+                      </div>
+                      <div class="restore-fields">
+                        <label>
+                          <input type="checkbox" name="confirm_restore" />
+                          I understand this will replace the current database.
+                        </label>
+                        <label>
+                          Type <strong>RESTORE</strong> to confirm:
+                          <input type="text" name="confirmation_text" />
+                        </label>
+                        <button type="submit" class="deletelink">Restore this backup</button>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No backups have been created yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

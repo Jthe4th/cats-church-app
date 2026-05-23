@@ -25,7 +25,12 @@ DEFAULT_SETTINGS = {
     "kiosk_print_iframe": "No",
     "print_mode": "Connected Printer",
     "printnode_api_key": "",
+    "printnode_label_width_in": "2.440",
+    "printnode_label_height_in": "1.1",
+    "printnode_label_margin_in": "0.1",
     "printnode_printer_map": "{}",
+    "server_printer_map": "{}",
+    "server_printer_timeout_seconds": "10",
     "admin_skin": "default",
 }
 
@@ -48,9 +53,14 @@ DEFAULT_SETTING_DESCRIPTIONS = {
     "label_last_name_scale": "Scale last-name text size on labels as a percentage (100 = default).",
     "kiosk_print_mode": "Automatically open print flow on check-in when set to Yes.",
     "kiosk_print_iframe": "Use in-page iframe print mode instead of navigating away when set to Yes.",
-    "print_mode": "Choose whether kiosks print through the connected browser printer or PrintNode silent printing.",
+    "print_mode": "Choose whether kiosks print through the connected browser printer, PrintNode, or server-side network printing.",
     "printnode_api_key": "PrintNode API key used for silent kiosk printing.",
+    "printnode_label_width_in": "Printed label width in inches for browser and PrintNode output. Use 2.440 for Brother QL 2.4-inch black/red media.",
+    "printnode_label_height_in": "Printed label height in inches for browser and PrintNode output. Use 1.100 for a fixed 1.1-inch Brother QL black/red label length.",
+    "printnode_label_margin_in": "Printed label inner margin in inches for browser and PrintNode output.",
     "printnode_printer_map": 'JSON object mapping kiosk ids to PrintNode printer ids, e.g. {"kiosk1": "123456"}.',
+    "server_printer_map": 'JSON object mapping kiosk ids to network printer addresses, e.g. {"kiosk1": "192.168.1.50:9100"}.',
+    "server_printer_timeout_seconds": "Connection timeout for server-side network printer jobs.",
     "admin_skin": "Jazzmin/Bootswatch skin used in the admin area.",
 }
 

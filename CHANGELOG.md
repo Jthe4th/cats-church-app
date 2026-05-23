@@ -3,10 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Added global printer mode setting with connected-printer and PrintNode silent-print options.
+- Bumped software version to `0.9.1-beta`.
+- Added global printer mode setting with connected-printer, PrintNode silent-print, and server-side LAN printer options.
 - Added PrintNode API key and kiosk-to-printer JSON map settings for per-kiosk label routing.
 - Added server-side PrintNode print job submission for kiosk name tags while keeping staff/admin browser print pages available as fallback.
-- Added kiosk info-menu PrintNode readiness display and a Test Printer button that prints a test label without checking anyone in.
+- Added direct server-to-printer Brother QL raw printing over the local network, with kiosk-to-printer address mapping.
+- Added kiosk info-menu printer readiness display and a Test Printer button that prints a test label without checking anyone in.
+- Added admin database backup/restore workflow for SQLite, including download, upload validation, pre-restore safety backup, and explicit restore confirmation.
+- Added admin CSV member import workflow with sample template, preview validation, duplicate detection, optional family creation, and optional updates to existing matches.
+- Added configurable PrintNode PDF label dimensions and margin defaults for Brother QL/DK label media, with a border on test labels for troubleshooting.
 
 ## [0.9.0-beta] - 2026-04-16
 - Bumped software version to `0.9.0-beta`.

@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
-from django.urls import path
+from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils import timezone
 from django.core.files.storage import default_storage
@@ -20,7 +20,7 @@ from .fonts import ALL_FONT_CHOICES
 from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service, SystemSetting, Tag
 from .permissions import can_manage_configuration, can_view_confidential_notes
-from .printnode import PRINT_MODE_CONNECTED, PRINT_MODE_PRINTNODE
+from .printnode import PRINT_MODE_CONNECTED, PRINT_MODE_PRINTNODE, PRINT_MODE_SERVER, verify_printnode_api_key
 from .settings_store import get_setting
 
 
@@ -529,13 +529,21 @@ class SystemSettingAdmin(admin.ModelAdmin):
     FONT_KEYS = {"label_font", "welcome_heading_font"}
     ADMIN_SKIN_KEYS = {"admin_skin"}
     PRINT_MODE_KEYS = {"print_mode"}
-    JSON_KEYS = {"printnode_printer_map"}
+    JSON_KEYS = {"printnode_printer_map", "server_printer_map"}
+    PRINTNODE_PRINTER_MAP_KEYS = {"printnode_printer_map"}
+    SERVER_PRINTER_MAP_KEYS = {"server_printer_map"}
     SECRET_KEYS = {"printnode_api_key"}
     LOGO_UPLOAD_KEYS = {"kiosk_logo_path"}
     PX_INT_KEYS = {"kiosk_logo_width_px", "kiosk_logo_height_px"}
     PERCENT_INT_KEYS = {"label_first_name_scale", "label_last_name_scale"}
+    DECIMAL_KEYS = {"printnode_label_width_in", "printnode_label_height_in", "printnode_label_margin_in"}
+    INT_KEYS = {"server_printer_timeout_seconds"}
     ADMIN_SKIN_CHOICES = [(name, name.replace("_", " ").title()) for name in THEMES.keys()]
-    PRINT_MODE_CHOICES = [(PRINT_MODE_CONNECTED, PRINT_MODE_CONNECTED), (PRINT_MODE_PRINTNODE, PRINT_MODE_PRINTNODE)]
+    PRINT_MODE_CHOICES = [
+        (PRINT_MODE_CONNECTED, PRINT_MODE_CONNECTED),
+        (PRINT_MODE_PRINTNODE, PRINT_MODE_PRINTNODE),
+        (PRINT_MODE_SERVER, PRINT_MODE_SERVER),
+    ]
     ADMIN_SKIN_PREVIEW_URL = "https://django-jazzmin.readthedocs.io/ui_customisation/"
 
     @staticmethod
@@ -564,6 +572,41 @@ class SystemSettingAdmin(admin.ModelAdmin):
             if not printer_id.isdigit():
                 raise forms.ValidationError(f'Printer id for "{kiosk_id}" must be a number.')
             cleaned[kiosk_id] = printer_id
+        return cleaned
+
+    @staticmethod
+    def _clean_server_printer_map(value):
+        value = value or {}
+        if not isinstance(value, dict):
+            raise forms.ValidationError("Enter a JSON object mapping kiosk ids to server printer addresses.")
+        cleaned = {}
+        for kiosk_id, printer_config in value.items():
+            kiosk_id = str(kiosk_id).strip()
+            if not kiosk_id:
+                raise forms.ValidationError("Kiosk ids cannot be blank.")
+            if isinstance(printer_config, dict):
+                host = str(printer_config.get("host", "")).strip()
+                port = str(printer_config.get("port", "9100")).strip()
+                if not host:
+                    raise forms.ValidationError(f'Printer host for "{kiosk_id}" cannot be blank.')
+                if not port.isdigit():
+                    raise forms.ValidationError(f'Printer port for "{kiosk_id}" must be a number.')
+                port_number = int(port)
+                if port_number < 1 or port_number > 65535:
+                    raise forms.ValidationError(f'Printer port for "{kiosk_id}" must be between 1 and 65535.')
+                cleaned[kiosk_id] = {"host": host, "port": port_number}
+                continue
+            raw_value = str(printer_config or "").strip()
+            if not raw_value:
+                raise forms.ValidationError(f'Printer address for "{kiosk_id}" cannot be blank.')
+            if ":" in raw_value:
+                host, port = raw_value.rsplit(":", 1)
+                if not host.strip() or not port.strip().isdigit():
+                    raise forms.ValidationError(f'Printer address for "{kiosk_id}" must look like 192.168.1.50:9100.')
+                port_number = int(port.strip())
+                if port_number < 1 or port_number > 65535:
+                    raise forms.ValidationError(f'Printer port for "{kiosk_id}" must be between 1 and 65535.')
+            cleaned[kiosk_id] = raw_value
         return cleaned
 
     class Form(forms.ModelForm):
@@ -600,11 +643,14 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     initial_json = json.loads(self.instance.value or "{}")
                 except json.JSONDecodeError:
                     initial_json = self.instance.value or "{}"
+                help_text = 'Example: {"kiosk1": "123456", "kiosk2": "123457"}'
+                if self.instance.key in SystemSettingAdmin.SERVER_PRINTER_MAP_KEYS:
+                    help_text = 'Example: {"kiosk1": "192.168.1.50:9100", "kiosk2": {"host": "192.168.1.51", "port": 9100}}'
                 self.fields["value"] = forms.JSONField(
                     required=False,
                     initial=initial_json,
                     widget=forms.Textarea(attrs={"rows": 6, "cols": 70}),
-                    help_text='Example: {"kiosk1": "123456", "kiosk2": "123457"}',
+                    help_text=help_text,
                 )
             if self.instance and self.instance.key in SystemSettingAdmin.YES_NO_KEYS:
                 self.fields["value"] = forms.ChoiceField(choices=[("No", "No"), ("Yes", "Yes")])
@@ -631,6 +677,24 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     widget=forms.NumberInput(attrs={"placeholder": "100"}),
                     help_text='Percent scale from 50 to 200. "100" keeps default size.',
                 )
+            if self.instance and self.instance.key in SystemSettingAdmin.DECIMAL_KEYS:
+                self.fields["value"] = forms.DecimalField(
+                    required=False,
+                    min_value=0,
+                    max_value=10,
+                    decimal_places=3,
+                    max_digits=5,
+                    widget=forms.NumberInput(attrs={"step": "0.001", "placeholder": "1.102"}),
+                    help_text="Measurement in inches.",
+                )
+            if self.instance and self.instance.key in SystemSettingAdmin.INT_KEYS:
+                self.fields["value"] = forms.IntegerField(
+                    required=False,
+                    min_value=1,
+                    max_value=60,
+                    widget=forms.NumberInput(attrs={"placeholder": "10"}),
+                    help_text="Whole seconds from 1 to 60.",
+                )
             if self.instance and self.instance.key in {"kiosk_background_color", "kiosk_background_color_darkmode"}:
                 self.fields["value"] = forms.RegexField(
                     regex=r"^#[0-9a-fA-F]{6}$",
@@ -641,8 +705,10 @@ class SystemSettingAdmin(admin.ModelAdmin):
 
         def clean_value(self):
             value = self.cleaned_data.get("value")
-            if self.instance and self.instance.key in SystemSettingAdmin.JSON_KEYS:
+            if self.instance and self.instance.key in SystemSettingAdmin.PRINTNODE_PRINTER_MAP_KEYS:
                 return SystemSettingAdmin._clean_printer_map(value)
+            if self.instance and self.instance.key in SystemSettingAdmin.SERVER_PRINTER_MAP_KEYS:
+                return SystemSettingAdmin._clean_server_printer_map(value)
             return value
 
     form = Form
@@ -666,7 +732,12 @@ class SystemSettingAdmin(admin.ModelAdmin):
         "kiosk_print_iframe": "In-Page Print Preview Mode",
         "print_mode": "Printer Mode",
         "printnode_api_key": "PrintNode API Key",
+        "printnode_label_width_in": "Label Width (in)",
+        "printnode_label_height_in": "Label Height (in)",
+        "printnode_label_margin_in": "Label Margin (in)",
         "printnode_printer_map": "PrintNode Kiosk Printer Map",
+        "server_printer_map": "Server Kiosk Printer Map",
+        "server_printer_timeout_seconds": "Server Printer Timeout (seconds)",
         "admin_skin": "Admin Skin",
         "label_font": "Label Font",
         "label_font_source": "Label Font Source",
@@ -681,7 +752,7 @@ class SystemSettingAdmin(admin.ModelAdmin):
         "Kiosk Preferences",
         "Admin Appearance",
         "Label & Printing",
-        "PrintNode",
+        "Printing Backends",
         "Font Platform",
         "Other",
     ]
@@ -704,10 +775,19 @@ class SystemSettingAdmin(admin.ModelAdmin):
             "label_font_source",
             "label_first_name_scale",
             "label_last_name_scale",
+            "printnode_label_width_in",
+            "printnode_label_height_in",
+            "printnode_label_margin_in",
             "kiosk_print_mode",
             "kiosk_print_iframe",
         },
-        "PrintNode": {"print_mode", "printnode_api_key", "printnode_printer_map"},
+        "Printing Backends": {
+            "print_mode",
+            "printnode_api_key",
+            "printnode_printer_map",
+            "server_printer_map",
+            "server_printer_timeout_seconds",
+        },
         "Admin Appearance": {"admin_skin"},
         "Font Platform": {"enable_google_fonts"},
     }
@@ -726,9 +806,22 @@ class SystemSettingAdmin(admin.ModelAdmin):
                 "bulk/",
                 self.admin_site.admin_view(self.bulk_edit_view),
                 name="core_systemsetting_bulk",
-            )
+            ),
+            path(
+                "verify-printnode-api-key/",
+                self.admin_site.admin_view(self.verify_printnode_api_key_view),
+                name="core_systemsetting_verify_printnode_api_key",
+            ),
         ]
         return custom_urls + urls
+
+    def verify_printnode_api_key_view(self, request):
+        if not can_manage_configuration(request.user):
+            return JsonResponse({"ok": False, "message": "Permission denied."}, status=403)
+        if request.method != "POST":
+            return JsonResponse({"ok": False, "message": "POST required."}, status=405)
+        ok, message = verify_printnode_api_key(request.POST.get("api_key"))
+        return JsonResponse({"ok": ok, "message": message}, status=200 if ok else 400)
 
     def bulk_edit_view(self, request):
         if not can_manage_configuration(request.user):
@@ -740,8 +833,12 @@ class SystemSettingAdmin(admin.ModelAdmin):
             def clean(self_inner):
                 cleaned_data = super().clean()
                 for form_field_name, form_setting_obj in field_to_setting.items():
-                    if form_setting_obj.key in SystemSettingAdmin.JSON_KEYS and form_field_name in cleaned_data:
+                    if form_setting_obj.key in SystemSettingAdmin.PRINTNODE_PRINTER_MAP_KEYS and form_field_name in cleaned_data:
                         cleaned_data[form_field_name] = SystemSettingAdmin._clean_printer_map(
+                            cleaned_data.get(form_field_name)
+                        )
+                    if form_setting_obj.key in SystemSettingAdmin.SERVER_PRINTER_MAP_KEYS and form_field_name in cleaned_data:
+                        cleaned_data[form_field_name] = SystemSettingAdmin._clean_server_printer_map(
                             cleaned_data.get(form_field_name)
                         )
                 return cleaned_data
@@ -815,12 +912,15 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     parsed_initial = json.loads(initial_value or "{}")
                 except json.JSONDecodeError:
                     parsed_initial = initial_value or "{}"
+                help_text = 'Example: {"kiosk1": "123456", "kiosk2": "123457"}'
+                if setting_obj.key in self.SERVER_PRINTER_MAP_KEYS:
+                    help_text = 'Example: {"kiosk1": "192.168.1.50:9100", "kiosk2": {"host": "192.168.1.51", "port": 9100}}'
                 field = forms.JSONField(
                     initial=parsed_initial,
                     required=False,
                     label=setting_obj.key,
                     widget=forms.Textarea(attrs={"class": "vLargeTextField", "rows": 6}),
-                    help_text='Example: {"kiosk1": "123456", "kiosk2": "123457"}',
+                    help_text=help_text,
                 )
             elif setting_obj.key in self.LOGO_UPLOAD_KEYS:
                 field = forms.FileField(
@@ -849,6 +949,29 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     label=setting_obj.key,
                     widget=forms.NumberInput(attrs={"class": "vTextField", "placeholder": "100"}),
                     help_text='Percent scale from 50 to 200. "100" keeps default size.',
+                )
+            elif setting_obj.key in self.DECIMAL_KEYS:
+                field = forms.DecimalField(
+                    initial=initial_value or "",
+                    required=False,
+                    min_value=0,
+                    max_value=10,
+                    decimal_places=3,
+                    max_digits=5,
+                    label=setting_obj.key,
+                    widget=forms.NumberInput(attrs={"class": "vTextField", "step": "0.001", "placeholder": "1.102"}),
+                    help_text="Measurement in inches.",
+                )
+            elif setting_obj.key in self.INT_KEYS:
+                cleaned_initial = initial_value if str(initial_value).isdigit() else "10"
+                field = forms.IntegerField(
+                    initial=cleaned_initial,
+                    required=False,
+                    min_value=1,
+                    max_value=60,
+                    label=setting_obj.key,
+                    widget=forms.NumberInput(attrs={"class": "vTextField", "placeholder": "10"}),
+                    help_text="Whole seconds from 1 to 60.",
                 )
             else:
                 field = forms.CharField(
@@ -915,6 +1038,8 @@ class SystemSettingAdmin(admin.ModelAdmin):
             "title": "System settings",
             "form": form,
             "sections": sections,
+            "printnode_selected": get_setting("print_mode", PRINT_MODE_CONNECTED) == PRINT_MODE_PRINTNODE,
+            "verify_printnode_url": reverse("admin:core_systemsetting_verify_printnode_api_key"),
             "has_view_permission": True,
             "has_change_permission": True,
         }

@@ -1,5 +1,5 @@
 # Welcome System
-Version: `0.9.0-beta`
+Version: `0.9.1-beta`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
@@ -66,9 +66,10 @@ Tip (macOS): if shell aliases cause issues, run `.venv/bin/python manage.py runs
 ## Printing
 Label sizing is controlled in `static/css/print.css`. Batch printing uses one label per page and auto-returns to `/kiosk/` after printing. Update the `@page` size once the printer model is confirmed.
 
-Kiosk printing can run in two modes from System Settings:
+Kiosk printing can run in three modes from System Settings:
 - `Connected Printer`: current browser-based printing flow.
 - `PrintNode Printer`: kiosk check-ins submit a silent PrintNode job instead of opening the browser print dialog.
+- `Server Printer`: kiosk check-ins submit a Brother QL raw print job directly from the Django server computer to a label printer on the local network.
 
 For PrintNode mode, configure `printnode_api_key` and `printnode_printer_map`. The printer map is JSON that routes each kiosk id to a PrintNode printer id:
 
@@ -79,9 +80,23 @@ For PrintNode mode, configure `printnode_api_key` and `printnode_printer_map`. T
 }
 ```
 
-Open each kiosk with its id once, for example `/kiosk/?kiosk=kiosk1`; the browser stores that id locally and includes it with future kiosk print requests. Staff/admin print pages remain browser-printable as a fallback even when kiosk PrintNode mode is enabled.
+Open each kiosk with its id once, for example `/kiosk/?kiosk=kiosk1`; the browser stores that id locally and includes it with future kiosk print requests. Staff/admin print pages remain browser-printable as a fallback even when kiosk silent printer mode is enabled.
 
-The kiosk info menu shows the saved kiosk id, PrintNode readiness, and a `Test Printer` button. The test button sends a test label to that kiosk's mapped PrintNode printer without creating attendance.
+For Server Printer mode, configure `server_printer_map`. The printer map is JSON that routes each kiosk id to the printer IP/hostname and raw socket port, usually `9100`:
+
+```json
+{
+  "kiosk1": "192.168.1.50:9100",
+  "kiosk2": {
+    "host": "192.168.1.51",
+    "port": 9100
+  }
+}
+```
+
+The kiosk info menu shows the saved kiosk id, printer readiness, and a `Test Printer` button. The test button sends a test label to that kiosk's mapped printer without creating attendance.
+
+Label sizing is configurable in System Settings. Defaults are set for Brother QL 2.4-inch black/red media with a fixed 1.1-inch length (`2.440` in x `1.100` in). The QL-820 series rejects print jobs when the configured label size does not match the installed DK roll.
 
 ## Admin
 Django admin is available at `/admin/` for managing families, people, services, and attendance.
@@ -91,8 +106,17 @@ System settings are edited in one place at `/admin/core/systemsetting/bulk/`.
 ## Staff Pages
 Staff-only pages (login required) live under `/staff/`, starting with `/staff/people/` for a friendly person editor that supports photo uploads.
 
+## Member Import
+Admins can import member records from CSV at `/admin/member-import/`.
+The import page includes a sample CSV download and supports columns such as First Name, Last Name, Family, Phone, Email, Address, City, State, Zip, Birth Month, and Birth Day.
+Imports preview validation results before saving; existing people are matched by email first, then by first name, last name, and phone.
+
 ## Reports
 - Missing members report: `/admin/missing-members/` (shows active members without attendance for the latest service)
+
+## Database Backup & Restore
+Admins can create, download, upload, and restore SQLite database backups at `/admin/database-backup/`.
+Backups are stored locally in the ignored `backups/` folder. A pre-restore backup is created automatically before any restore.
 
 ## Media (Photos)
 People can have an optional photo file stored under `media/people/photos/`. This is optional and can be used later without changing the data model.

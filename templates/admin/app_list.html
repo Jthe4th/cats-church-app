@@ -76,6 +76,16 @@
         <td></td>
         <td><a href="{% url 'audit_log_report' %}" class="changelink">{% translate 'View' %}</a></td>
       </tr>
+      <tr class="model-database-backup">
+        <th scope="row"><a href="{% url 'database_backup' %}">Database backup</a></th>
+        <td></td>
+        <td><a href="{% url 'database_backup' %}" class="changelink">{% translate 'Manage' %}</a></td>
+      </tr>
+      <tr class="model-member-import">
+        <th scope="row"><a href="{% url 'member_import' %}">Import members</a></th>
+        <td></td>
+        <td><a href="{% url 'member_import' %}" class="changelink">{% translate 'Import' %}</a></td>
+      </tr>
     </table>
   </div>
 {% else %}

@@ -1,0 +1,159 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .import-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.8fr) minmax(500px, 1.2fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .import-card {
+      border: 1px solid var(--hairline-color);
+      border-radius: 10px;
+      background: var(--darkened-bg);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .import-card h2,
+    .import-card h3 {
+      margin-top: 0;
+    }
+    .import-fields {
+      display: grid;
+      gap: 10px;
+    }
+    .import-table-wrap {
+      overflow-x: auto;
+    }
+    .import-table {
+      width: 100%;
+      min-width: 860px;
+    }
+    .import-table th,
+    .import-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--hairline-color);
+      vertical-align: top;
+    }
+    .import-status-error {
+      color: #b91c1c;
+      font-weight: 700;
+    }
+    .import-status-warning {
+      color: #92400e;
+      font-weight: 700;
+    }
+    .import-help-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+    @media (max-width: 1000px) {
+      .import-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <h1>Import Members</h1>
+    <p>
+      Upload a CSV file to create member records in Welcome System. Preview first, then import when the rows look correct.
+    </p>
+
+    <div class="import-grid">
+      <div>
+        <div class="import-card">
+          <h2>Upload CSV</h2>
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="import-fields">
+              <input type="file" name="member_file" accept=".csv,text/csv" required />
+              <label>
+                <input type="checkbox" name="update_existing" {% if update_existing %}checked{% endif %} />
+                Update existing matches
+              </label>
+              <div>
+                <button type="submit" name="action" value="preview_members">Preview CSV</button>
+                <button type="submit" name="action" value="import_members" class="default">Import CSV</button>
+              </div>
+            </div>
+          </form>
+          <p style="margin-top: 12px;">
+            <a href="{% url 'member_import_sample' %}">Download sample CSV</a>
+          </p>
+        </div>
+
+        <div class="import-card">
+          <h2>Supported Columns</h2>
+          <ul class="import-help-list">
+            <li>Required: <strong>First Name</strong>, <strong>Last Name</strong></li>
+            <li>Optional: Middle Initial, Family, Phone, Email, Address, City, State, Zip, Country</li>
+            <li>Optional birthday fields: Birth Month, Birth Day</li>
+            <li>Optional: Notes, Active</li>
+          </ul>
+          <p>
+            Existing people are matched by email first, then by first name, last name, and phone.
+            Imported records are saved as members.
+          </p>
+        </div>
+      </div>
+
+      <div class="import-card">
+        <h2>Preview</h2>
+        {% if rows %}
+          <div class="import-table-wrap">
+            <table class="import-table">
+              <thead>
+                <tr>
+                  <th>Row</th>
+                  <th>Name</th>
+                  <th>Family</th>
+                  <th>Contact</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td>{{ row.row_number }}</td>
+                    <td>
+                      {{ row.data.first_name }}
+                      {% if row.data.middle_initial %}{{ row.data.middle_initial }}.{% endif %}
+                      {{ row.data.last_name }}
+                    </td>
+                    <td>{{ row.data.family|default:"-" }}</td>
+                    <td>
+                      {% if row.data.phone %}<div>{{ row.data.phone }}</div>{% endif %}
+                      {% if row.data.email %}<div>{{ row.data.email }}</div>{% endif %}
+                    </td>
+                    <td>
+                      {% if row.errors %}
+                        <div class="import-status-error">Error</div>
+                        {% for error in row.errors %}
+                          <div>{{ error }}</div>
+                        {% endfor %}
+                      {% elif row.warnings %}
+                        <div class="import-status-warning">Warning</div>
+                        {% for warning in row.warnings %}
+                          <div>{{ warning }}</div>
+                        {% endfor %}
+                      {% else %}
+                        Ready
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p>No CSV preview yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

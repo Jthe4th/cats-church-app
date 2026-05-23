@@ -6,6 +6,24 @@
       padding-top: 10px;
       padding-bottom: 10px;
     }
+    .printnode-verify-row {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .printnode-verify-row[hidden] {
+      display: none;
+    }
+    .printnode-verify-status {
+      font-size: 0.85rem;
+    }
+    .printnode-verify-status.ok {
+      color: #166534;
+    }
+    .printnode-verify-status.error {
+      color: #b30000;
+    }
   </style>
   <div id="content-main">
     <div class="module">
@@ -24,7 +42,7 @@
             </thead>
             <tbody>
               {% for field, setting_obj, friendly_label in section.rows %}
-                  <tr>
+                  <tr data-setting-key="{{ setting_obj.key }}">
                     <td><strong>{{ friendly_label }}</strong></td>
                     <td>
                       <div style="display: flex; align-items: center; gap: 8px;">
@@ -35,6 +53,19 @@
                       </div>
                       {% if field.help_text %}
                         <div class="help">{{ field.help_text }}</div>
+                      {% endif %}
+                      {% if setting_obj.key == "printnode_api_key" %}
+                        <div class="printnode-verify-row" {% if not printnode_selected %}hidden{% endif %}>
+                          <button
+                            type="button"
+                            class="button"
+                            id="verify-printnode-api-key"
+                            data-url="{{ verify_printnode_url }}"
+                          >
+                            Verify PrintNode API Key
+                          </button>
+                          <span id="verify-printnode-status" class="printnode-verify-status" role="status" aria-live="polite"></span>
+                        </div>
                       {% endif %}
                       {% if setting_obj.key == "kiosk_logo_path" %}
                         {% if setting_obj.value %}
@@ -67,6 +98,54 @@
   <script>
     (function () {
       const isHex = (value) => /^#[0-9a-fA-F]{6}$/.test(value || "");
+      const csrfToken = document.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+      const printModeRow = document.querySelector("[data-setting-key='print_mode']");
+      const apiKeyRow = document.querySelector("[data-setting-key='printnode_api_key']");
+      const printModeSelect = printModeRow ? printModeRow.querySelector("select") : null;
+      const apiKeyInput = apiKeyRow ? apiKeyRow.querySelector("input") : null;
+      const verifyRow = document.querySelector(".printnode-verify-row");
+      const verifyButton = document.getElementById("verify-printnode-api-key");
+      const verifyStatus = document.getElementById("verify-printnode-status");
+      const updatePrintNodeVerifyVisibility = () => {
+        if (!verifyRow || !printModeSelect) return;
+        verifyRow.hidden = printModeSelect.value !== "PrintNode Printer";
+        if (verifyRow.hidden && verifyStatus) {
+          verifyStatus.textContent = "";
+          verifyStatus.className = "printnode-verify-status";
+        }
+      };
+      if (printModeSelect) {
+        printModeSelect.addEventListener("change", updatePrintNodeVerifyVisibility);
+        updatePrintNodeVerifyVisibility();
+      }
+      if (verifyButton && apiKeyInput && verifyStatus) {
+        verifyButton.addEventListener("click", () => {
+          const apiKey = apiKeyInput.value || "";
+          verifyButton.disabled = true;
+          verifyStatus.textContent = "Checking...";
+          verifyStatus.className = "printnode-verify-status";
+          fetch(verifyButton.dataset.url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "X-CSRFToken": csrfToken,
+            },
+            body: new URLSearchParams({ api_key: apiKey }),
+          })
+            .then((response) => response.json().then((payload) => ({ response, payload })))
+            .then(({ response, payload }) => {
+              verifyStatus.textContent = payload.message || (response.ok ? "Verified." : "Verification failed.");
+              verifyStatus.className = `printnode-verify-status ${response.ok ? "ok" : "error"}`;
+            })
+            .catch(() => {
+              verifyStatus.textContent = "Could not verify the key.";
+              verifyStatus.className = "printnode-verify-status error";
+            })
+            .finally(() => {
+              verifyButton.disabled = false;
+            });
+        });
+      }
       document.querySelectorAll(".bulk-color-picker").forEach((picker) => {
         const targetId = picker.getAttribute("data-target");
         const textInput = targetId ? document.getElementById(targetId) : null;

@@ -56,8 +56,8 @@
             <div class="text-muted mb-3" id="kiosk-id-line-menu" style="font-size: 0.72rem;">
               Kiosk: not set
             </div>
-            <div class="text-muted mb-3" id="printnode-status-line-menu" style="font-size: 0.72rem;">
-              PrintNode: checking...
+            <div class="text-muted mb-3" id="printer-status-line-menu" style="font-size: 0.72rem;">
+              Printer: checking...
             </div>
             <button class="btn btn-outline-secondary btn-sm w-100 mb-2" type="button" id="test-printer-btn" style="font-size: 0.8rem; padding: 0.3rem 0.5rem;">
               Test Printer
@@ -221,7 +221,7 @@
     (function () {
       const kioskMode = {{ kiosk_mode|yesno:"true,false" }};
       const iframePrintEnabled = {{ iframe_print|yesno:"true,false" }};
-      const printNodeMode = {{ printnode_mode|yesno:"true,false" }};
+      const managedPrinterMode = {{ managed_printer_mode|yesno:"true,false" }};
       const form = document.getElementById("search-form");
       const input = document.getElementById("search-input");
       const visitorForm = document.getElementById("visitor-form");
@@ -245,7 +245,7 @@
       if (kioskIdLine) {
         kioskIdLine.textContent = kioskId ? `Kiosk: ${kioskId}` : "Kiosk: not set";
       }
-      const printNodeStatusLine = document.getElementById("printnode-status-line-menu");
+      const printerStatusLine = document.getElementById("printer-status-line-menu");
       const testPrinterButton = document.getElementById("test-printer-btn");
       const initialGroupsEl = document.getElementById("initial-search-groups-data");
       let initialGroups = [];
@@ -440,7 +440,7 @@
           alert("Offline: check-in actions require a connection right now.");
           return Promise.resolve(null);
         }
-        if (printNodeMode && kioskId && !formData.has("kiosk_id")) {
+        if (managedPrinterMode && kioskId && !formData.has("kiosk_id")) {
           formData.append("kiosk_id", kioskId);
         }
         return fetch(window.location.pathname, {
@@ -458,12 +458,13 @@
         });
       };
 
-      const handlePrintNodeResult = (data) => {
+      const handleManagedPrintResult = (data) => {
         if (!data || (!data.print_error && !data.printed)) {
           return false;
         }
+        const printModeLabel = data.print_mode_label || "Printer";
         if (data.print_error) {
-          alert(`PrintNode error: ${data.print_error}`);
+          alert(`${printModeLabel} error: ${data.print_error}`);
           return true;
         }
         if (resultsModal) {
@@ -480,10 +481,10 @@
         return true;
       };
 
-      const updatePrintNodeStatus = () => {
-        if (!printNodeStatusLine) return;
-        if (!printNodeMode) {
-          printNodeStatusLine.textContent = "PrintNode: off";
+      const updatePrinterStatus = () => {
+        if (!printerStatusLine) return;
+        if (!managedPrinterMode) {
+          printerStatusLine.textContent = "Printer: browser mode";
           if (testPrinterButton) {
             testPrinterButton.disabled = true;
             testPrinterButton.classList.add("d-none");
@@ -491,12 +492,12 @@
           return;
         }
         const url = kioskId
-          ? `/kiosk/printnode-status/?kiosk=${encodeURIComponent(kioskId)}`
-          : "/kiosk/printnode-status/";
+          ? `/kiosk/printer-status/?kiosk=${encodeURIComponent(kioskId)}`
+          : "/kiosk/printer-status/";
         fetch(url, { cache: "no-store", headers: { "X-Requested-With": "XMLHttpRequest" } })
           .then((response) => response.json())
           .then((data) => {
-            printNodeStatusLine.textContent = data.label || "PrintNode: error";
+            printerStatusLine.textContent = data.label || "Printer: error";
             if (testPrinterButton) {
               testPrinterButton.disabled = data.status !== "ready";
               testPrinterButton.classList.remove("d-none");
@@ -504,7 +505,7 @@
             }
           })
           .catch(() => {
-            printNodeStatusLine.textContent = "PrintNode: status error";
+            printerStatusLine.textContent = "Printer: status error";
             if (testPrinterButton) {
               testPrinterButton.disabled = true;
               testPrinterButton.classList.remove("d-none");
@@ -514,7 +515,7 @@
 
       if (testPrinterButton) {
         testPrinterButton.addEventListener("click", () => {
-          if (!printNodeMode || !kioskId) {
+          if (!managedPrinterMode || !kioskId) {
             alert("Printer test requires a kiosk ID. Open this kiosk with ?kiosk=kiosk1, kiosk2, or kiosk3.");
             return;
           }
@@ -532,20 +533,21 @@
           })
             .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
             .then(({ ok, data }) => {
+              const printModeLabel = data.print_mode_label || "Printer";
               if (!ok || data.print_error) {
-                if (printNodeStatusLine) {
-                  printNodeStatusLine.textContent = "PrintNode: error";
+                if (printerStatusLine) {
+                  printerStatusLine.textContent = `${printModeLabel}: error`;
                 }
-                alert(`PrintNode error: ${data.print_error || "Test print failed."}`);
+                alert(`${printModeLabel} error: ${data.print_error || "Test print failed."}`);
                 return;
               }
-              updatePrintNodeStatus();
+              updatePrinterStatus();
             })
             .catch(() => {
-              if (printNodeStatusLine) {
-                printNodeStatusLine.textContent = "PrintNode: error";
+              if (printerStatusLine) {
+                printerStatusLine.textContent = "Printer: error";
               }
-              alert("PrintNode error: Test print failed.");
+              alert("Printer error: Test print failed.");
             })
             .finally(() => {
               testPrinterButton.textContent = "Test Printer";
@@ -660,7 +662,7 @@
                   window.location.href = "/kiosk/logout/?service_closed=1";
                   return;
                 }
-                if (handlePrintNodeResult(data)) return;
+                if (handleManagedPrintResult(data)) return;
                 if (!data || !data.print_url) return;
                 if (iframePrintEnabled) {
                   showPrintModal(data.print_url);
@@ -693,7 +695,7 @@
                 return;
               }
               if (!data) return;
-              if (handlePrintNodeResult(data)) return;
+              if (handleManagedPrintResult(data)) return;
               if (data.print_url) {
                 if (resultsModal) {
                   resultsModal.hide();
@@ -782,13 +784,13 @@
       };
       if (statusEl) {
         updateStatus();
-        updatePrintNodeStatus();
+        updatePrinterStatus();
         window.addEventListener("online", updateStatus);
         window.addEventListener("offline", updateStatus);
         setInterval(updateStatus, 15000);
         pollServiceOpen();
         setInterval(pollServiceOpen, 15000);
-        setInterval(updatePrintNodeStatus, 30000);
+        setInterval(updatePrinterStatus, 30000);
       }
 
       const queueKey = "kioskOfflineQueue";
@@ -840,7 +842,7 @@
           submitAttendance(formData)
             .then((data) => {
               if (!data) return;
-              if (handlePrintNodeResult(data)) return;
+              if (handleManagedPrintResult(data)) return;
               if (data.print_url) {
                 if (visitorModal) {
                   visitorModal.hide();

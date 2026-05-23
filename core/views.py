@@ -2,25 +2,42 @@ from datetime import date, timedelta
 import re
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Count, Max, Min, Q
 import csv
 
 from django.contrib import admin
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from .audit import log_event
+from .backups import BackupError, create_database_backup, get_backup_path, list_database_backups, restore_database_backup, save_uploaded_backup
 from .fonts import GOOGLE_FONT_HREFS, SYSTEM_FONT_CHOICES
 from .forms import PersonForm
+from .member_import import MemberImportError, import_member_rows, parse_member_csv
 from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service
-from .permissions import can_access_kiosk, can_access_staff_views, can_print_labels, can_view_confidential_notes
-from .printnode import PrintNodeError, get_kiosk_printer_id, is_printnode_mode, submit_attendance_print_job, submit_test_print_job
+from .permissions import can_access_kiosk, can_access_staff_views, can_manage_configuration, can_print_labels, can_view_confidential_notes
+from .printnode import (
+    PRINT_MODE_CONNECTED,
+    PRINT_MODE_PRINTNODE,
+    PRINT_MODE_SERVER,
+    PrintNodeError,
+    ServerPrinterError,
+    get_kiosk_printer_id,
+    get_kiosk_server_printer,
+    is_managed_printer_mode,
+    is_printnode_mode,
+    submit_attendance_print_job,
+    submit_server_attendance_print_job,
+    submit_server_test_print_job,
+    submit_test_print_job,
+)
 from .settings_store import get_setting
 
 
@@ -56,6 +73,16 @@ def _safe_percent_scale(value: str, default: int = 100) -> int:
     return parsed
 
 
+def _safe_inches(value: str, default: float) -> float:
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    if parsed <= 0:
+        return default
+    return min(parsed, 10)
+
+
 SYSTEM_FONT_SET = {name for name, _label in SYSTEM_FONT_CHOICES}
 
 
@@ -84,6 +111,14 @@ def _resolve_font(font_name: str, source: str, enable_google_fonts: bool, fallba
     if font_name in SYSTEM_FONT_SET:
         return f'"{font_name}", Arial, sans-serif', None
     return f'"{fallback}", Arial, sans-serif', None
+
+
+def _label_print_context() -> dict:
+    return {
+        "label_width_in": f"{_safe_inches(get_setting('printnode_label_width_in', '2.440'), 2.440):.3f}",
+        "label_height_in": f"{_safe_inches(get_setting('printnode_label_height_in', '1.1'), 1.1):.3f}",
+        "label_margin_in": f"{_safe_inches(get_setting('printnode_label_margin_in', '0.1'), 0.1):.3f}",
+    }
 
 
 def admin_root_redirect(request):
@@ -140,7 +175,7 @@ def admin_root_redirect(request):
             )
         }
         trend_points = []
-        for service in reversed(recent_services):
+        for service in recent_services:
             counts = recent_counts.get(service.id, {})
             attended_ids = list(Attendance.objects.filter(service=service).values_list("person_id", flat=True))
             first_time_visitors = 0
@@ -219,6 +254,175 @@ def healthz(request):
     return JsonResponse({"ok": True})
 
 
+@login_required
+@user_passes_test(can_manage_configuration)
+def database_backup_view(request):
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "create_backup":
+                backup = create_database_backup()
+                log_event(
+                    AuditLog.ACTION_DATABASE_BACKUP,
+                    user=request.user,
+                    message="Database backup created.",
+                    metadata={"backup_name": backup.name, "size_bytes": backup.size_bytes},
+                )
+                messages.success(request, f"Backup created: {backup.name}")
+            elif action == "upload_backup":
+                uploaded = request.FILES.get("backup_file")
+                if not uploaded:
+                    messages.error(request, "Choose a SQLite backup file to upload.")
+                else:
+                    backup = save_uploaded_backup(uploaded)
+                    messages.success(request, f"Backup uploaded and validated: {backup.name}")
+            elif action == "restore_backup":
+                backup_name = request.POST.get("backup_name", "")
+                confirm = request.POST.get("confirm_restore") == "on"
+                confirmation_text = (request.POST.get("confirmation_text") or "").strip()
+                if not confirm or confirmation_text != "RESTORE":
+                    messages.error(request, 'Restore was not started. Check the box and type "RESTORE" to confirm.')
+                else:
+                    backup = restore_database_backup(backup_name)
+                    try:
+                        log_event(
+                            AuditLog.ACTION_DATABASE_RESTORE,
+                            user=request.user,
+                            message="Database restored from backup.",
+                            metadata={"backup_name": backup.name, "size_bytes": backup.size_bytes},
+                        )
+                    except Exception:
+                        # A restored database may come from an older schema; do not hide
+                        # the successful restore behind an audit-log write failure.
+                        pass
+                    messages.success(request, f"Database restored from backup: {backup.name}")
+            else:
+                messages.error(request, "Unknown backup action.")
+        except BackupError as exc:
+            messages.error(request, str(exc))
+        return redirect("database_backup")
+
+    context = {
+        **admin.site.each_context(request),
+        "title": "Database Backup & Restore",
+        "backups": list_database_backups(),
+    }
+    return render(request, "admin/database_backup.html", context)
+
+
+@login_required
+@user_passes_test(can_manage_configuration)
+def database_backup_download(request, backup_name: str):
+    try:
+        backup_path = get_backup_path(backup_name)
+    except BackupError as exc:
+        raise Http404(str(exc)) from exc
+    return FileResponse(
+        backup_path.open("rb"),
+        as_attachment=True,
+        filename=backup_path.name,
+        content_type="application/vnd.sqlite3",
+    )
+
+
+@login_required
+@user_passes_test(can_manage_configuration)
+def member_import_view(request):
+    rows = []
+    result = None
+    update_existing = False
+    if request.method == "POST":
+        uploaded = request.FILES.get("member_file")
+        update_existing = request.POST.get("update_existing") == "on"
+        import_now = request.POST.get("action") == "import_members"
+        if not uploaded:
+            messages.error(request, "Choose a CSV file to import.")
+        else:
+            try:
+                rows = parse_member_csv(uploaded)
+                if import_now:
+                    result = import_member_rows(rows, update_existing=update_existing)
+                    log_event(
+                        AuditLog.ACTION_MEMBER_IMPORT,
+                        user=request.user,
+                        message="Member CSV import completed.",
+                        metadata={
+                            "created": result.created,
+                            "updated": result.updated,
+                            "skipped": result.skipped,
+                            "rows": len(result.rows),
+                            "update_existing": update_existing,
+                        },
+                    )
+                    messages.success(
+                        request,
+                        f"Import complete: {result.created} created, {result.updated} updated, {result.skipped} skipped.",
+                    )
+                elif any(row.errors for row in rows):
+                    messages.error(request, "Preview found errors. Fix the CSV before importing.")
+                else:
+                    messages.success(request, f"Preview ready: {len(rows)} rows validated.")
+            except MemberImportError as exc:
+                messages.error(request, str(exc))
+
+    context = {
+        **admin.site.each_context(request),
+        "title": "Import Members",
+        "rows": rows,
+        "result": result,
+        "update_existing": update_existing,
+    }
+    return render(request, "admin/member_import.html", context)
+
+
+@login_required
+@user_passes_test(can_manage_configuration)
+def member_import_sample(request):
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="welcome_system_member_import_sample.csv"'
+    response.write("\ufeff")
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "First Name",
+            "Middle Initial",
+            "Last Name",
+            "Family",
+            "Phone",
+            "Email",
+            "Address",
+            "City",
+            "State",
+            "Zip",
+            "Country",
+            "Birth Month",
+            "Birth Day",
+            "Notes",
+            "Active",
+        ]
+    )
+    writer.writerow(
+        [
+            "Jane",
+            "Q",
+            "Example",
+            "Example",
+            "555-123-4567",
+            "jane@example.com",
+            "123 Church St",
+            "Exampletown",
+            "FL",
+            "12345",
+            "United States of America",
+            "4",
+            "16",
+            "Imported member sample",
+            "yes",
+        ]
+    )
+    return response
+
+
 def _get_or_create_service() -> Service:
     today = date.today()
     # Multiple same-day services may exist from historical data; pick a stable
@@ -265,34 +469,51 @@ def kiosk_status(request):
     )
 
 
-def _submit_printnode_or_error(request, attendance_ids, service: Service):
+def _submit_managed_print_or_error(request, attendance_ids, service: Service):
     kiosk_id = _request_kiosk_id(request)
+    print_mode = get_setting("print_mode", PRINT_MODE_CONNECTED).strip()
+    if print_mode == PRINT_MODE_SERVER:
+        success_action = AuditLog.ACTION_SERVER_PRINT_SUCCESS
+        failure_action = AuditLog.ACTION_SERVER_PRINT_FAILURE
+        print_mode_key = "server"
+        print_mode_label = "Server Printer"
+        submit_job = submit_server_attendance_print_job
+    else:
+        success_action = AuditLog.ACTION_PRINTNODE_SUCCESS
+        failure_action = AuditLog.ACTION_PRINTNODE_FAILURE
+        print_mode_key = "printnode"
+        print_mode_label = "PrintNode"
+        submit_job = submit_attendance_print_job
     try:
-        print_job_id = submit_attendance_print_job(attendance_ids, kiosk_id=kiosk_id, user=request.user)
-    except PrintNodeError as exc:
+        print_job_id = submit_job(attendance_ids, kiosk_id=kiosk_id, user=request.user)
+    except (PrintNodeError, ServerPrinterError) as exc:
         log_event(
-            AuditLog.ACTION_PRINTNODE_FAILURE,
+            failure_action,
             user=request.user,
             service=service,
             message=str(exc),
             metadata={"attendance_ids": attendance_ids, "kiosk_id": kiosk_id},
         )
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({"print_error": str(exc), "print_mode": "printnode"}, status=502)
+            return JsonResponse(
+                {"print_error": str(exc), "print_mode": print_mode_key, "print_mode_label": print_mode_label},
+                status=502,
+            )
         return redirect("kiosk")
 
     log_event(
-        AuditLog.ACTION_PRINTNODE_SUCCESS,
+        success_action,
         user=request.user,
         service=service,
-        message="PrintNode nametag print job submitted.",
+        message=f"{print_mode_label} nametag print job submitted.",
         metadata={"attendance_ids": attendance_ids, "kiosk_id": kiosk_id, "print_job_id": print_job_id},
     )
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
         return JsonResponse(
             {
                 "printed": True,
-                "print_mode": "printnode",
+                "print_mode": print_mode_key,
+                "print_mode_label": print_mode_label,
                 "print_job_id": print_job_id,
                 "count": len(attendance_ids),
             }
@@ -300,12 +521,39 @@ def _submit_printnode_or_error(request, attendance_ids, service: Service):
     return redirect("kiosk")
 
 
-def _printnode_status_payload(kiosk_id: str):
-    if not is_printnode_mode():
+def _printer_status_payload(kiosk_id: str):
+    print_mode = get_setting("print_mode", PRINT_MODE_CONNECTED).strip()
+    if print_mode == PRINT_MODE_SERVER:
+        print_mode_label = "Server Printer"
+        if not kiosk_id:
+            return {
+                "enabled": True,
+                "status": "missing_kiosk",
+                "label": "Server Printer: kiosk not set",
+                "detail": "Open this kiosk with ?kiosk=kiosk1, kiosk2, or kiosk3.",
+            }
+        try:
+            host, port = get_kiosk_server_printer(kiosk_id)
+        except ServerPrinterError as exc:
+            return {
+                "enabled": True,
+                "status": "printer_not_mapped",
+                "label": "Server Printer: printer not mapped",
+                "detail": str(exc),
+            }
+        return {
+            "enabled": True,
+            "status": "ready",
+            "label": "Server Printer: ready",
+            "detail": f"Kiosk {kiosk_id} is mapped to {host}:{port}.",
+            "printer_address": f"{host}:{port}",
+            "print_mode_label": print_mode_label,
+        }
+    if print_mode != PRINT_MODE_PRINTNODE:
         return {
             "enabled": False,
             "status": "off",
-            "label": "PrintNode: off",
+            "label": "Printer: browser mode",
             "detail": "Connected Printer mode is active.",
         }
     if not kiosk_id:
@@ -337,13 +585,20 @@ def _printnode_status_payload(kiosk_id: str):
         "label": "PrintNode: ready",
         "detail": f"Kiosk {kiosk_id} is mapped to printer {printer_id}.",
         "printer_id": printer_id,
+        "print_mode_label": "PrintNode",
     }
 
 
 @login_required
 @user_passes_test(can_access_kiosk)
 def kiosk_printnode_status(request):
-    return JsonResponse(_printnode_status_payload(_request_kiosk_id(request)))
+    return JsonResponse(_printer_status_payload(_request_kiosk_id(request)))
+
+
+@login_required
+@user_passes_test(can_access_kiosk)
+def kiosk_printer_status(request):
+    return JsonResponse(_printer_status_payload(_request_kiosk_id(request)))
 
 
 @login_required
@@ -352,28 +607,39 @@ def kiosk_test_print(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required."}, status=405)
     kiosk_id = _request_kiosk_id(request)
-    status = _printnode_status_payload(kiosk_id)
+    status = _printer_status_payload(kiosk_id)
     if status.get("status") != "ready":
         return JsonResponse({"printed": False, "print_error": status.get("detail") or status.get("label")}, status=400)
+    print_mode = get_setting("print_mode", PRINT_MODE_CONNECTED).strip()
+    if print_mode == PRINT_MODE_SERVER:
+        success_action = AuditLog.ACTION_SERVER_PRINT_SUCCESS
+        failure_action = AuditLog.ACTION_SERVER_PRINT_FAILURE
+        print_mode_label = "Server Printer"
+        submit_job = submit_server_test_print_job
+    else:
+        success_action = AuditLog.ACTION_PRINTNODE_SUCCESS
+        failure_action = AuditLog.ACTION_PRINTNODE_FAILURE
+        print_mode_label = "PrintNode"
+        submit_job = submit_test_print_job
 
     try:
-        print_job_id = submit_test_print_job(kiosk_id=kiosk_id)
-    except PrintNodeError as exc:
+        print_job_id = submit_job(kiosk_id=kiosk_id)
+    except (PrintNodeError, ServerPrinterError) as exc:
         log_event(
-            AuditLog.ACTION_PRINTNODE_FAILURE,
+            failure_action,
             user=request.user,
             message=str(exc),
             metadata={"source": "kiosk_test_print", "kiosk_id": kiosk_id},
         )
-        return JsonResponse({"printed": False, "print_error": str(exc)}, status=502)
+        return JsonResponse({"printed": False, "print_error": str(exc), "print_mode_label": print_mode_label}, status=502)
 
     log_event(
-        AuditLog.ACTION_PRINTNODE_SUCCESS,
+        success_action,
         user=request.user,
-        message="PrintNode test label submitted.",
+        message=f"{print_mode_label} test label submitted.",
         metadata={"source": "kiosk_test_print", "kiosk_id": kiosk_id, "print_job_id": print_job_id},
     )
-    return JsonResponse({"printed": True, "print_job_id": print_job_id})
+    return JsonResponse({"printed": True, "print_job_id": print_job_id, "print_mode_label": print_mode_label})
 
 
 def checkin(request, *, kiosk_mode: bool = False):
@@ -434,8 +700,8 @@ def checkin(request, *, kiosk_mode: bool = False):
                     if request.headers.get("x-requested-with") == "XMLHttpRequest":
                         return JsonResponse({"checked_in": True, "count": len(attendance_ids)})
                     return redirect("kiosk" if kiosk_mode else "checkin")
-                if kiosk_mode and is_printnode_mode():
-                    return _submit_printnode_or_error(request, attendance_ids, service)
+                if kiosk_mode and is_managed_printer_mode():
+                    return _submit_managed_print_or_error(request, attendance_ids, service)
                 auto_param = "&auto=1" if auto_print else ""
                 print_url = f"/print-batch/?ids={ids_param}{auto_param}"
                 if request.headers.get("x-requested-with") == "XMLHttpRequest":
@@ -486,8 +752,8 @@ def checkin(request, *, kiosk_mode: bool = False):
                 if request.headers.get("x-requested-with") == "XMLHttpRequest":
                     return JsonResponse({"checked_in": True, "count": 1})
                 return redirect("kiosk" if kiosk_mode else "checkin")
-            if kiosk_mode and is_printnode_mode():
-                return _submit_printnode_or_error(request, [attendance.id], service)
+            if kiosk_mode and is_managed_printer_mode():
+                return _submit_managed_print_or_error(request, [attendance.id], service)
             url = reverse("print_tag", kwargs={"attendance_id": attendance.id})
             if auto_print:
                 url = f"{url}?auto=1"
@@ -504,6 +770,7 @@ def checkin(request, *, kiosk_mode: bool = False):
             "initial_groups": initial_groups,
             "kiosk_mode": kiosk_mode,
             "iframe_print": iframe_print,
+            "managed_printer_mode": kiosk_mode and is_managed_printer_mode(),
             "printnode_mode": kiosk_mode and is_printnode_mode(),
             "app_version": settings.CATS_VERSION,
             "kiosk_background_color": _safe_hex_color(
@@ -727,6 +994,7 @@ def print_tag(request, attendance_id: int):
             "iframe_mode": iframe_mode,
             "label_first_name_scale_factor": f"{first_scale / 100:.2f}",
             "label_last_name_scale_factor": f"{last_scale / 100:.2f}",
+            **_label_print_context(),
         },
     )
 
@@ -794,6 +1062,7 @@ def print_batch(request):
             "iframe_mode": iframe_mode,
             "label_first_name_scale_factor": f"{first_scale / 100:.2f}",
             "label_last_name_scale_factor": f"{last_scale / 100:.2f}",
+            **_label_print_context(),
         },
     )
 

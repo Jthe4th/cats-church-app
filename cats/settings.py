@@ -3,7 +3,7 @@ from pathlib import Path
 from django.contrib.auth.apps import AuthConfig
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CATS_VERSION = "0.9.0-beta"
+CATS_VERSION = "0.9.1-beta"
 
 # Rename the built-in auth app label in admin navigation.
 AuthConfig.verbose_name = "Configuration"
@@ -49,6 +49,18 @@ JAZZMIN_SETTINGS = {
                 "name": "System settings",
                 "url": "admin:core_systemsetting_bulk",
                 "icon": "fas fa-gear",
+                "permissions": ["core.change_systemsetting"],
+            },
+            {
+                "name": "Database backup",
+                "url": "database_backup",
+                "icon": "fas fa-database",
+                "permissions": ["core.change_systemsetting"],
+            },
+            {
+                "name": "Import members",
+                "url": "member_import",
+                "icon": "fas fa-file-import",
                 "permissions": ["core.change_systemsetting"],
             },
             {

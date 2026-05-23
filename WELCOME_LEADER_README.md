@@ -87,7 +87,7 @@ On each kiosk:
 2. Tap the small info button in the top corner.
 3. Confirm it says `Server online`.
 4. Confirm it shows the correct kiosk ID, such as `Kiosk: kiosk1`.
-5. Confirm it says `PrintNode: ready` if PrintNode printing is being used.
+5. Confirm it says `PrintNode: ready` or `Server Printer: ready` if silent printer mode is being used.
 6. Confirm the correct service is shown.
 
 If a kiosk says `Kiosk: not set`, reopen it with the correct kiosk URL:
@@ -112,6 +112,12 @@ Normal behavior:
 - No success popup appears.
 
 If printing fails, the kiosk should show an error message.
+
+## Server Printer Printing
+
+If Server Printer mode is turned on, the kiosk sends labels to the Welcome System server computer. The server then prints directly to each label printer on the local network.
+
+Normal behavior is the same as PrintNode mode: the greeter taps `Print Nametags`, the assigned printer prints silently, and no Chrome print box appears.
 
 ## Connected Printer Printing
 
@@ -152,6 +158,31 @@ If the service is closed, kiosks will not allow check-in.
 3. Stop the server by pressing `Ctrl+C` in the server window.
 4. Leave the server computer on or shut it down according to church procedure.
 
+## Backup The Database
+
+Create a backup before service days, before software updates, or before making major changes to people records.
+
+1. Open the admin page.
+2. Go to `Database Backup`.
+3. Click `Create backup now`.
+4. Download the newest backup if you want to copy it to a USB drive or another safe location.
+
+The backup page can also restore a backup. Only restore if you are sure you need to replace the current database. The page will ask for extra confirmation first.
+
+## Import A Member List
+
+Use this when you have a spreadsheet of church members to add to the system.
+
+1. Open the admin page.
+2. Go to `Import Members`.
+3. Download the sample CSV if you need a template.
+4. Prepare the spreadsheet with at least `First Name` and `Last Name`.
+5. Upload the CSV and click `Preview CSV`.
+6. Review warnings or errors.
+7. If the preview looks right, upload the same CSV again and click `Import CSV`.
+
+Useful columns include `Family`, `Phone`, `Email`, `Address`, `City`, `State`, `Zip`, `Birth Month`, and `Birth Day`.
+
 ## Quick Troubleshooting
 
 If a kiosk cannot load the page:
@@ -171,7 +202,9 @@ If printing does not work:
 
 - Tap the kiosk info button and confirm the kiosk ID is shown.
 - Confirm the printer is on and has labels.
+- Confirm the loaded Brother DK label roll matches the label size in System Settings.
 - If using PrintNode, confirm PrintNode is running on the printer computer.
+- If using Server Printer mode, confirm the printer's network address in `server_printer_map`.
 - Try a different kiosk only if needed.
 
 If the wrong printer prints:

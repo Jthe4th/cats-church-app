@@ -150,6 +150,11 @@ class AuditLog(models.Model):
     ACTION_PRINT = "print_nametag"
     ACTION_PRINTNODE_SUCCESS = "printnode_success"
     ACTION_PRINTNODE_FAILURE = "printnode_failure"
+    ACTION_SERVER_PRINT_SUCCESS = "server_print_success"
+    ACTION_SERVER_PRINT_FAILURE = "server_print_failure"
+    ACTION_DATABASE_BACKUP = "database_backup"
+    ACTION_DATABASE_RESTORE = "database_restore"
+    ACTION_MEMBER_IMPORT = "member_import"
     ACTION_SERVICE_CLOSE = "service_close"
     ACTION_SERVICE_REOPEN = "service_reopen"
     ACTION_SETTING_CHANGE = "setting_change"
@@ -160,6 +165,11 @@ class AuditLog(models.Model):
         (ACTION_PRINT, "Print Nametag"),
         (ACTION_PRINTNODE_SUCCESS, "PrintNode Success"),
         (ACTION_PRINTNODE_FAILURE, "PrintNode Failure"),
+        (ACTION_SERVER_PRINT_SUCCESS, "Server Print Success"),
+        (ACTION_SERVER_PRINT_FAILURE, "Server Print Failure"),
+        (ACTION_DATABASE_BACKUP, "Database Backup"),
+        (ACTION_DATABASE_RESTORE, "Database Restore"),
+        (ACTION_MEMBER_IMPORT, "Member Import"),
         (ACTION_SERVICE_CLOSE, "Service Close"),
         (ACTION_SERVICE_REOPEN, "Service Reopen"),
         (ACTION_SETTING_CHANGE, "Setting Change"),
