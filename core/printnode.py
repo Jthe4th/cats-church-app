@@ -1,13 +1,18 @@
 import base64
+import html
 import json
+import logging
+import platform
 from pathlib import Path
 import re
 import socket
+import subprocess
+import tempfile
+import time
 import urllib.error
 import urllib.request
+import warnings
 
-from brother_ql.conversion import convert
-from brother_ql.raster import BrotherQLRaster
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 
@@ -21,10 +26,21 @@ PRINT_MODE_SERVER = "Server Printer"
 PRINTNODE_API_URL = "https://api.printnode.com/printjobs"
 PRINTNODE_NOOP_URL = "https://api.printnode.com/noop"
 BROTHER_MODEL = "QL-820NWB"
-BROTHER_RED_LABEL = "62red"
+BROTHER_DEFAULT_LABEL = "62red"
+BROTHER_LABEL_MEDIA_CHOICES = {"62", "62red"}
+PRINTER_PROFILE_BACKENDS = {"printnode", "server"}
 LABEL_DPI = 300
 LABEL_WIDTH_PX = 696
 LABEL_HEIGHT_PX = 330
+BROTHER_QL_LOGGER = "brother_ql.devicedependent"
+FONT_FILE_CANDIDATES = {
+    "Arial": (("Arial Bold.ttf", "Arial.ttf"), ("ArialHB.ttc", "Arial.ttf")),
+    "Helvetica": (("Helvetica.ttc", "Helvetica.ttc"), ("HelveticaNeue.ttc", "HelveticaNeue.ttc")),
+    "Georgia": (("Georgia Bold.ttf", "Georgia.ttf"),),
+    "Times New Roman": (("Times New Roman Bold.ttf", "Times New Roman.ttf"), ("Times.ttc", "Times.ttc")),
+    "Trebuchet MS": (("Trebuchet MS Bold.ttf", "Trebuchet MS.ttf"),),
+    "Verdana": (("Verdana Bold.ttf", "Verdana.ttf"),),
+}
 
 
 class PrintNodeError(Exception):
@@ -48,9 +64,20 @@ def is_managed_printer_mode() -> bool:
 
 
 def get_kiosk_printer_id(kiosk_id: str) -> int:
-    kiosk_id = (kiosk_id or "").strip()
-    if not kiosk_id:
-        raise PrintNodeError("Missing kiosk id. Open the kiosk with ?kiosk=your-kiosk-name.")
+    printer_id, _profile = _get_kiosk_printnode_target(kiosk_id)
+    return printer_id
+
+
+def _get_kiosk_printnode_target(kiosk_id: str) -> tuple[int, dict | None]:
+    kiosk_id = _normalize_kiosk_id(kiosk_id, PrintNodeError)
+    profile = _get_kiosk_printer_profile(kiosk_id, "printnode", PrintNodeError)
+    if profile:
+        printer_id = str(profile.get("printer_id") or profile.get("printnode_printer_id") or "").strip()
+        if not printer_id:
+            raise PrintNodeError(f'Printer profile "{profile["name"]}" must include a PrintNode printer_id.')
+        if not printer_id.isdigit():
+            raise PrintNodeError(f'PrintNode printer id in profile "{profile["name"]}" must be a number.')
+        return int(printer_id), profile
 
     raw_map = get_setting("printnode_printer_map", "{}") or "{}"
     try:
@@ -66,13 +93,22 @@ def get_kiosk_printer_id(kiosk_id: str) -> int:
         raise PrintNodeError(f'No PrintNode printer is configured for kiosk "{kiosk_id}".')
     if not printer_id.isdigit():
         raise PrintNodeError(f'PrintNode printer id for kiosk "{kiosk_id}" must be a number.')
-    return int(printer_id)
+    return int(printer_id), None
 
 
-def get_kiosk_server_printer(kiosk_id: str) -> tuple[str, int]:
-    kiosk_id = (kiosk_id or "").strip()
-    if not kiosk_id:
-        raise ServerPrinterError("Missing kiosk id. Open the kiosk with ?kiosk=your-kiosk-name.")
+def get_kiosk_server_printer(kiosk_id: str) -> dict:
+    target, _profile = _get_kiosk_server_printer_target(kiosk_id)
+    return target
+
+
+def _get_kiosk_server_printer_target(kiosk_id: str) -> tuple[dict, dict | None]:
+    kiosk_id = _normalize_kiosk_id(kiosk_id, ServerPrinterError)
+    profile = _get_kiosk_printer_profile(kiosk_id, "server", ServerPrinterError)
+    if profile:
+        printer_config = _profile_server_printer_config(profile)
+        if not printer_config:
+            raise ServerPrinterError(f'Printer profile "{profile["name"]}" must include a server target, queue, or host.')
+        return _parse_server_printer_config(printer_config, kiosk_id), profile
 
     raw_map = get_setting("server_printer_map", "{}") or "{}"
     try:
@@ -86,7 +122,7 @@ def get_kiosk_server_printer(kiosk_id: str) -> tuple[str, int]:
     printer_config = printer_map.get(kiosk_id)
     if not printer_config:
         raise ServerPrinterError(f'No server printer is configured for kiosk "{kiosk_id}".')
-    return _parse_server_printer_config(printer_config, kiosk_id)
+    return _parse_server_printer_config(printer_config, kiosk_id), None
 
 
 def submit_attendance_print_job(attendance_ids, *, kiosk_id: str, user=None) -> int:
@@ -94,7 +130,7 @@ def submit_attendance_print_job(attendance_ids, *, kiosk_id: str, user=None) -> 
     if not api_key:
         raise PrintNodeError("PrintNode API key is not configured.")
 
-    printer_id = get_kiosk_printer_id(kiosk_id)
+    printer_id, profile = _get_kiosk_printnode_target(kiosk_id)
     attendances = list(
         Attendance.objects.filter(id__in=attendance_ids)
         .select_related("person", "service")
@@ -105,7 +141,7 @@ def submit_attendance_print_job(attendance_ids, *, kiosk_id: str, user=None) -> 
     if not ordered:
         raise PrintNodeError("No name tags were found to print.")
 
-    raw_bytes = build_label_raw(ordered)
+    raw_bytes = build_label_raw(ordered, profile=profile)
     payload = {
         "printerId": printer_id,
         "title": f"Welcome System Nametags {timezone.localtime():%Y-%m-%d %H:%M:%S}",
@@ -118,7 +154,7 @@ def submit_attendance_print_job(attendance_ids, *, kiosk_id: str, user=None) -> 
 
 
 def submit_server_attendance_print_job(attendance_ids, *, kiosk_id: str, user=None) -> str:
-    host, port = get_kiosk_server_printer(kiosk_id)
+    target, profile = _get_kiosk_server_printer_target(kiosk_id)
     attendances = list(
         Attendance.objects.filter(id__in=attendance_ids)
         .select_related("person", "service")
@@ -129,8 +165,12 @@ def submit_server_attendance_print_job(attendance_ids, *, kiosk_id: str, user=No
     if not ordered:
         raise ServerPrinterError("No name tags were found to print.")
 
-    _send_raw_to_server_printer(host, port, build_label_raw(ordered))
-    return f"{host}:{port}"
+    return _send_to_server_printer_target(
+        target,
+        raw_bytes=build_label_raw(ordered, profile=profile),
+        pdf_bytes=build_label_pdf(ordered, profile=profile),
+        images=build_label_images(ordered, profile=profile),
+    )
 
 
 def submit_test_print_job(*, kiosk_id: str) -> int:
@@ -138,8 +178,8 @@ def submit_test_print_job(*, kiosk_id: str) -> int:
     if not api_key:
         raise PrintNodeError("PrintNode API key is not configured.")
 
-    printer_id = get_kiosk_printer_id(kiosk_id)
-    raw_bytes = build_test_label_raw(kiosk_id)
+    printer_id, profile = _get_kiosk_printnode_target(kiosk_id)
+    raw_bytes = build_test_label_raw(kiosk_id, profile=profile)
     payload = {
         "printerId": printer_id,
         "title": f"Welcome System Test Label {timezone.localtime():%Y-%m-%d %H:%M:%S}",
@@ -152,18 +192,102 @@ def submit_test_print_job(*, kiosk_id: str) -> int:
 
 
 def submit_server_test_print_job(*, kiosk_id: str) -> str:
-    host, port = get_kiosk_server_printer(kiosk_id)
-    _send_raw_to_server_printer(host, port, build_test_label_raw(kiosk_id))
-    return f"{host}:{port}"
+    target, profile = _get_kiosk_server_printer_target(kiosk_id)
+    return _send_to_server_printer_target(
+        target,
+        raw_bytes=build_test_label_raw(kiosk_id, profile=profile),
+        pdf_bytes=build_test_label_pdf(kiosk_id, profile=profile),
+        images=build_test_label_images(kiosk_id, profile=profile),
+    )
+
+
+def _send_to_server_printer_target(target: dict, *, raw_bytes: bytes, pdf_bytes: bytes, images=None) -> str:
+    if target["kind"] == "queue":
+        if platform.system() == "Windows":
+            return _send_images_to_windows_print_queue(target["queue"], images or [])
+        return _send_pdf_to_print_queue(target["queue"], pdf_bytes)
+    host = target["host"]
+    port = target["port"]
+    _send_raw_to_server_printer(host, port, raw_bytes)
+    return f"raw:{host}:{port}"
+
+
+def _send_images_to_windows_print_queue(queue_name: str, images) -> str:
+    if not images:
+        raise ServerPrinterError("No label images were available for the Windows print queue.")
+    try:
+        import win32con
+        import win32print
+        import win32ui
+        from PIL import ImageWin
+    except ImportError as exc:
+        raise ServerPrinterError(
+            "Windows printer queues require pywin32. Run pip install -r requirements.txt, then restart the app."
+        ) from exc
+
+    printer_dc = None
+    try:
+        printer_dc = win32ui.CreateDC()
+        printer_dc.CreatePrinterDC(queue_name)
+        printable_width = printer_dc.GetDeviceCaps(win32con.HORZRES)
+        printable_height = printer_dc.GetDeviceCaps(win32con.VERTRES)
+        printer_dc.StartDoc(f"Welcome System Nametags {timezone.localtime():%Y-%m-%d %H:%M:%S}")
+        for image in images:
+            printer_dc.StartPage()
+            rendered = image.convert("RGB")
+            scale = min(printable_width / rendered.width, printable_height / rendered.height)
+            width = max(1, int(rendered.width * scale))
+            height = max(1, int(rendered.height * scale))
+            left = max(0, int((printable_width - width) / 2))
+            top = max(0, int((printable_height - height) / 2))
+            ImageWin.Dib(rendered).draw(printer_dc.GetHandleOutput(), (left, top, left + width, top + height))
+            printer_dc.EndPage()
+        printer_dc.EndDoc()
+    except Exception as exc:
+        raise ServerPrinterError(f'Windows print queue "{queue_name}" rejected the job: {exc}') from exc
+    finally:
+        if printer_dc:
+            printer_dc.DeleteDC()
+    return f"queue:{queue_name}"
+
+
+def _send_pdf_to_print_queue(queue_name: str, pdf_bytes: bytes) -> str:
+    with tempfile.NamedTemporaryFile(prefix="welcome-label-", suffix=".pdf") as label_file:
+        label_file.write(pdf_bytes)
+        label_file.flush()
+        try:
+            result = subprocess.run(
+                ["lp", "-d", queue_name, "-t", f"Welcome System Nametags {timezone.localtime():%Y-%m-%d %H:%M:%S}", label_file.name],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=_safe_int(get_setting("server_printer_timeout_seconds", "10"), 10, minimum=1, maximum=60),
+            )
+        except FileNotFoundError as exc:
+            raise ServerPrinterError("The lp command is not available on this server computer.") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise ServerPrinterError(f'Print queue "{queue_name}" did not accept the job before the timeout.') from exc
+        except subprocess.CalledProcessError as exc:
+            detail = (exc.stderr or exc.stdout or "").strip()
+            raise ServerPrinterError(f'Print queue "{queue_name}" rejected the job: {detail or exc.returncode}') from exc
+    return _parse_lp_job_id(result.stdout) or f"queue:{queue_name}"
 
 
 def _send_raw_to_server_printer(host: str, port: int, raw_bytes: bytes) -> None:
     timeout = _safe_int(get_setting("server_printer_timeout_seconds", "10"), 10, minimum=1, maximum=60)
+    _validate_raw_brother_status(host, timeout=min(timeout, 5))
     try:
         with socket.create_connection((host, port), timeout=timeout) as printer_socket:
+            printer_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             printer_socket.sendall(raw_bytes)
+            try:
+                printer_socket.shutdown(socket.SHUT_WR)
+            except OSError:
+                pass
     except OSError as exc:
         raise ServerPrinterError(f"Could not reach server printer at {host}:{port}: {exc}") from exc
+    time.sleep(0.75)
+    _validate_raw_brother_status(host, timeout=min(timeout, 5), after_send=True)
 
 
 def submit_printnode_job(api_key: str, payload: dict) -> int:
@@ -224,47 +348,87 @@ def verify_printnode_api_key(api_key: str | None = None) -> tuple[bool, str]:
     return True, "PrintNode API key verified."
 
 
-def build_label_pdf(attendances) -> bytes:
+def build_label_pdf(attendances, *, profile=None) -> bytes:
     rows = [(attendance.person.first_name, attendance.person.last_name) for attendance in attendances]
-    return _build_label_pdf_from_rows(rows)
+    return _build_label_pdf_from_rows(rows, profile=profile)
 
 
-def build_test_label_pdf(kiosk_id: str) -> bytes:
-    return _build_label_pdf_from_rows([("TEST", f"KIOSK {kiosk_id}")], hide_last_name_override=False, draw_border=True)
+def build_test_label_pdf(kiosk_id: str, *, profile=None) -> bytes:
+    return _build_label_pdf_from_rows([("TEST", f"KIOSK {kiosk_id}")], hide_last_name_override=False, profile=profile)
 
 
-def build_label_raw(attendances) -> bytes:
+def build_label_raw(attendances, *, profile=None) -> bytes:
     rows = [(attendance.person.first_name, attendance.person.last_name) for attendance in attendances]
-    return _build_label_raw_from_rows(rows)
+    return _build_label_raw_from_rows(rows, profile=profile)
 
 
-def build_test_label_raw(kiosk_id: str) -> bytes:
-    return _build_label_raw_from_rows([("TEST", f"KIOSK {kiosk_id}")])
+def build_test_label_raw(kiosk_id: str, *, profile=None) -> bytes:
+    return _build_label_raw_from_rows([("TEST", f"KIOSK {kiosk_id}")], profile=profile)
 
 
-def _build_label_raw_from_rows(rows, *, draw_border=False) -> bytes:
+def build_label_images(attendances, *, profile=None):
+    rows = [(attendance.person.first_name, attendance.person.last_name) for attendance in attendances]
+    return _build_label_images_from_rows(rows, profile=profile)
+
+
+def build_test_label_images(kiosk_id: str, *, profile=None):
+    return _build_label_images_from_rows([("TEST", f"KIOSK {kiosk_id}")], profile=profile)
+
+
+def _build_label_images_from_rows(rows, *, draw_border=False, profile=None):
+    return [
+        _label_image(first_name, last_name, draw_border=draw_border, profile=profile)
+        for first_name, last_name in rows
+    ]
+
+
+def _build_label_raw_from_rows(rows, *, draw_border=False, profile=None) -> bytes:
+    convert, BrotherQLRaster = _load_brother_ql()
     qlr = BrotherQLRaster(BROTHER_MODEL)
-    images = [_label_image(first_name, last_name, draw_border=draw_border) for first_name, last_name in rows]
-    convert(
-        qlr,
-        images,
-        BROTHER_RED_LABEL,
-        cut=True,
-        dither=False,
-        compress=True,
-        red=True,
-        rotate=0,
-        threshold=70,
-    )
+    images = _build_label_images_from_rows(rows, draw_border=draw_border, profile=profile)
+    brother_label_media = _brother_label_media(profile=profile)
+    if brother_label_media == "62red":
+        images = [_normalize_brother_label_colors(image) for image in images]
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Image\.Image\.getdata is deprecated.*",
+            category=DeprecationWarning,
+        )
+        convert(
+            qlr,
+            images,
+            brother_label_media,
+            cut=True,
+            dither=False,
+            compress=True,
+            red=brother_label_media == "62red",
+            rotate=0,
+            threshold=70,
+        )
     return qlr.data
 
 
-def _label_image(first_name, last_name, *, draw_border=False):
+def _load_brother_ql():
+    logging.getLogger(BROTHER_QL_LOGGER).setLevel(logging.ERROR)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="The 'warn' method is deprecated, use 'warning' instead",
+            category=DeprecationWarning,
+        )
+        from brother_ql.conversion import convert
+        from brother_ql.raster import BrotherQLRaster
+
+    return convert, BrotherQLRaster
+
+
+def _label_image(first_name, last_name, *, draw_border=False, profile=None):
     first_text = (first_name or "").upper()
     last_text = (last_name or "").upper()
     image = Image.new("RGB", (LABEL_WIDTH_PX, LABEL_HEIGHT_PX), "white")
     draw = ImageDraw.Draw(image)
-    margin = int(_safe_inches(get_setting("printnode_label_margin_in", "0.1"), 0.1) * LABEL_DPI)
+    margin = int(_safe_inches(_profile_setting(profile, "printnode_label_margin_in", "0.1"), 0.1) * LABEL_DPI)
     first_color = _hex_to_255_rgb(get_setting("first_name_color", "#000000"), (0, 0, 0))
     last_color = _hex_to_255_rgb(get_setting("last_name_color", "#000000"), (0, 0, 0))
     first_scale = _safe_percent_scale(get_setting("label_first_name_scale", "100")) / 100
@@ -296,6 +460,22 @@ def _center_text(draw, text, font, fill, center_x, center_y):
     draw.text((center_x - width / 2, center_y - height / 2 - bbox[1]), text, font=font, fill=fill)
 
 
+def _normalize_brother_label_colors(image):
+    normalized = Image.new("RGB", image.size, "white")
+    pixels = []
+    for red, green, blue in image.convert("RGB").getdata():
+        luma = (red * 0.299) + (green * 0.587) + (blue * 0.114)
+        is_red = red >= 120 and red > green * 1.35 and red > blue * 1.35
+        if is_red and luma < 245:
+            pixels.append((255, 0, 0))
+        elif luma < 220:
+            pixels.append((0, 0, 0))
+        else:
+            pixels.append((255, 255, 255))
+    normalized.putdata(pixels)
+    return normalized
+
+
 def _fit_font(text, starting_size, max_width, *, bold):
     size = max(starting_size, 12)
     while size > 12:
@@ -308,11 +488,7 @@ def _fit_font(text, starting_size, max_width, *, bold):
 
 
 def _load_font(size, *, bold):
-    font_names = (
-        ("Arial Bold.ttf", "Arial.ttf"),
-        ("Helvetica.ttc", "Helvetica.ttc"),
-        ("DejaVuSans-Bold.ttf", "DejaVuSans.ttf"),
-    )
+    font_names = _configured_font_file_candidates()
     search_dirs = (
         Path("/System/Library/Fonts/Supplemental"),
         Path("/System/Library/Fonts"),
@@ -330,10 +506,21 @@ def _load_font(size, *, bold):
     return ImageFont.load_default()
 
 
-def _build_label_pdf_from_rows(rows, *, hide_last_name_override=None, draw_border=False) -> bytes:
-    width = _safe_inches(get_setting("printnode_label_width_in", "2.440"), 2.440) * 72
-    height = _safe_inches(get_setting("printnode_label_height_in", "1.1"), 1.1) * 72
-    margin = _safe_inches(get_setting("printnode_label_margin_in", "0.1"), 0.1) * 72
+def _configured_font_file_candidates():
+    configured_font = (get_setting("label_font", "Arial") or "Arial").strip()
+    selected = FONT_FILE_CANDIDATES.get(configured_font, ())
+    fallback = (
+        ("Arial Bold.ttf", "Arial.ttf"),
+        ("Helvetica.ttc", "Helvetica.ttc"),
+        ("DejaVuSans-Bold.ttf", "DejaVuSans.ttf"),
+    )
+    return (*selected, *tuple(pair for pair in fallback if pair not in selected))
+
+
+def _build_label_pdf_from_rows(rows, *, hide_last_name_override=None, draw_border=False, profile=None) -> bytes:
+    width = _safe_inches(_profile_setting(profile, "printnode_label_width_in", "2.440"), 2.440) * 72
+    height = _safe_inches(_profile_setting(profile, "printnode_label_height_in", "1.1"), 1.1) * 72
+    margin = _safe_inches(_profile_setting(profile, "printnode_label_margin_in", "0.1"), 0.1) * 72
     hide_last_name = (
         hide_last_name_override
         if hide_last_name_override is not None
@@ -343,6 +530,7 @@ def _build_label_pdf_from_rows(rows, *, hide_last_name_override=None, draw_borde
     last_color = _hex_to_rgb(get_setting("last_name_color", "#000000"), (0, 0, 0))
     first_scale = _safe_percent_scale(get_setting("label_first_name_scale", "100")) / 100
     last_scale = _safe_percent_scale(get_setting("label_last_name_scale", "100")) / 100
+    pdf_bold_font, pdf_regular_font = _configured_pdf_font_names()
 
     objects = []
     page_refs = []
@@ -352,8 +540,8 @@ def _build_label_pdf_from_rows(rows, *, hide_last_name_override=None, draw_borde
         page_refs.append(page_ref)
         objects.append(
             f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width:.2f} {height:.2f}] "
-            f"/Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> "
-            f"/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> "
+            f"/Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /{pdf_bold_font} >> "
+            f"/F2 << /Type /Font /Subtype /Type1 /BaseFont /{pdf_regular_font} >> >> >> "
             f"/Contents {content_ref} 0 R >>"
         )
         stream = _label_stream(
@@ -400,7 +588,6 @@ def _label_stream(
     if hide_last_name:
         first_y = (height - first_size) / 2 + 2
         stream_parts = [
-            _red_accent_stream(width, height, margin),
             _text_line(first_text, first_size, first_y, width, first_size, first_color, "F1", margin),
         ]
         if draw_border:
@@ -410,7 +597,6 @@ def _label_stream(
     first_y = height * 0.52
     last_y = height * 0.28
     stream_parts = [
-        _red_accent_stream(width, height, margin),
         _text_line(first_text, first_size, first_y, width, first_size, first_color, "F1", margin),
         _text_line(last_text, last_size, last_y, width, last_size, last_color, "F2", margin),
     ]
@@ -442,16 +628,6 @@ def _border_stream(width, height, margin):
         "0.000 0.000 0.000 RG\n"
         "0.75 w\n"
         f"{margin:.2f} {margin:.2f} {max(width - (margin * 2), 1):.2f} {max(height - (margin * 2), 1):.2f} re S"
-    )
-
-
-def _red_accent_stream(width, height, margin):
-    accent_width = max(width - (margin * 4), 1)
-    y = max(margin * 1.5, 4)
-    return (
-        "1.000 0.000 0.000 RG\n"
-        "2.00 w\n"
-        f"{margin * 2:.2f} {y:.2f} m {margin * 2 + accent_width:.2f} {y:.2f} l S"
     )
 
 
@@ -516,12 +692,86 @@ def _safe_int(value: str, default: int, *, minimum: int, maximum: int) -> int:
     return max(minimum, min(parsed, maximum))
 
 
-def _parse_server_printer_config(printer_config, kiosk_id: str) -> tuple[str, int]:
+def _normalize_kiosk_id(kiosk_id: str, error_class):
+    kiosk_id = (kiosk_id or "").strip()
+    if not kiosk_id:
+        raise error_class("Missing kiosk id. Open the kiosk with ?kiosk=your-kiosk-name.")
+    return kiosk_id
+
+
+def _get_kiosk_printer_profile(kiosk_id: str, expected_backend: str, error_class) -> dict | None:
+    profile_name = _get_kiosk_printer_profile_name(kiosk_id, error_class)
+    if not profile_name:
+        return None
+
+    raw_profiles = get_setting("printer_profiles", "{}") or "{}"
+    try:
+        profiles = json.loads(raw_profiles)
+    except json.JSONDecodeError as exc:
+        raise error_class("Printer profiles setting is not valid JSON.") from exc
+    if not isinstance(profiles, dict):
+        raise error_class("Printer profiles setting must be a JSON object.")
+
+    profile = profiles.get(profile_name)
+    if not isinstance(profile, dict):
+        raise error_class(f'Printer profile "{profile_name}" is not configured.')
+
+    backend = str(profile.get("backend", expected_backend)).strip().lower()
+    if backend and backend not in PRINTER_PROFILE_BACKENDS:
+        raise error_class(f'Printer profile "{profile_name}" has an unsupported backend "{backend}".')
+    if backend != expected_backend:
+        raise error_class(f'Printer profile "{profile_name}" is for {backend}, not {expected_backend}.')
+    return {"name": profile_name, **profile}
+
+
+def _get_kiosk_printer_profile_name(kiosk_id: str, error_class) -> str:
+    raw_map = get_setting("kiosk_printer_profile_map", "{}") or "{}"
+    try:
+        profile_map = json.loads(raw_map)
+    except json.JSONDecodeError as exc:
+        raise error_class("Kiosk printer profile map is not valid JSON.") from exc
+    if not isinstance(profile_map, dict):
+        raise error_class("Kiosk printer profile map must be a JSON object.")
+    return str(profile_map.get(kiosk_id, "")).strip()
+
+
+def _profile_server_printer_config(profile: dict):
+    if "target" in profile:
+        return profile.get("target")
+    if profile.get("queue"):
+        return {"queue": profile.get("queue")}
+    if profile.get("host"):
+        return {"host": profile.get("host"), "port": profile.get("port", 9100)}
+    return None
+
+
+def _profile_setting(profile: dict | None, key: str, default: str) -> str:
+    aliases = {
+        "printnode_label_width_in": ("printnode_label_width_in", "label_width_in", "width_in"),
+        "printnode_label_height_in": ("printnode_label_height_in", "label_height_in", "height_in"),
+        "printnode_label_margin_in": ("printnode_label_margin_in", "label_margin_in", "margin_in"),
+        "brother_label_media": ("brother_label_media", "media"),
+    }
+    for profile_key in aliases.get(key, (key,)):
+        if profile and profile.get(profile_key) not in (None, ""):
+            return str(profile.get(profile_key))
+    return get_setting(key, default)
+
+
+def _parse_server_printer_config(printer_config, kiosk_id: str) -> dict:
     if isinstance(printer_config, dict):
+        queue_name = str(printer_config.get("queue", "")).strip()
+        if queue_name:
+            return {"kind": "queue", "queue": queue_name}
         host = str(printer_config.get("host", "")).strip()
         port_value = printer_config.get("port", 9100)
     else:
         raw_value = str(printer_config or "").strip()
+        if raw_value.startswith("queue:"):
+            queue_name = raw_value.removeprefix("queue:").strip()
+            if not queue_name:
+                raise ServerPrinterError(f'Server printer queue for kiosk "{kiosk_id}" cannot be blank.')
+            return {"kind": "queue", "queue": queue_name}
         if ":" in raw_value:
             host, port_value = raw_value.rsplit(":", 1)
             host = host.strip()
@@ -535,7 +785,74 @@ def _parse_server_printer_config(printer_config, kiosk_id: str) -> tuple[str, in
         raise ServerPrinterError(f'Server printer port for kiosk "{kiosk_id}" must be a number.') from exc
     if port < 1 or port > 65535:
         raise ServerPrinterError(f'Server printer port for kiosk "{kiosk_id}" must be between 1 and 65535.')
-    return host, port
+    return {"kind": "raw", "host": host, "port": port}
+
+
+def _parse_lp_job_id(output: str) -> str:
+    match = re.search(r"request id is ([^\s]+)", output or "")
+    if not match:
+        return ""
+    return f"queue:{match.group(1)}"
+
+
+def _configured_pdf_font_names() -> tuple[str, str]:
+    configured_font = (get_setting("label_font", "Arial") or "Arial").strip()
+    if configured_font in {"Georgia", "Times New Roman", "Merriweather", "Playfair Display", "Noto Serif"}:
+        return "Times-Bold", "Times-Roman"
+    return "Helvetica-Bold", "Helvetica"
+
+
+def _validate_raw_brother_status(host: str, *, timeout: int, after_send: bool = False) -> None:
+    status = _fetch_brother_web_status(host, timeout=timeout)
+    if not status:
+        return
+    device_status = status.get("device_status", "").lower()
+    media_status = status.get("media_status", "").lower()
+    accepted_statuses = {"ready", "printing"} if after_send else {"ready"}
+    if device_status and device_status not in accepted_statuses:
+        prefix = "rejected the print job" if after_send else "is not ready"
+        raise ServerPrinterError(
+            f'Brother printer at {host} {prefix}. Current status: {status.get("device_status")}. Check the printer LCD for details.'
+        )
+    if media_status == "empty":
+        raise ServerPrinterError(
+            f'Brother printer at {host} reports empty media. Load a label roll, then try again.'
+        )
+
+
+def _fetch_brother_web_status(host: str, *, timeout: int) -> dict:
+    request = urllib.request.Request(f"http://{host}/", headers={"User-Agent": "Welcome System"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = response.read(20000).decode("utf-8", errors="replace")
+    except (OSError, urllib.error.URLError):
+        return {}
+    if "Brother" not in body or "QL-" not in body:
+        return {}
+    return {
+        "emulation": _extract_brother_status_value(body, "Emulation"),
+        "device_status": _extract_brother_status_value(body, "Device Status"),
+        "media_status": _extract_brother_status_value(body, "Media Status"),
+        "media_type": _extract_brother_status_value(body, "Media Type"),
+    }
+
+
+def _extract_brother_status_value(body: str, label: str) -> str:
+    escaped_label = re.escape(label).replace("\\ ", r"(?:\s|&#32;)+")
+    pattern = rf"<dt[^>]*>{escaped_label}</dt><dd[^>]*>(.*?)</dd>"
+    match = re.search(pattern, body, flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        return ""
+    value = re.sub(r"<[^>]+>", " ", match.group(1))
+    value = html.unescape(value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _brother_label_media(*, profile=None) -> str:
+    media = (_profile_setting(profile, "brother_label_media", BROTHER_DEFAULT_LABEL) or BROTHER_DEFAULT_LABEL).strip()
+    if media not in BROTHER_LABEL_MEDIA_CHOICES:
+        return BROTHER_DEFAULT_LABEL
+    return media
 
 
 def _is_yes(value: str) -> bool:

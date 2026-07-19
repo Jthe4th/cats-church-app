@@ -111,6 +111,18 @@ class PrintNodeSettingsTests(TestCase):
         self.assertEqual(get_kiosk_printer_id("kiosk1"), 123456)
         self.assertEqual(get_kiosk_printer_id("side-door"), 123457)
 
+    def test_get_kiosk_printer_id_uses_assigned_printnode_profile(self):
+        SystemSetting.objects.update_or_create(
+            key="printer_profiles",
+            defaults={"value": '{"foyer": {"backend": "printnode", "printer_id": "24680"}}'},
+        )
+        SystemSetting.objects.update_or_create(
+            key="kiosk_printer_profile_map",
+            defaults={"value": '{"kiosk1": "foyer"}'},
+        )
+
+        self.assertEqual(get_kiosk_printer_id("kiosk1"), 24680)
+
     def test_get_kiosk_printer_id_rejects_missing_mapping(self):
         SystemSetting.objects.update_or_create(key="printnode_printer_map", defaults={"value": "{}"})
 
@@ -124,7 +136,8 @@ class PrintNodeSettingsTests(TestCase):
         pdf_text = build_test_label_pdf("kiosk1").decode("utf-8", errors="ignore")
 
         self.assertIn("/MediaBox [0 0 175.68 79.20]", pdf_text)
-        self.assertIn("1.000 0.000 0.000 RG", pdf_text)
+        self.assertNotIn("1.000 0.000 0.000 RG", pdf_text)
+        self.assertNotIn("0.75 w", pdf_text)
         self.assertIn("(TEST)", pdf_text)
         self.assertIn("(KIOSK KIOSK1)", pdf_text)
 
@@ -134,6 +147,38 @@ class PrintNodeSettingsTests(TestCase):
         self.assertIn(b"\x1bia\x01", raw_bytes)
         self.assertIn(b"\x1biK\t", raw_bytes)
         self.assertGreater(len(raw_bytes), 1000)
+
+    def test_raw_label_normalization_removes_anti_alias_color_halo(self):
+        from core.printnode import _label_image, _normalize_brother_label_colors
+
+        image = _normalize_brother_label_colors(_label_image("Ada", "Lovelace"))
+
+        self.assertLessEqual(set(image.getdata()), {(0, 0, 0), (255, 255, 255)})
+
+    def test_test_label_raw_can_use_plain_62mm_media(self):
+        SystemSetting.objects.update_or_create(key="brother_label_media", defaults={"value": "62"})
+
+        raw_bytes = build_test_label_raw("kiosk1")
+
+        self.assertIn(b"\x1bia\x01", raw_bytes)
+        self.assertIn(b"\x1biK\b", raw_bytes)
+        self.assertNotIn(b"\x1biK\t", raw_bytes)
+        self.assertGreater(len(raw_bytes), 1000)
+
+    def test_raw_label_font_candidates_use_configured_system_font(self):
+        from core.printnode import _configured_font_file_candidates
+
+        SystemSetting.objects.update_or_create(key="label_font", defaults={"value": "Georgia"})
+
+        self.assertEqual(_configured_font_file_candidates()[0], ("Georgia Bold.ttf", "Georgia.ttf"))
+
+    def test_pdf_label_uses_times_base_font_for_serif_setting(self):
+        SystemSetting.objects.update_or_create(key="label_font", defaults={"value": "Times New Roman"})
+
+        pdf_text = build_test_label_pdf("kiosk1").decode("utf-8", errors="ignore")
+
+        self.assertIn("/BaseFont /Times-Bold", pdf_text)
+        self.assertIn("/BaseFont /Times-Roman", pdf_text)
 
     @patch("core.printnode.submit_printnode_job", return_value=13579)
     def test_printnode_payload_uses_raw_brother_raster(self, mock_submit):
@@ -237,8 +282,29 @@ class ServerPrinterSettingsTests(TestCase):
             defaults={"value": '{"kiosk1": "192.168.1.50:9100", "side-door": {"host": "printer.local", "port": 9100}}'},
         )
 
-        self.assertEqual(get_kiosk_server_printer("kiosk1"), ("192.168.1.50", 9100))
-        self.assertEqual(get_kiosk_server_printer("side-door"), ("printer.local", 9100))
+        self.assertEqual(get_kiosk_server_printer("kiosk1"), {"kind": "raw", "host": "192.168.1.50", "port": 9100})
+        self.assertEqual(get_kiosk_server_printer("side-door"), {"kind": "raw", "host": "printer.local", "port": 9100})
+
+    def test_get_kiosk_server_printer_accepts_print_queue(self):
+        SystemSetting.objects.update_or_create(
+            key="server_printer_map",
+            defaults={"value": '{"kiosk1": "queue:Brother_QL_820NWB", "side-door": {"queue": "SideDoorQL"}}'},
+        )
+
+        self.assertEqual(get_kiosk_server_printer("kiosk1"), {"kind": "queue", "queue": "Brother_QL_820NWB"})
+        self.assertEqual(get_kiosk_server_printer("side-door"), {"kind": "queue", "queue": "SideDoorQL"})
+
+    def test_get_kiosk_server_printer_uses_assigned_server_profile(self):
+        SystemSetting.objects.update_or_create(
+            key="printer_profiles",
+            defaults={"value": '{"foyer": {"backend": "server", "target": "queue:Brother_QL_820NWB"}}'},
+        )
+        SystemSetting.objects.update_or_create(
+            key="kiosk_printer_profile_map",
+            defaults={"value": '{"kiosk1": "foyer"}'},
+        )
+
+        self.assertEqual(get_kiosk_server_printer("kiosk1"), {"kind": "queue", "queue": "Brother_QL_820NWB"})
 
     def test_get_kiosk_server_printer_rejects_missing_mapping(self):
         SystemSetting.objects.update_or_create(key="server_printer_map", defaults={"value": "{}"})
@@ -258,12 +324,92 @@ class ServerPrinterSettingsTests(TestCase):
 
         destination = submit_server_attendance_print_job([attendance.id], kiosk_id="kiosk1")
 
-        self.assertEqual(destination, "192.168.1.50:9100")
+        self.assertEqual(destination, "raw:192.168.1.50:9100")
         host, port, raw_bytes = mock_send.call_args.args
         self.assertEqual(host, "192.168.1.50")
         self.assertEqual(port, 9100)
         self.assertIn(b"\x1bia\x01", raw_bytes)
         self.assertIn(b"\x1biK\t", raw_bytes)
+
+    @patch("core.printnode._fetch_brother_web_status", return_value={"device_status": "Cover Open"})
+    def test_raw_server_printer_rejects_not_ready_brother_status(self, mock_status):
+        from core.printnode import _send_raw_to_server_printer
+
+        with self.assertRaisesMessage(ServerPrinterError, "not ready"):
+            _send_raw_to_server_printer("192.168.1.50", 9100, b"test")
+
+    @patch("core.printnode.socket.create_connection")
+    @patch("core.printnode._fetch_brother_web_status", side_effect=[{"device_status": "READY"}, {"device_status": "PRINTING"}])
+    def test_raw_server_printer_accepts_printing_status_after_send(self, mock_status, mock_connection):
+        from core.printnode import _send_raw_to_server_printer
+
+        mock_connection.return_value.__enter__.return_value = mock_connection.return_value
+
+        _send_raw_to_server_printer("192.168.1.50", 9100, b"test")
+
+        mock_connection.return_value.sendall.assert_called_once_with(b"test")
+
+    @patch("core.printnode._send_pdf_to_print_queue", return_value="queue:Brother_QL_820NWB-123")
+    def test_server_printer_job_sends_pdf_to_configured_print_queue(self, mock_send):
+        service = Service.objects.create(date=date.today(), label="Sabbath Service", status=Service.OPEN)
+        person = Person.objects.create(first_name="Ada", last_name="Lovelace", member_type=Person.MEMBER)
+        attendance = Attendance.objects.create(service=service, person=person)
+        SystemSetting.objects.update_or_create(
+            key="server_printer_map",
+            defaults={"value": '{"kiosk1": "queue:Brother_QL_820NWB"}'},
+        )
+
+        destination = submit_server_attendance_print_job([attendance.id], kiosk_id="kiosk1")
+
+        self.assertEqual(destination, "queue:Brother_QL_820NWB-123")
+        queue_name, pdf_bytes = mock_send.call_args.args
+        self.assertEqual(queue_name, "Brother_QL_820NWB")
+        self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
+        self.assertIn(b"(ADA)", pdf_bytes)
+
+    @patch("core.printnode._send_images_to_windows_print_queue", return_value="queue:Brother_QL_820NWB")
+    @patch("core.printnode.platform.system", return_value="Windows")
+    def test_server_printer_job_sends_rendered_images_to_windows_print_queue(self, mock_system, mock_send):
+        service = Service.objects.create(date=date.today(), label="Sabbath Service", status=Service.OPEN)
+        person = Person.objects.create(first_name="Ada", last_name="Lovelace", member_type=Person.MEMBER)
+        attendance = Attendance.objects.create(service=service, person=person)
+        SystemSetting.objects.update_or_create(
+            key="server_printer_map",
+            defaults={"value": '{"kiosk1": "queue:Brother_QL_820NWB"}'},
+        )
+
+        destination = submit_server_attendance_print_job([attendance.id], kiosk_id="kiosk1")
+
+        self.assertEqual(destination, "queue:Brother_QL_820NWB")
+        queue_name, images = mock_send.call_args.args
+        self.assertEqual(queue_name, "Brother_QL_820NWB")
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0].size, (696, 330))
+
+    @patch("core.printnode._send_pdf_to_print_queue", return_value="queue:Brother_QL_820NWB-123")
+    def test_server_printer_profile_controls_pdf_label_size(self, mock_send):
+        service = Service.objects.create(date=date.today(), label="Sabbath Service", status=Service.OPEN)
+        person = Person.objects.create(first_name="Ada", last_name="Lovelace", member_type=Person.MEMBER)
+        attendance = Attendance.objects.create(service=service, person=person)
+        SystemSetting.objects.update_or_create(
+            key="printer_profiles",
+            defaults={
+                "value": (
+                    '{"foyer": {"backend": "server", "target": "queue:Brother_QL_820NWB", '
+                    '"label_width_in": "3.0", "label_height_in": "2.0", "label_margin_in": "0.2"}}'
+                )
+            },
+        )
+        SystemSetting.objects.update_or_create(
+            key="kiosk_printer_profile_map",
+            defaults={"value": '{"kiosk1": "foyer"}'},
+        )
+
+        submit_server_attendance_print_job([attendance.id], kiosk_id="kiosk1")
+
+        _queue_name, pdf_bytes = mock_send.call_args.args
+        pdf_text = pdf_bytes.decode("utf-8", errors="ignore")
+        self.assertIn("/MediaBox [0 0 216.00 144.00]", pdf_text)
 
 
 class PrintNodeFallbackTests(TestCase):
@@ -335,6 +481,29 @@ class PrintNodeAdminSettingsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="printnode-verify-row" hidden')
+
+    def test_printer_config_rows_hide_when_connected_printer_mode_selected(self):
+        SystemSetting.objects.update_or_create(key="print_mode", defaults={"value": "Connected Printer"})
+
+        response = self.client.get("/admin/core/systemsetting/bulk/")
+
+        html = response.content.decode()
+        self.assertRegex(html, r'data-setting-key="printnode_printer_map"[^>]*hidden')
+        self.assertRegex(html, r'data-setting-key="server_printer_map"[^>]*hidden')
+        self.assertRegex(html, r'data-setting-key="printer_profiles"[^>]*hidden')
+        self.assertRegex(html, r'data-setting-key="kiosk_printer_profile_map"[^>]*hidden')
+
+    def test_server_printer_config_rows_show_only_when_server_printer_mode_selected(self):
+        SystemSetting.objects.update_or_create(key="print_mode", defaults={"value": PRINT_MODE_SERVER})
+
+        response = self.client.get("/admin/core/systemsetting/bulk/")
+
+        html = response.content.decode()
+        self.assertRegex(html, r'data-setting-key="server_printer_map"[^>]*data-printer-mode-row="Server Printer"')
+        self.assertNotRegex(html, r'data-setting-key="server_printer_map"[^>]*hidden')
+        self.assertRegex(html, r'data-setting-key="printer_profiles"[^>]*data-managed-printer-row="1"')
+        self.assertNotRegex(html, r'data-setting-key="printer_profiles"[^>]*hidden')
+        self.assertRegex(html, r'data-setting-key="printnode_printer_map"[^>]*hidden')
 
     @patch("core.admin.verify_printnode_api_key", return_value=(True, "PrintNode API key verified."))
     def test_verify_printnode_api_key_endpoint_checks_posted_key(self, mock_verify):

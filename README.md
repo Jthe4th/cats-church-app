@@ -1,5 +1,5 @@
 # Welcome System
-Version: `0.9.1-beta`
+Version: `0.9.2-beta`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
@@ -69,7 +69,7 @@ Label sizing is controlled in `static/css/print.css`. Batch printing uses one la
 Kiosk printing can run in three modes from System Settings:
 - `Connected Printer`: current browser-based printing flow.
 - `PrintNode Printer`: kiosk check-ins submit a silent PrintNode job instead of opening the browser print dialog.
-- `Server Printer`: kiosk check-ins submit a Brother QL raw print job directly from the Django server computer to a label printer on the local network.
+- `Server Printer`: kiosk check-ins submit a print job from the Django server computer to either an installed printer queue or a raw network printer address.
 
 For PrintNode mode, configure `printnode_api_key` and `printnode_printer_map`. The printer map is JSON that routes each kiosk id to a PrintNode printer id:
 
@@ -82,15 +82,46 @@ For PrintNode mode, configure `printnode_api_key` and `printnode_printer_map`. T
 
 Open each kiosk with its id once, for example `/kiosk/?kiosk=kiosk1`; the browser stores that id locally and includes it with future kiosk print requests. Staff/admin print pages remain browser-printable as a fallback even when kiosk silent printer mode is enabled.
 
-For Server Printer mode, configure `server_printer_map`. The printer map is JSON that routes each kiosk id to the printer IP/hostname and raw socket port, usually `9100`:
+For a cleaner setup, use `printer_profiles` plus `kiosk_printer_profile_map`. A profile stores the backend, printer target, and optional label calibration in one reusable record:
 
 ```json
 {
-  "kiosk1": "192.168.1.50:9100",
-  "kiosk2": {
-    "host": "192.168.1.51",
-    "port": 9100
+  "front-desk-brother": {
+    "backend": "server",
+    "target": "queue:Brother_QL_820NWB",
+    "label_width_in": "2.440",
+    "label_height_in": "1.1",
+    "label_margin_in": "0.1",
+    "brother_label_media": "62red"
   }
+}
+```
+
+Then map kiosks to profiles:
+
+```json
+{
+  "kiosk1": "front-desk-brother"
+}
+```
+
+Profile mappings take priority. The older `printnode_printer_map` and `server_printer_map` settings remain supported as fallback when a kiosk has no assigned profile.
+
+For Server Printer mode, configure `server_printer_map`. The preferred setup is to route each kiosk id to an installed printer queue on the server computer:
+
+```json
+{
+  "kiosk1": "queue:Brother_QL_820NWB"
+}
+```
+
+On Windows, queue mode renders the label image through the installed Windows printer driver. After updating the app, rerun `scripts\deploy_windows.cmd` so the Windows-only `pywin32` dependency is installed, then restart the app.
+
+Raw network printing is also available by using the printer IP/hostname and raw socket port, usually `9100`:
+
+```json
+{
+  "kiosk1": "192.168.1.50:9100"
 }
 ```
 
@@ -147,6 +178,8 @@ python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application
 ```
 
 You can also use:
+- `scripts\deploy_windows.cmd` (double-click friendly Windows setup; keeps the PowerShell window open)
+- `scripts\deploy_windows.ps1` (full first-time Windows setup, optional admin-user prompt, static files, checks, then starts Waitress)
 - `scripts\run_prod.ps1` (sets up venv/dependencies, runs migrations, starts Waitress)
 
 Verification:

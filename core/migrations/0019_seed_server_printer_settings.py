@@ -6,7 +6,7 @@ def seed_server_printer_settings(apps, schema_editor):
     defaults = {
         "server_printer_map": (
             "{}",
-            'JSON object mapping kiosk ids to network printer addresses, e.g. {"kiosk1": "192.168.1.50:9100"}.',
+            'JSON object mapping kiosk ids to server printer queues or network printer addresses, e.g. {"kiosk1": "queue:Brother_QL_820NWB"}.',
         ),
         "server_printer_timeout_seconds": (
             "10",

@@ -16,7 +16,7 @@ import csv
 import json
 
 from .audit import log_event
-from .fonts import ALL_FONT_CHOICES
+from .fonts import ALL_FONT_CHOICES, SYSTEM_FONT_CHOICES
 from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service, SystemSetting, Tag
 from .permissions import can_manage_configuration, can_view_confidential_notes
@@ -525,13 +525,16 @@ class SystemSettingAdmin(admin.ModelAdmin):
     change_form_template = "admin/core/systemsetting/change_form.html"
 
     YES_NO_KEYS = {"hide_last_name", "kiosk_print_mode", "kiosk_print_iframe", "enable_google_fonts"}
-    SOURCE_KEYS = {"welcome_heading_font_source", "label_font_source"}
+    SOURCE_KEYS = {"welcome_heading_font_source"}
     FONT_KEYS = {"label_font", "welcome_heading_font"}
     ADMIN_SKIN_KEYS = {"admin_skin"}
     PRINT_MODE_KEYS = {"print_mode"}
-    JSON_KEYS = {"printnode_printer_map", "server_printer_map"}
+    BROTHER_MEDIA_KEYS = {"brother_label_media"}
+    JSON_KEYS = {"printnode_printer_map", "server_printer_map", "printer_profiles", "kiosk_printer_profile_map"}
     PRINTNODE_PRINTER_MAP_KEYS = {"printnode_printer_map"}
     SERVER_PRINTER_MAP_KEYS = {"server_printer_map"}
+    PRINTER_PROFILE_KEYS = {"printer_profiles"}
+    KIOSK_PRINTER_PROFILE_MAP_KEYS = {"kiosk_printer_profile_map"}
     SECRET_KEYS = {"printnode_api_key"}
     LOGO_UPLOAD_KEYS = {"kiosk_logo_path"}
     PX_INT_KEYS = {"kiosk_logo_width_px", "kiosk_logo_height_px"}
@@ -543,6 +546,10 @@ class SystemSettingAdmin(admin.ModelAdmin):
         (PRINT_MODE_CONNECTED, PRINT_MODE_CONNECTED),
         (PRINT_MODE_PRINTNODE, PRINT_MODE_PRINTNODE),
         (PRINT_MODE_SERVER, PRINT_MODE_SERVER),
+    ]
+    BROTHER_MEDIA_CHOICES = [
+        ("62red", "62mm black/red/white"),
+        ("62", "62mm black/white"),
     ]
     ADMIN_SKIN_PREVIEW_URL = "https://django-jazzmin.readthedocs.io/ui_customisation/"
 
@@ -585,6 +592,10 @@ class SystemSettingAdmin(admin.ModelAdmin):
             if not kiosk_id:
                 raise forms.ValidationError("Kiosk ids cannot be blank.")
             if isinstance(printer_config, dict):
+                queue_name = str(printer_config.get("queue", "")).strip()
+                if queue_name:
+                    cleaned[kiosk_id] = {"queue": queue_name}
+                    continue
                 host = str(printer_config.get("host", "")).strip()
                 port = str(printer_config.get("port", "9100")).strip()
                 if not host:
@@ -599,7 +610,10 @@ class SystemSettingAdmin(admin.ModelAdmin):
             raw_value = str(printer_config or "").strip()
             if not raw_value:
                 raise forms.ValidationError(f'Printer address for "{kiosk_id}" cannot be blank.')
-            if ":" in raw_value:
+            if raw_value.startswith("queue:"):
+                if not raw_value.removeprefix("queue:").strip():
+                    raise forms.ValidationError(f'Printer queue for "{kiosk_id}" cannot be blank.')
+            elif ":" in raw_value:
                 host, port = raw_value.rsplit(":", 1)
                 if not host.strip() or not port.strip().isdigit():
                     raise forms.ValidationError(f'Printer address for "{kiosk_id}" must look like 192.168.1.50:9100.')
@@ -609,8 +623,73 @@ class SystemSettingAdmin(admin.ModelAdmin):
             cleaned[kiosk_id] = raw_value
         return cleaned
 
+    @staticmethod
+    def _clean_kiosk_printer_profile_map(value):
+        value = value or {}
+        if not isinstance(value, dict):
+            raise forms.ValidationError("Enter a JSON object mapping kiosk ids to printer profile names.")
+        cleaned = {}
+        for kiosk_id, profile_name in value.items():
+            kiosk_id = str(kiosk_id).strip()
+            profile_name = str(profile_name).strip()
+            if not kiosk_id:
+                raise forms.ValidationError("Kiosk ids cannot be blank.")
+            if not profile_name:
+                raise forms.ValidationError(f'Printer profile name for "{kiosk_id}" cannot be blank.')
+            cleaned[kiosk_id] = profile_name
+        return cleaned
+
+    @staticmethod
+    def _clean_printer_profiles(value):
+        value = value or {}
+        if not isinstance(value, dict):
+            raise forms.ValidationError("Enter a JSON object of printer profile definitions.")
+        cleaned = {}
+        for profile_name, profile in value.items():
+            profile_name = str(profile_name).strip()
+            if not profile_name:
+                raise forms.ValidationError("Printer profile names cannot be blank.")
+            if not isinstance(profile, dict):
+                raise forms.ValidationError(f'Printer profile "{profile_name}" must be a JSON object.')
+            backend = str(profile.get("backend", "")).strip().lower()
+            if backend not in {"printnode", "server"}:
+                raise forms.ValidationError(f'Printer profile "{profile_name}" must use backend "printnode" or "server".')
+            cleaned_profile = {**profile, "backend": backend}
+            if backend == "printnode":
+                printer_id = str(profile.get("printer_id") or profile.get("printnode_printer_id") or "").strip()
+                if not printer_id.isdigit():
+                    raise forms.ValidationError(f'PrintNode profile "{profile_name}" must include a numeric printer_id.')
+                cleaned_profile["printer_id"] = printer_id
+                cleaned_profile.pop("printnode_printer_id", None)
+            if backend == "server":
+                target = profile.get("target")
+                if not target:
+                    if profile.get("queue"):
+                        target = {"queue": str(profile.get("queue")).strip()}
+                    elif profile.get("host"):
+                        target = {"host": str(profile.get("host")).strip(), "port": profile.get("port", 9100)}
+                SystemSettingAdmin._clean_server_printer_map({"profile": target})
+                cleaned_profile["target"] = target
+            for key in ("label_width_in", "label_height_in", "label_margin_in"):
+                if key in cleaned_profile and str(cleaned_profile.get(key)).strip():
+                    try:
+                        value_float = float(str(cleaned_profile[key]).strip())
+                    except ValueError as exc:
+                        raise forms.ValidationError(f'Printer profile "{profile_name}" has an invalid {key}.') from exc
+                    if value_float <= 0 or value_float > 10:
+                        raise forms.ValidationError(f'Printer profile "{profile_name}" has an out-of-range {key}.')
+                    cleaned_profile[key] = str(cleaned_profile[key]).strip()
+            media = str(cleaned_profile.get("brother_label_media", "")).strip()
+            if media:
+                if media not in {"62", "62red"}:
+                    raise forms.ValidationError(f'Printer profile "{profile_name}" has an invalid brother_label_media.')
+                cleaned_profile["brother_label_media"] = media
+            cleaned[profile_name] = cleaned_profile
+        return cleaned
+
     class Form(forms.ModelForm):
         FONT_CHOICES = ALL_FONT_CHOICES
+        LABEL_FONT_CHOICES = SYSTEM_FONT_CHOICES
         SOURCE_CHOICES = [("system", "System"), ("google", "Google")]
 
         class Meta:
@@ -620,8 +699,9 @@ class SystemSettingAdmin(admin.ModelAdmin):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             if self.instance and self.instance.key in SystemSettingAdmin.FONT_KEYS:
-                self.fields["value"] = forms.ChoiceField(choices=self.FONT_CHOICES)
-                self.fields["value"].widget.choices = self.FONT_CHOICES
+                choices = self.LABEL_FONT_CHOICES if self.instance.key == "label_font" else self.FONT_CHOICES
+                self.fields["value"] = forms.ChoiceField(choices=choices)
+                self.fields["value"].widget.choices = choices
             if self.instance and self.instance.key in SystemSettingAdmin.ADMIN_SKIN_KEYS:
                 self.fields["value"] = forms.ChoiceField(
                     choices=SystemSettingAdmin.ADMIN_SKIN_CHOICES,
@@ -632,6 +712,8 @@ class SystemSettingAdmin(admin.ModelAdmin):
                 )
             if self.instance and self.instance.key in SystemSettingAdmin.PRINT_MODE_KEYS:
                 self.fields["value"] = forms.ChoiceField(choices=SystemSettingAdmin.PRINT_MODE_CHOICES)
+            if self.instance and self.instance.key in SystemSettingAdmin.BROTHER_MEDIA_KEYS:
+                self.fields["value"] = forms.ChoiceField(choices=SystemSettingAdmin.BROTHER_MEDIA_CHOICES)
             if self.instance and self.instance.key in SystemSettingAdmin.SECRET_KEYS:
                 self.fields["value"] = forms.CharField(
                     required=False,
@@ -645,7 +727,11 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     initial_json = self.instance.value or "{}"
                 help_text = 'Example: {"kiosk1": "123456", "kiosk2": "123457"}'
                 if self.instance.key in SystemSettingAdmin.SERVER_PRINTER_MAP_KEYS:
-                    help_text = 'Example: {"kiosk1": "192.168.1.50:9100", "kiosk2": {"host": "192.168.1.51", "port": 9100}}'
+                    help_text = 'Examples: {"kiosk1": "queue:Brother_QL_820NWB"} or {"kiosk1": "192.168.1.50:9100"}. Queue mode uses the server computer print queue.'
+                if self.instance.key in SystemSettingAdmin.PRINTER_PROFILE_KEYS:
+                    help_text = 'Example: {"front-desk-brother": {"backend": "server", "target": "queue:Brother_QL_820NWB", "label_width_in": "2.440", "label_height_in": "1.1", "brother_label_media": "62red"}}'
+                if self.instance.key in SystemSettingAdmin.KIOSK_PRINTER_PROFILE_MAP_KEYS:
+                    help_text = 'Example: {"kiosk1": "front-desk-brother", "kiosk2": "side-door-zebra"}. Existing direct printer maps are still used when a kiosk has no profile.'
                 self.fields["value"] = forms.JSONField(
                     required=False,
                     initial=initial_json,
@@ -709,6 +795,10 @@ class SystemSettingAdmin(admin.ModelAdmin):
                 return SystemSettingAdmin._clean_printer_map(value)
             if self.instance and self.instance.key in SystemSettingAdmin.SERVER_PRINTER_MAP_KEYS:
                 return SystemSettingAdmin._clean_server_printer_map(value)
+            if self.instance and self.instance.key in SystemSettingAdmin.PRINTER_PROFILE_KEYS:
+                return SystemSettingAdmin._clean_printer_profiles(value)
+            if self.instance and self.instance.key in SystemSettingAdmin.KIOSK_PRINTER_PROFILE_MAP_KEYS:
+                return SystemSettingAdmin._clean_kiosk_printer_profile_map(value)
             return value
 
     form = Form
@@ -720,7 +810,7 @@ class SystemSettingAdmin(admin.ModelAdmin):
         "kiosk_background_color_darkmode",
     }
     FRIENDLY_LABELS = {
-        "enable_google_fonts": "Enable Google Fonts",
+        "enable_google_fonts": "Enable Google Fonts for Kiosk Heading",
         "first_name_color": "First Name Color",
         "hide_last_name": "Hide Last Name",
         "kiosk_background_color": "Kiosk Background Color (Light)",
@@ -735,12 +825,14 @@ class SystemSettingAdmin(admin.ModelAdmin):
         "printnode_label_width_in": "Label Width (in)",
         "printnode_label_height_in": "Label Height (in)",
         "printnode_label_margin_in": "Label Margin (in)",
+        "brother_label_media": "Brother Label Media",
+        "printer_profiles": "Printer Profiles",
+        "kiosk_printer_profile_map": "Kiosk Printer Profile Map",
         "printnode_printer_map": "PrintNode Kiosk Printer Map",
         "server_printer_map": "Server Kiosk Printer Map",
         "server_printer_timeout_seconds": "Server Printer Timeout (seconds)",
         "admin_skin": "Admin Skin",
         "label_font": "Label Font",
-        "label_font_source": "Label Font Source",
         "label_first_name_scale": "Label First Name Size (%)",
         "label_last_name_scale": "Label Last Name Size (%)",
         "last_name_color": "Last Name Color",
@@ -750,10 +842,10 @@ class SystemSettingAdmin(admin.ModelAdmin):
     }
     SECTION_ORDER = [
         "Kiosk Preferences",
+        "Kiosk Font Loading",
         "Admin Appearance",
         "Label & Printing",
         "Printing Backends",
-        "Font Platform",
         "Other",
     ]
     SECTION_KEYS = {
@@ -767,29 +859,31 @@ class SystemSettingAdmin(admin.ModelAdmin):
             "kiosk_logo_width_px",
             "kiosk_logo_height_px",
         },
+        "Kiosk Font Loading": {"enable_google_fonts"},
         "Label & Printing": {
             "first_name_color",
             "last_name_color",
             "hide_last_name",
             "label_font",
-            "label_font_source",
             "label_first_name_scale",
             "label_last_name_scale",
             "printnode_label_width_in",
             "printnode_label_height_in",
             "printnode_label_margin_in",
+            "brother_label_media",
             "kiosk_print_mode",
             "kiosk_print_iframe",
         },
         "Printing Backends": {
             "print_mode",
+            "printer_profiles",
+            "kiosk_printer_profile_map",
             "printnode_api_key",
             "printnode_printer_map",
             "server_printer_map",
             "server_printer_timeout_seconds",
         },
         "Admin Appearance": {"admin_skin"},
-        "Font Platform": {"enable_google_fonts"},
     }
 
     @classmethod
@@ -841,6 +935,14 @@ class SystemSettingAdmin(admin.ModelAdmin):
                         cleaned_data[form_field_name] = SystemSettingAdmin._clean_server_printer_map(
                             cleaned_data.get(form_field_name)
                         )
+                    if form_setting_obj.key in SystemSettingAdmin.PRINTER_PROFILE_KEYS and form_field_name in cleaned_data:
+                        cleaned_data[form_field_name] = SystemSettingAdmin._clean_printer_profiles(
+                            cleaned_data.get(form_field_name)
+                        )
+                    if form_setting_obj.key in SystemSettingAdmin.KIOSK_PRINTER_PROFILE_MAP_KEYS and form_field_name in cleaned_data:
+                        cleaned_data[form_field_name] = SystemSettingAdmin._clean_kiosk_printer_profile_map(
+                            cleaned_data.get(form_field_name)
+                        )
                 return cleaned_data
 
         for field_name, setting_obj in field_to_setting.items():
@@ -872,8 +974,9 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     widget=forms.Select(attrs={"class": "vSelect"}),
                 )
             elif setting_obj.key in self.FONT_KEYS:
+                choices = SYSTEM_FONT_CHOICES if setting_obj.key == "label_font" else ALL_FONT_CHOICES
                 field = forms.ChoiceField(
-                    choices=ALL_FONT_CHOICES,
+                    choices=choices,
                     initial=initial_value or "Arial",
                     required=False,
                     label=setting_obj.key,
@@ -899,6 +1002,14 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     label=setting_obj.key,
                     widget=forms.Select(attrs={"class": "vSelect"}),
                 )
+            elif setting_obj.key in self.BROTHER_MEDIA_KEYS:
+                field = forms.ChoiceField(
+                    choices=self.BROTHER_MEDIA_CHOICES,
+                    initial=initial_value or "62red",
+                    required=False,
+                    label=setting_obj.key,
+                    widget=forms.Select(attrs={"class": "vSelect"}),
+                )
             elif setting_obj.key in self.SECRET_KEYS:
                 field = forms.CharField(
                     initial=initial_value,
@@ -914,7 +1025,11 @@ class SystemSettingAdmin(admin.ModelAdmin):
                     parsed_initial = initial_value or "{}"
                 help_text = 'Example: {"kiosk1": "123456", "kiosk2": "123457"}'
                 if setting_obj.key in self.SERVER_PRINTER_MAP_KEYS:
-                    help_text = 'Example: {"kiosk1": "192.168.1.50:9100", "kiosk2": {"host": "192.168.1.51", "port": 9100}}'
+                    help_text = 'Examples: {"kiosk1": "queue:Brother_QL_820NWB"} or {"kiosk1": "192.168.1.50:9100"}. Queue mode uses the server computer print queue.'
+                if setting_obj.key in self.PRINTER_PROFILE_KEYS:
+                    help_text = 'Example: {"front-desk-brother": {"backend": "server", "target": "queue:Brother_QL_820NWB", "label_width_in": "2.440", "label_height_in": "1.1", "brother_label_media": "62red"}}'
+                if setting_obj.key in self.KIOSK_PRINTER_PROFILE_MAP_KEYS:
+                    help_text = 'Example: {"kiosk1": "front-desk-brother", "kiosk2": "side-door-zebra"}. Existing direct printer maps are still used when a kiosk has no profile.'
                 field = forms.JSONField(
                     initial=parsed_initial,
                     required=False,
@@ -1038,6 +1153,7 @@ class SystemSettingAdmin(admin.ModelAdmin):
             "title": "System settings",
             "form": form,
             "sections": sections,
+            "selected_print_mode": get_setting("print_mode", PRINT_MODE_CONNECTED),
             "printnode_selected": get_setting("print_mode", PRINT_MODE_CONNECTED) == PRINT_MODE_PRINTNODE,
             "verify_printnode_url": reverse("admin:core_systemsetting_verify_printnode_api_key"),
             "has_view_permission": True,

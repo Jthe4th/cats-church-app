@@ -15,6 +15,12 @@
     .printnode-verify-row[hidden] {
       display: none;
     }
+    tr[data-printer-mode-row][hidden] {
+      display: none;
+    }
+    tr[data-managed-printer-row][hidden] {
+      display: none;
+    }
     .printnode-verify-status {
       font-size: 0.85rem;
     }
@@ -42,7 +48,15 @@
             </thead>
             <tbody>
               {% for field, setting_obj, friendly_label in section.rows %}
-                  <tr data-setting-key="{{ setting_obj.key }}">
+                  <tr
+                    data-setting-key="{{ setting_obj.key }}"
+                    {% if setting_obj.key == "printer_profiles" or setting_obj.key == "kiosk_printer_profile_map" %}data-managed-printer-row="1"{% endif %}
+                    {% if setting_obj.key == "printnode_api_key" or setting_obj.key == "printnode_printer_map" %}data-printer-mode-row="PrintNode Printer"{% endif %}
+                    {% if setting_obj.key == "server_printer_map" or setting_obj.key == "server_printer_timeout_seconds" %}data-printer-mode-row="Server Printer"{% endif %}
+                    {% if setting_obj.key == "printer_profiles" or setting_obj.key == "kiosk_printer_profile_map" %}{% if selected_print_mode == "Connected Printer" %}hidden{% endif %}{% endif %}
+                    {% if setting_obj.key == "printnode_api_key" or setting_obj.key == "printnode_printer_map" %}{% if selected_print_mode != "PrintNode Printer" %}hidden{% endif %}{% endif %}
+                    {% if setting_obj.key == "server_printer_map" or setting_obj.key == "server_printer_timeout_seconds" %}{% if selected_print_mode != "Server Printer" %}hidden{% endif %}{% endif %}
+                  >
                     <td><strong>{{ friendly_label }}</strong></td>
                     <td>
                       <div style="display: flex; align-items: center; gap: 8px;">
@@ -106,17 +120,28 @@
       const verifyRow = document.querySelector(".printnode-verify-row");
       const verifyButton = document.getElementById("verify-printnode-api-key");
       const verifyStatus = document.getElementById("verify-printnode-status");
-      const updatePrintNodeVerifyVisibility = () => {
-        if (!verifyRow || !printModeSelect) return;
-        verifyRow.hidden = printModeSelect.value !== "PrintNode Printer";
-        if (verifyRow.hidden && verifyStatus) {
+      const printerModeRows = Array.from(document.querySelectorAll("[data-printer-mode-row]"));
+      const managedPrinterRows = Array.from(document.querySelectorAll("[data-managed-printer-row]"));
+      const updatePrinterModeVisibility = () => {
+        if (!printModeSelect) return;
+        const selectedMode = printModeSelect.value;
+        printerModeRows.forEach((row) => {
+          row.hidden = row.getAttribute("data-printer-mode-row") !== selectedMode;
+        });
+        managedPrinterRows.forEach((row) => {
+          row.hidden = selectedMode === "Connected Printer";
+        });
+        if (verifyRow) {
+          verifyRow.hidden = selectedMode !== "PrintNode Printer";
+        }
+        if (verifyRow && verifyRow.hidden && verifyStatus) {
           verifyStatus.textContent = "";
           verifyStatus.className = "printnode-verify-status";
         }
       };
       if (printModeSelect) {
-        printModeSelect.addEventListener("change", updatePrintNodeVerifyVisibility);
-        updatePrintNodeVerifyVisibility();
+        printModeSelect.addEventListener("change", updatePrinterModeVisibility);
+        updatePrinterModeVisibility();
       }
       if (verifyButton && apiKeyInput && verifyStatus) {
         verifyButton.addEventListener("click", () => {

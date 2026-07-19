@@ -113,6 +113,13 @@ def _resolve_font(font_name: str, source: str, enable_google_fonts: bool, fallba
     return f'"{fallback}", Arial, sans-serif', None
 
 
+def _resolve_system_font(font_name: str, fallback: str = "Arial") -> str:
+    font_name = (font_name or "").strip()
+    if font_name in SYSTEM_FONT_SET:
+        return f'"{font_name}", Arial, sans-serif'
+    return f'"{fallback}", Arial, sans-serif'
+
+
 def _label_print_context() -> dict:
     return {
         "label_width_in": f"{_safe_inches(get_setting('printnode_label_width_in', '2.440'), 2.440):.3f}",
@@ -533,7 +540,7 @@ def _printer_status_payload(kiosk_id: str):
                 "detail": "Open this kiosk with ?kiosk=kiosk1, kiosk2, or kiosk3.",
             }
         try:
-            host, port = get_kiosk_server_printer(kiosk_id)
+            target = get_kiosk_server_printer(kiosk_id)
         except ServerPrinterError as exc:
             return {
                 "enabled": True,
@@ -541,12 +548,18 @@ def _printer_status_payload(kiosk_id: str):
                 "label": "Server Printer: printer not mapped",
                 "detail": str(exc),
             }
+        if target["kind"] == "queue":
+            detail = f'Kiosk {kiosk_id} is mapped to print queue "{target["queue"]}".'
+            printer_address = f'queue:{target["queue"]}'
+        else:
+            detail = f'Kiosk {kiosk_id} is mapped to {target["host"]}:{target["port"]}.'
+            printer_address = f'{target["host"]}:{target["port"]}'
         return {
             "enabled": True,
             "status": "ready",
             "label": "Server Printer: ready",
-            "detail": f"Kiosk {kiosk_id} is mapped to {host}:{port}.",
-            "printer_address": f"{host}:{port}",
+            "detail": detail,
+            "printer_address": printer_address,
             "print_mode_label": print_mode_label,
         }
     if print_mode != PRINT_MODE_PRINTNODE:
@@ -951,13 +964,7 @@ def print_tag(request, attendance_id: int):
         metadata={"mode": "single"},
     )
     hide_last_name = get_setting("hide_last_name", "No").strip().lower() in {"yes", "true", "1"}
-    enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
-    label_font_family, label_font_href = _resolve_font(
-        get_setting("label_font", "Arial"),
-        get_setting("label_font_source", "system"),
-        enable_google_fonts,
-        fallback="Arial",
-    )
+    label_font_family = _resolve_system_font(get_setting("label_font", "Arial"), fallback="Arial")
     auto_print = request.GET.get("auto") == "1"
     iframe_mode = request.GET.get("iframe") == "1"
     first_scale = _safe_percent_scale(get_setting("label_first_name_scale", "100"), 100)
@@ -988,7 +995,6 @@ def print_tag(request, attendance_id: int):
             "last_name_color": get_setting("last_name_color", "#000000"),
             "hide_last_name": hide_last_name,
             "label_font_family": label_font_family,
-            "google_font_hrefs": [label_font_href] if label_font_href else [],
             "auto_print": auto_print,
             "next_url": next_url,
             "iframe_mode": iframe_mode,
@@ -1009,13 +1015,7 @@ def print_batch(request):
     attendance_by_id = {att.id: att for att in attendances}
     ordered = [attendance_by_id[att_id] for att_id in ids if att_id in attendance_by_id]
     hide_last_name = get_setting("hide_last_name", "No").strip().lower() in {"yes", "true", "1"}
-    enable_google_fonts = _is_yes(get_setting("enable_google_fonts", "Yes"), default=True)
-    label_font_family, label_font_href = _resolve_font(
-        get_setting("label_font", "Arial"),
-        get_setting("label_font_source", "system"),
-        enable_google_fonts,
-        fallback="Arial",
-    )
+    label_font_family = _resolve_system_font(get_setting("label_font", "Arial"), fallback="Arial")
     auto_print = request.GET.get("auto") == "1"
     iframe_mode = request.GET.get("iframe") == "1"
     first_scale = _safe_percent_scale(get_setting("label_first_name_scale", "100"), 100)
@@ -1057,7 +1057,6 @@ def print_batch(request):
             "last_name_color": get_setting("last_name_color", "#000000"),
             "hide_last_name": hide_last_name,
             "label_font_family": label_font_family,
-            "google_font_hrefs": [label_font_href] if label_font_href else [],
             "auto_print": auto_print,
             "iframe_mode": iframe_mode,
             "label_first_name_scale_factor": f"{first_scale / 100:.2f}",
