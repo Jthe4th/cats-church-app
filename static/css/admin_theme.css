@@ -17,7 +17,10 @@ body.dark-mode .ws-panel,
 body.dark-mode .ws-mini-item,
 body.dark-mode .cats-service-card,
 body.dark-mode .cats-status-toolbar,
-body.dark-mode .cats-table {
+body.dark-mode .cats-table,
+body.dark-mode .cats-quick-panel,
+body.dark-mode .cats-attendance-panel,
+body.dark-mode .cats-missing-panel {
   background: #222734 !important;
   border-color: #3a4254 !important;
   color: #e8edf7 !important;
@@ -29,6 +32,20 @@ body.dark-mode .cats-service-value {
 
 body.dark-mode .cats-table thead th {
   background: #2b3140 !important;
+}
+
+body.dark-mode .cats-attendance-tabs,
+body.dark-mode .cats-new-visitor-form {
+  border-color: #3a4254 !important;
+}
+
+body.dark-mode .cats-attendance-tab {
+  color: #b8c2d5;
+}
+
+body.dark-mode .cats-attendance-tab[aria-selected="true"] {
+  color: #8ec5ff;
+  border-bottom-color: #8ec5ff;
 }
 
 body.dark-mode .cats-table tbody tr:nth-child(even) {

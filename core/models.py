@@ -60,7 +60,12 @@ class Person(models.Model):
         blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(31)],
     )
-    photo = models.FileField(upload_to="people/photos/", blank=True, null=True)
+    photo = models.ImageField(
+        "Profile photo",
+        upload_to="people/photos/",
+        blank=True,
+        null=True,
+    )
     member_type = models.CharField(max_length=20, choices=MEMBER_TYPES, default=VISITOR)
     family = models.ForeignKey(Family, on_delete=models.SET_NULL, null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -79,6 +84,13 @@ class Person(models.Model):
     def __str__(self) -> str:
         middle = f" {self.middle_initial}." if self.middle_initial else ""
         return f"{self.first_name}{middle} {self.last_name}"
+
+    @property
+    def initials(self) -> str:
+        """Short, stable fallback for profile-photo badges."""
+        first_initial = (self.first_name or "").strip()[:1]
+        last_initial = (self.last_name or "").strip()[:1]
+        return f"{first_initial}{last_initial}".upper() or "?"
 
 
 class Tag(models.Model):

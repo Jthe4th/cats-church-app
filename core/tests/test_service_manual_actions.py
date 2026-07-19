@@ -33,6 +33,35 @@ class ServiceManualActionsTests(TestCase):
         self.assertEqual(response2.status_code, 204)
         self.assertEqual(Attendance.objects.filter(service=self.service, person=person).count(), 1)
 
+    def test_service_change_form_uses_unified_checkin_and_attendance_tabs(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Search name, phone, or email")
+        self.assertContains(response, "New person")
+        self.assertContains(response, 'id="manual-new-visitor-form" class="cats-new-visitor-form" hidden')
+        self.assertContains(response, "Attendees")
+        self.assertContains(response, "First-time visitors")
+        self.assertContains(response, "cats-person-badge")
+        self.assertNotContains(response, "Quick Check-In &amp; Print")
+
+    def test_person_initials_and_live_counts_include_badge_data(self):
+        person = Person.objects.create(
+            first_name="Ada",
+            middle_initial="M",
+            last_name="Lovelace",
+            member_type=Person.MEMBER,
+        )
+        Attendance.objects.create(service=self.service, person=person)
+
+        response = self.client.get(f"{self.url}?live_counts=1")
+
+        self.assertEqual(person.initials, "AL")
+        self.assertEqual(response.status_code, 200)
+        attendee = response.json()["attendees"][0]
+        self.assertEqual(attendee["initials"], "AL")
+        self.assertEqual(attendee["photo_url"], "")
+
     def test_manual_print_person_returns_print_url(self):
         person = Person.objects.create(first_name="Grace", last_name="Hopper", member_type=Person.MEMBER)
 

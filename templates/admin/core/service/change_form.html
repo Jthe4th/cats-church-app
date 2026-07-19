@@ -18,6 +18,11 @@
     .content-header .breadcrumb {
       display: none !important;
     }
+    .content-header h1 {
+      margin: 0 !important;
+      font-size: 2rem !important;
+      line-height: 1.2;
+    }
     #jazzy-actions .form-group {
       display: none !important;
     }
@@ -78,37 +83,62 @@
     .cats-table tbody tr:hover {
       background: rgba(67, 112, 138, 0.10);
     }
+    .cats-person-identity {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+    .cats-person-badge {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      overflow: hidden;
+      border: 1px solid rgba(67, 112, 138, 0.25);
+      border-radius: 50%;
+      background: #e9f1f5;
+      color: #28556f;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .cats-person-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .cats-person-name {
+      min-width: 0;
+    }
     .cats-service-dashboard {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
-      margin: 0 0 16px;
+      margin: 0 0 12px;
     }
     .cats-service-card {
-      border: 1px solid #b9c7d1;
-      border-radius: 12px;
-      padding: 18px 20px;
-      background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
-      box-shadow: 0 4px 14px rgba(17, 24, 39, 0.08);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .cats-service-card:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--hairline-color);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: var(--body-bg);
     }
     .cats-service-label {
       margin: 0;
-      font-size: 17px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      font-size: 14px;
       color: var(--body-quiet-color);
-      font-weight: 700;
+      font-weight: 600;
     }
     .cats-service-value {
-      margin: 10px 0 0;
-      font-size: 48px;
+      margin: 0 0 0 auto;
+      font-size: 32px;
       line-height: 1;
-      font-weight: 800;
+      font-weight: 700;
       color: #0f172a;
     }
     .cats-status-toolbar {
@@ -116,55 +146,41 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin: 0 0 12px;
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 1px solid var(--hairline-color);
-      background: var(--darkened-bg);
+      margin: 0 0 14px;
+      padding: 0 0 12px;
+      border-bottom: 1px solid var(--hairline-color);
+      background: transparent;
     }
     .cats-quick-panel {
       border: 1px solid var(--hairline-color);
-      border-radius: 10px;
+      border-radius: 8px;
       background: var(--body-bg);
-      padding: 14px;
+      padding: 16px;
       margin: 0 0 14px;
     }
-    .cats-quick-cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 12px;
-      margin-top: 10px;
-    }
-    .cats-quick-card {
-      border: 1px solid #b9c7d1;
-      border-radius: 12px;
-      padding: 14px 16px;
-      background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
-      box-shadow: 0 4px 14px rgba(17, 24, 39, 0.08);
-    }
     .cats-quick-card-title {
-      margin: 0 0 10px;
-      font-size: 18px;
+      margin: 0 0 12px;
+      font-size: 20px;
       font-weight: 700;
       color: #2c3744;
     }
     .cats-quick-search-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
     }
     .cats-quick-search-controls {
       display: flex;
       align-items: center;
       gap: 8px;
       width: 100%;
-      max-width: 560px;
+      max-width: none;
     }
     .cats-quick-search-row input {
-      min-width: 220px;
+      min-width: 0;
       width: 100%;
+      height: 42px;
     }
     .cats-quick-results {
       display: grid;
@@ -205,9 +221,9 @@
     }
     .cats-new-visitor-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: 1.3fr 0.55fr 1.3fr 1fr 1fr;
       gap: 8px;
-      margin: 8px 0 10px;
+      margin: 0 0 10px;
     }
     .cats-new-visitor-actions {
       display: flex;
@@ -215,11 +231,8 @@
       flex-wrap: wrap;
     }
     .cats-service-details-summary {
-      border: 1px solid var(--hairline-color);
-      border-radius: 10px;
-      background: var(--body-bg);
-      padding: 10px 12px;
-      margin: 0 0 12px;
+      padding: 0;
+      margin: 0 0 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -227,7 +240,7 @@
       flex-wrap: wrap;
     }
     .cats-service-details-summary-title {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
       margin-right: 8px;
     }
@@ -259,16 +272,27 @@
       margin: 0 !important;
       white-space: nowrap;
     }
+    .cats-service-details-actions .cats-top-save-btn[hidden] {
+      display: none !important;
+    }
+    .cats-new-person-toggle {
+      height: 42px;
+      white-space: nowrap;
+    }
+    .cats-new-visitor-form[hidden] {
+      display: none;
+    }
+    .cats-new-visitor-form {
+      border-top: 1px solid var(--hairline-color);
+      padding-top: 12px;
+    }
     .cats-quick-hint {
       margin-top: 8px;
       font-size: 12px;
       color: var(--body-quiet-color);
     }
     .cats-section-divider {
-      border: 0;
-      height: 2px;
-      background: rgba(67, 112, 138, 0.35);
-      margin: 8px 0 14px;
+      display: none;
     }
     .cats-service-details-summary-text .cats-inline-status {
       display: inline-flex;
@@ -314,6 +338,86 @@
     .attendee-actions .btn {
       white-space: nowrap;
       font-weight: 600;
+    }
+    .cats-attendance-panel {
+      padding: 0 !important;
+      overflow: hidden;
+    }
+    .cats-attendance-tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--hairline-color);
+    }
+    .cats-attendance-tab {
+      appearance: none;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--body-quiet-color);
+      font: inherit;
+      font-weight: 600;
+      padding: 13px 12px 10px;
+      cursor: pointer;
+    }
+    .cats-attendance-tab[aria-selected="true"] {
+      border-bottom-color: #0d6efd;
+      color: #0d6efd;
+    }
+    .cats-tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      margin-left: 5px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: rgba(13, 110, 253, 0.10);
+      font-size: 12px;
+    }
+    .cats-tab-export {
+      margin-left: auto;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .cats-attendance-view {
+      padding: 14px;
+    }
+    .cats-attendance-view[hidden] {
+      display: none;
+    }
+    .cats-attendance-view .results {
+      margin: 0;
+    }
+    .cats-missing-panel {
+      border: 1px solid var(--hairline-color);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .cats-missing-panel summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .cats-missing-content {
+      margin-top: 14px;
+    }
+    @media (max-width: 760px) {
+      .cats-service-dashboard {
+        grid-template-columns: 1fr;
+      }
+      .cats-status-toolbar,
+      .cats-quick-search-row {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .cats-service-details-actions {
+        width: 100%;
+      }
+      .cats-new-visitor-grid {
+        grid-template-columns: 1fr 0.6fr 1fr;
+      }
     }
     #id_notes {
       min-height: 84px !important;
@@ -400,53 +504,49 @@
       <p class="cats-service-value" id="dashboard-attendee-count">{{ attendee_count }}</p>
     </div>
     <div class="cats-service-card">
-      <p class="cats-service-label">First-time visitors checked in</p>
+      <p class="cats-service-label">First-time visitors</p>
       <p class="cats-service-value" id="dashboard-first-time-count">{{ first_time_visitor_count }}</p>
     </div>
   </div>
 
   <div class="cats-quick-panel cats-full">
-    <h2>Quick Check-In &amp; Print</h2>
+    <h2 class="cats-quick-card-title">Check in</h2>
     {% if service_status == "closed" %}
       <p class="mb-0">Service is closed. Reopen service to check in or print nametags.</p>
     {% else %}
-      <div class="cats-quick-cards">
-        <div class="cats-quick-card">
-          <h3 class="cats-quick-card-title">Quick Check-In</h3>
-          <div class="cats-quick-search-row">
-            <label for="manual-person-search"><strong>Find existing person:</strong></label>
-            <div class="cats-quick-search-controls">
-              <input
-                id="manual-person-search"
-                type="text"
-                placeholder="Type first/last name, phone, or email..."
-                autocomplete="off"
-              />
-              <button id="manual-person-search-clear" type="button" class="btn btn-sm btn-outline-secondary ws-action-btn">
-                Clear
-              </button>
-            </div>
-          </div>
-          <div id="manual-person-results" class="cats-quick-results"></div>
+      <div class="cats-quick-search-row">
+        <div class="cats-quick-search-controls">
+          <input
+            id="manual-person-search"
+            type="text"
+            placeholder="Search name, phone, or email"
+            aria-label="Search people to check in"
+            autocomplete="off"
+          />
+          <button id="manual-person-search-clear" type="button" class="btn btn-outline-secondary ws-action-btn" title="Clear search" aria-label="Clear search">
+            <i class="ws-icon fas fa-times" aria-hidden="true"></i>
+          </button>
+          <button id="manual-new-person-toggle" type="button" class="btn btn-outline-primary ws-action-btn cats-new-person-toggle" aria-expanded="false" aria-controls="manual-new-visitor-form">
+            <i class="ws-icon fas fa-plus" aria-hidden="true"></i><span>New person</span>
+          </button>
         </div>
-        <div class="cats-quick-card">
-          <h3 class="cats-quick-card-title">Add New Person</h3>
-          <div class="cats-new-visitor-grid">
-            <input id="manual-new-first-name" type="text" placeholder="First name*" autocomplete="off" />
-            <input id="manual-new-middle-initial" type="text" maxlength="1" placeholder="M.I." autocomplete="off" />
-            <input id="manual-new-last-name" type="text" placeholder="Last name*" autocomplete="off" />
-            <input id="manual-new-phone" type="text" placeholder="Phone (optional)" autocomplete="off" />
-            <input id="manual-new-email" type="email" placeholder="Email (optional)" autocomplete="off" />
-          </div>
-          <div class="cats-new-visitor-actions">
-            <button id="manual-new-checkin-btn" type="button" class="btn btn-sm btn-outline-primary ws-action-btn">
-              <i class="ws-icon fas fa-check" aria-hidden="true"></i><span>Check in only</span>
-            </button>
-            <button id="manual-new-print-btn" type="button" class="btn btn-sm btn-primary ws-action-btn">
-              <i class="ws-icon fas fa-print" aria-hidden="true"></i><span>Check in + print</span>
-            </button>
-          </div>
-          <div class="cats-quick-hint">Tip: “Check in + print” immediately opens nametag printing.</div>
+      </div>
+      <div id="manual-person-results" class="cats-quick-results"></div>
+      <div id="manual-new-visitor-form" class="cats-new-visitor-form" hidden>
+        <div class="cats-new-visitor-grid">
+          <input id="manual-new-first-name" type="text" placeholder="First name*" autocomplete="off" />
+          <input id="manual-new-middle-initial" type="text" maxlength="1" placeholder="M.I." autocomplete="off" />
+          <input id="manual-new-last-name" type="text" placeholder="Last name*" autocomplete="off" />
+          <input id="manual-new-phone" type="text" placeholder="Phone" autocomplete="off" />
+          <input id="manual-new-email" type="email" placeholder="Email" autocomplete="off" />
+        </div>
+        <div class="cats-new-visitor-actions">
+          <button id="manual-new-checkin-btn" type="button" class="btn btn-sm btn-outline-primary ws-action-btn">
+            <i class="ws-icon fas fa-check" aria-hidden="true"></i><span>Check in only</span>
+          </button>
+          <button id="manual-new-print-btn" type="button" class="btn btn-sm btn-primary ws-action-btn">
+            <i class="ws-icon fas fa-print" aria-hidden="true"></i><span>Check in + print</span>
+          </button>
         </div>
       </div>
     {% endif %}
@@ -454,38 +554,18 @@
 
   {{ block.super }}
 
-  <div class="module cats-full">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h2 class="mb-0">First-Time Visitors (<span id="first-time-count">{{ first_time_visitor_count }}</span>)</h2>
-      <a class="button" href="{{ request.path }}?export=first_time">Export CSV</a>
+  <div class="module cats-full cats-attendance-panel">
+    <div class="cats-attendance-tabs" role="tablist" aria-label="Service attendance lists">
+      <button id="attendees-tab" class="cats-attendance-tab" type="button" role="tab" aria-controls="attendees-view" aria-selected="true" data-attendance-view="attendees-view">
+        Attendees <span class="cats-tab-count" id="attendee-count">{{ attendee_count }}</span>
+      </button>
+      <button id="first-time-tab" class="cats-attendance-tab" type="button" role="tab" aria-controls="first-time-view" aria-selected="false" data-attendance-view="first-time-view">
+        First-time visitors <span class="cats-tab-count" id="first-time-count">{{ first_time_visitor_count }}</span>
+      </button>
+      <a id="attendance-export" class="cats-tab-export" href="{{ request.path }}?export=attendees">Export CSV</a>
     </div>
-    <hr class="cats-section-divider" />
-    <div class="results">
-      <table class="cats-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-          </tr>
-        </thead>
-        <tbody id="first-time-body">
-          {% for person in first_time_visitors %}
-            <tr>
-              <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <p id="first-time-empty" {% if first_time_visitor_count %}style="display: none;"{% endif %}>No first-time visitors for this service.</p>
-  </div>
-
-  <div class="module cats-full">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h2 class="mb-0">Attendees (<span id="attendee-count">{{ attendee_count }}</span>)</h2>
-      <a class="button" href="{{ request.path }}?export=attendees">Export CSV</a>
-    </div>
-    <hr class="cats-section-divider" />
-    <div class="results">
+    <div id="attendees-view" class="cats-attendance-view" role="tabpanel" aria-labelledby="attendees-tab">
+      <div class="results">
       <table class="cats-table">
         <thead>
           <tr>
@@ -497,7 +577,12 @@
         <tbody id="attendee-body">
           {% for attendance in attendees %}
             <tr>
-              <td>{{ attendance.person.first_name }} {% if attendance.person.middle_initial %}{{ attendance.person.middle_initial }}.{% endif %} {{ attendance.person.last_name }}</td>
+              <td>
+                <span class="cats-person-identity">
+                  <span class="cats-person-badge" aria-hidden="true">{% if attendance.person.photo %}<img src="{{ attendance.person.photo.url }}" alt="" />{% else %}{{ attendance.person.initials }}{% endif %}</span>
+                  <span class="cats-person-name">{{ attendance.person.first_name }} {% if attendance.person.middle_initial %}{{ attendance.person.middle_initial }}.{% endif %} {{ attendance.person.last_name }}</span>
+                </span>
+              </td>
               <td>{{ attendance.checked_in_at|date:"M d, Y g:i A" }}</td>
               <td>
                 <div class="attendee-actions">
@@ -529,16 +614,38 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
+      <p id="attendee-empty" {% if attendee_count %}style="display: none;"{% endif %}>No attendees recorded yet.</p>
     </div>
-    <p id="attendee-empty" {% if attendee_count %}style="display: none;"{% endif %}>No attendees recorded yet.</p>
+    <div id="first-time-view" class="cats-attendance-view" role="tabpanel" aria-labelledby="first-time-tab" hidden>
+      <div class="results">
+        <table class="cats-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+            </tr>
+          </thead>
+          <tbody id="first-time-body">
+            {% for person in first_time_visitors %}
+              <tr>
+                <td>
+                  <span class="cats-person-identity">
+                    <span class="cats-person-badge" aria-hidden="true">{% if person.photo %}<img src="{{ person.photo.url }}" alt="" />{% else %}{{ person.initials }}{% endif %}</span>
+                    <span class="cats-person-name">{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</span>
+                  </span>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p id="first-time-empty" {% if first_time_visitor_count %}style="display: none;"{% endif %}>No first-time visitors for this service.</p>
+    </div>
   </div>
 
-  <div class="module cats-full">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h2 class="mb-0">Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</h2>
-      <a class="button" href="/admin/missing-members/?format=csv">Export CSV</a>
-    </div>
-    <hr class="cats-section-divider" />
+  <details class="cats-full cats-missing-panel">
+    <summary>Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</summary>
+    <div class="cats-missing-content">
     {% if missing_members %}
       <p>
         <label for="missing-search"><strong>Find person:</strong></label>
@@ -561,7 +668,12 @@
           <tbody>
             {% for person in missing_members %}
               <tr class="missing-row" data-search="{{ person.first_name|lower }} {{ person.last_name|lower }} {% if person.middle_initial %}{{ person.middle_initial|lower }}{% endif %}">
-                <td>{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</td>
+                <td>
+                  <span class="cats-person-identity">
+                    <span class="cats-person-badge" aria-hidden="true">{% if person.photo %}<img src="{{ person.photo.url }}" alt="" />{% else %}{{ person.initials }}{% endif %}</span>
+                    <span class="cats-person-name">{{ person.first_name }} {% if person.middle_initial %}{{ person.middle_initial }}.{% endif %} {{ person.last_name }}</span>
+                  </span>
+                </td>
                 <td>
                   {% if service_status == "closed" %}
                     <button class="btn btn-sm btn-outline-secondary ws-action-btn" type="button" disabled title="Service is closed" aria-label="Check in disabled (service is closed)">
@@ -589,7 +701,8 @@
     {% else %}
       <p>All active members checked in for this service.</p>
     {% endif %}
-  </div>
+    </div>
+  </details>
 
   <script>
     (function () {
@@ -608,14 +721,14 @@
       }
       if (detailsCard && detailsCard.parentElement) {
         const summaryBox = document.createElement("div");
-        summaryBox.className = "cats-service-details-summary";
+        summaryBox.className = "cats-service-details-summary cats-status-toolbar";
         summaryBox.innerHTML = `
           <div>
             <span class="cats-service-details-summary-title">Service Details</span>
             <span class="cats-service-details-summary-text" id="cats-service-details-summary-text"></span>
           </div>
           <div class="cats-service-details-actions" id="cats-service-details-actions">
-            <button type="submit" form="service_form" name="_save" value="Save" class="btn btn-sm btn-success cats-top-save-btn">
+            <button type="submit" form="service_form" name="_save" value="Save" class="btn btn-sm btn-success cats-top-save-btn" hidden>
               Save
             </button>
             <button type="button" class="btn btn-sm btn-outline-primary cats-service-details-toggle" id="cats-service-details-toggle">
@@ -638,6 +751,7 @@
         detailsCard.parentElement.insertBefore(summaryBox, detailsCard);
         const summaryTextEl = summaryBox.querySelector("#cats-service-details-summary-text");
         const toggleBtn = summaryBox.querySelector("#cats-service-details-toggle");
+        const saveBtn = summaryBox.querySelector(".cats-top-save-btn");
         const escapeSummary = (text) =>
           String(text ?? "")
             .replaceAll("&", "&amp;")
@@ -654,6 +768,15 @@
             summaryTextEl.innerHTML = `${escapeSummary(dateText)} • ${escapeSummary(labelText)} • <span class="cats-inline-status ${statusClass}">${escapeSummary(statusText)}</span>`;
           }
         };
+        const initialDetailValues = [dateInput, labelInput, statusInput].map((el) => el?.value || "");
+        const syncSaveVisibility = () => {
+          const isDirty = [dateInput, labelInput, statusInput].some(
+            (el, index) => (el?.value || "") !== initialDetailValues[index]
+          );
+          if (saveBtn) {
+            saveBtn.hidden = !isDirty;
+          }
+        };
         let detailsCollapsed = true;
         const setDetailsCollapsed = (collapsed) => {
           detailsCollapsed = collapsed;
@@ -664,11 +787,20 @@
         };
         [dateInput, labelInput].forEach((el) => {
           if (!el) return;
-          el.addEventListener("input", updateDetailsSummary);
-          el.addEventListener("change", updateDetailsSummary);
+          el.addEventListener("input", () => {
+            updateDetailsSummary();
+            syncSaveVisibility();
+          });
+          el.addEventListener("change", () => {
+            updateDetailsSummary();
+            syncSaveVisibility();
+          });
         });
         if (statusInput) {
-          statusInput.addEventListener("change", updateDetailsSummary);
+          statusInput.addEventListener("change", () => {
+            updateDetailsSummary();
+            syncSaveVisibility();
+          });
         }
         if (toggleBtn) {
           toggleBtn.addEventListener("click", () => setDetailsCollapsed(!detailsCollapsed));
@@ -729,6 +861,19 @@
         }
       };
       const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
+      const escapeHtml = (text) =>
+        String(text ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      const renderPersonIdentity = (item) => {
+        const badge = item.photo_url
+          ? `<img src="${escapeHtml(item.photo_url)}" alt="">`
+          : escapeHtml(item.initials || "?");
+        return `<span class="cats-person-identity"><span class="cats-person-badge" aria-hidden="true">${badge}</span><span class="cats-person-name">${escapeHtml(item.name)}</span></span>`;
+      };
 
       const pollCounts = () => {
         fetch(`${window.location.pathname}?live_counts=1`, {
@@ -751,13 +896,6 @@
             const firstTimeBody = document.getElementById("first-time-body");
             const firstTimeEmpty = document.getElementById("first-time-empty");
             if (attendeeBody) {
-              const escapeHtml = (text) =>
-                String(text ?? "")
-                  .replaceAll("&", "&amp;")
-                  .replaceAll("<", "&lt;")
-                  .replaceAll(">", "&gt;")
-                  .replaceAll('"', "&quot;")
-                  .replaceAll("'", "&#39;");
               const attendees = data.attendees || [];
               const currentAttendeeIds = new Set();
               const rows = attendees.map(
@@ -771,7 +909,7 @@
                   const undoHtml = data.service_status === "open"
                     ? `<button class="btn btn-sm btn-outline-secondary ws-action-btn js-undo-btn" type="button" data-attendance-id="${escapeHtml(item.attendance_id)}" title="Undo check-in" aria-label="Undo check-in"><i class="ws-icon fas fa-rotate-left" aria-hidden="true"></i><span>Undo</span></button>`
                     : "";
-                  return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.checked_in_at)}</td><td><div class="attendee-actions"><button class="btn btn-sm btn-outline-primary ws-action-btn reprint-nametag-btn" type="button" data-print-url="${escapeHtml(reprintUrl)}" title="Reprint nametag" aria-label="Reprint nametag"><i class="ws-icon fas fa-print" aria-hidden="true"></i><span>Reprint</span></button>${undoHtml}</div></td></tr>`;
+                  return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${renderPersonIdentity(item)}</td><td>${escapeHtml(item.checked_in_at)}</td><td><div class="attendee-actions"><button class="btn btn-sm btn-outline-primary ws-action-btn reprint-nametag-btn" type="button" data-print-url="${escapeHtml(reprintUrl)}" title="Reprint nametag" aria-label="Reprint nametag"><i class="ws-icon fas fa-print" aria-hidden="true"></i><span>Reprint</span></button>${undoHtml}</div></td></tr>`;
                 }
               );
               attendeeBody.innerHTML = rows.join("");
@@ -782,19 +920,12 @@
               }
             }
             if (firstTimeBody) {
-              const escapeHtml = (text) =>
-                String(text ?? "")
-                  .replaceAll("&", "&amp;")
-                  .replaceAll("<", "&lt;")
-                  .replaceAll(">", "&gt;")
-                  .replaceAll('"', "&quot;")
-                  .replaceAll("'", "&#39;");
               const currentFirstTimeIds = new Set();
               const rows = (data.first_time_visitors || []).map((item) => {
                 const rowId = String(item.person_id ?? "");
                 currentFirstTimeIds.add(rowId);
                 const isNew = hasHydratedOnce && rowId && !seenFirstTimeIds.has(rowId);
-                return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${escapeHtml(item.name)}</td></tr>`;
+                return `<tr class="${isNew ? "cats-row-new" : ""}"><td>${renderPersonIdentity(item)}</td></tr>`;
               });
               firstTimeBody.innerHTML = rows.join("");
               seenFirstTimeIds.clear();
@@ -843,6 +974,8 @@
       const manualSearchInput = document.getElementById("manual-person-search");
       const manualSearchClearBtn = document.getElementById("manual-person-search-clear");
       const manualResults = document.getElementById("manual-person-results");
+      const newPersonToggle = document.getElementById("manual-new-person-toggle");
+      const newVisitorForm = document.getElementById("manual-new-visitor-form");
       const manualNewFirst = document.getElementById("manual-new-first-name");
       const manualNewMiddle = document.getElementById("manual-new-middle-initial");
       const manualNewLast = document.getElementById("manual-new-last-name");
@@ -850,6 +983,33 @@
       const manualNewEmail = document.getElementById("manual-new-email");
       const manualNewCheckinBtn = document.getElementById("manual-new-checkin-btn");
       const manualNewPrintBtn = document.getElementById("manual-new-print-btn");
+      const attendanceTabs = Array.from(document.querySelectorAll(".cats-attendance-tab"));
+      const attendanceExport = document.getElementById("attendance-export");
+      const setAttendanceView = (viewId) => {
+        attendanceTabs.forEach((tab) => {
+          const selected = tab.getAttribute("data-attendance-view") === viewId;
+          tab.setAttribute("aria-selected", selected ? "true" : "false");
+        });
+        document.querySelectorAll(".cats-attendance-view").forEach((view) => {
+          view.hidden = view.id !== viewId;
+        });
+        if (attendanceExport) {
+          attendanceExport.href = `${window.location.pathname}?export=${viewId === "first-time-view" ? "first_time" : "attendees"}`;
+        }
+      };
+      attendanceTabs.forEach((tab) => {
+        tab.addEventListener("click", () => setAttendanceView(tab.getAttribute("data-attendance-view")));
+      });
+      if (newPersonToggle && newVisitorForm) {
+        newPersonToggle.addEventListener("click", () => {
+          const isOpening = newVisitorForm.hidden;
+          newVisitorForm.hidden = !isOpening;
+          newPersonToggle.setAttribute("aria-expanded", isOpening ? "true" : "false");
+          if (isOpening && manualNewFirst) {
+            manualNewFirst.focus();
+          }
+        });
+      }
       if (missingSearch) {
         missingSearch.addEventListener("input", () => {
           const query = missingSearch.value.trim().toLowerCase();
@@ -901,7 +1061,7 @@
             return `
               <div class="cats-quick-item">
                 <div>
-                  <div><strong>${escapeHtmlText(item.name)}</strong> ${badge}</div>
+                  <div class="cats-person-identity"><span class="cats-person-badge" aria-hidden="true">${item.photo_url ? `<img src="${escapeHtmlText(item.photo_url)}" alt="">` : escapeHtmlText(item.initials || "?")}</span><strong class="cats-person-name">${escapeHtmlText(item.name)}</strong> ${badge}</div>
                   <div class="cats-quick-item-meta">${escapeHtmlText(item.family || "No family")}${item.phone ? " • " + escapeHtmlText(item.phone) : ""}</div>
                 </div>
                 ${actionsHtml ? `<div class="cats-quick-item-actions">${actionsHtml}</div>` : ""}

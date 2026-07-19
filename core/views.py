@@ -1120,7 +1120,11 @@ def missing_members_report(request):
     return render(
         request,
         "admin/missing_members.html",
-        {"service": service, "missing_members": missing_members},
+        {
+            **admin.site.each_context(request),
+            "service": service,
+            "missing_members": missing_members,
+        },
     )
 
 @login_required

@@ -169,7 +169,7 @@ class ServiceAdmin(admin.ModelAdmin):
                     first_time_qs = (
                         Person.objects.filter(id__in=attended_ids, member_type=Person.VISITOR)
                         .exclude(id__in=prior_attendance_ids)
-                        .only("id", "first_name", "middle_initial", "last_name")
+                        .only("id", "first_name", "middle_initial", "last_name", "photo")
                         .order_by("last_name", "first_name")
                     )
                     first_time_count = first_time_qs.count()
@@ -179,6 +179,8 @@ class ServiceAdmin(admin.ModelAdmin):
                             {
                                 "person_id": person.id,
                                 "name": f"{person.first_name}{middle} {person.last_name}",
+                                "initials": person.initials,
+                                "photo_url": person.photo.url if person.photo else "",
                             }
                         )
                 missing_count = (
@@ -195,6 +197,8 @@ class ServiceAdmin(admin.ModelAdmin):
                             "attendance_id": attendance.id,
                             "person_id": person.id,
                             "name": f"{person.first_name}{middle} {person.last_name}",
+                            "initials": person.initials,
+                            "photo_url": person.photo.url if person.photo else "",
                             "checked_in_at": timezone.localtime(attendance.checked_in_at).strftime("%b %d, %Y %I:%M %p"),
                         }
                     )
@@ -237,6 +241,8 @@ class ServiceAdmin(admin.ModelAdmin):
                             "name": f"{person.first_name}{middle} {person.last_name}",
                             "family": person.family.name if person.family else "",
                             "phone": person.phone or "",
+                            "initials": person.initials,
+                            "photo_url": person.photo.url if person.photo else "",
                             "checked_in": person.id in checked_in_ids,
                         }
                     )

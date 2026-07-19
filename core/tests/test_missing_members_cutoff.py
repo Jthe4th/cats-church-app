@@ -40,6 +40,10 @@ class MissingMembersCutoffTests(TestCase):
         self.assertIn("Before", html)
         self.assertIn("Unknown", html)
         self.assertNotIn("After", html)
+        self.assertContains(response, "People")
+        self.assertContains(response, "Church Services")
+        app_labels = {app["app_label"] for app in response.context["available_apps"]}
+        self.assertTrue({"auth", "core"}.issubset(app_labels))
 
     def test_manage_service_live_counts_uses_service_date_cutoff(self):
         before = Person.objects.create(first_name="Before", last_name="Count", member_type=Person.MEMBER, is_active=True)

@@ -30,10 +30,10 @@
           {{ form.non_field_errors }}
 
           <div class="col-md-4">
-            <label class="form-label">Photo</label>
+            <label class="form-label">Profile photo</label>
             {% if person.photo %}
               <div class="mb-2">
-                <img src="{{ person.photo.url }}" alt="Photo" class="img-fluid rounded" />
+                <img src="{{ person.photo.url }}" alt="Profile photo for {{ person }}" class="img-fluid rounded" />
               </div>
             {% endif %}
             {{ form.photo }}
