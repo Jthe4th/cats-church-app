@@ -21,3 +21,10 @@ class KioskLoginMessageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Service is closed. Ask staff to reopen it in Admin.", html)
         self.assertNotIn("Access requires a Greeter or Admin role.", html)
+
+    def test_root_redirects_to_protected_kiosk(self):
+        response = self.client.get("/", follow=True)
+
+        self.assertRedirects(response, "/kiosk/")
+        self.assertContains(response, "Welcome System Kiosk Login")
+        self.assertContains(response, "Sign in")

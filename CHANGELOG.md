@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Bumped software version to `0.9.2-beta`.
+- Bumped software version to `0.9.3-beta`.
 - Added global printer mode setting with connected-printer, PrintNode silent-print, and server-side LAN printer options.
 - Added PrintNode API key and kiosk-to-printer JSON map settings for per-kiosk label routing.
 - Added server-side PrintNode print job submission for kiosk name tags while keeping staff/admin browser print pages available as fallback.

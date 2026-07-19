@@ -128,6 +128,10 @@ def _label_print_context() -> dict:
     }
 
 
+def root_redirect(request):
+    return redirect("kiosk")
+
+
 def admin_root_redirect(request):
     if request.user.is_authenticated and can_access_staff_views(request.user):
         open_service = Service.objects.filter(status=Service.OPEN).order_by("-date", "-id").first()
