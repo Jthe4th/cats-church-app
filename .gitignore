@@ -17,3 +17,4 @@ backups/
 # OS
 .DS_Store
 server.log
+logs/

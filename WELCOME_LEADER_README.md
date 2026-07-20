@@ -8,18 +8,21 @@ The system is already installed on the local server computer. These steps assume
 
 1. Turn on the server computer.
 2. Make sure the server computer is connected to the church network.
-3. Start the Welcome System server.
+3. Open the Welcome System Control Panel and confirm the server is running.
 4. Open all three kiosk screens.
 5. Log in to each kiosk with the Greeter account.
 6. Print one test name tag if printers are being used.
 
 ## Start The Server
 
-On the server computer, open the Welcome System project folder.
+On the server computer, open the Welcome System Control Panel first:
 
-If there is a saved startup shortcut or script, use that first.
+- Windows: double-click `scripts\\control_panel\\OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd`.
+- Mac: double-click `scripts/control_panel/OPEN_WELCOME_SYSTEM_CONTROL_PANEL.command` in Finder.
 
-If you need to start it manually, open Terminal or PowerShell in the project folder and run:
+Press **Start Welcome System** if the status does not already say it is running. Use the green status message's kiosk address on the kiosk devices.
+
+If the Control Panel cannot be opened, start the server manually. Open Terminal or PowerShell in the project folder and run:
 
 ```bash
 .venv/bin/python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application
@@ -31,9 +34,9 @@ On Windows, the command may be:
 python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application
 ```
 
-Leave that window open while the system is in use.
+Leave that window open while the system is in use. When it was started manually, you can stop it with `Ctrl+C` in that window or with the Control Panel's **Stop Welcome System** button.
 
-To stop the server later, click in that window and press:
+If the Control Panel is unavailable, click in the manually started server window and press:
 
 ```text
 Ctrl+C
@@ -155,7 +158,7 @@ If the service is closed, kiosks will not allow check-in.
 
 1. Close or finish the current service if needed.
 2. Close the browser on each kiosk.
-3. Stop the server by pressing `Ctrl+C` in the server window.
+3. In the Control Panel, press **Stop Welcome System**. If the server was started manually and the panel is unavailable, press `Ctrl+C` in its server window.
 4. Leave the server computer on or shut it down according to church procedure.
 
 ## Backup The Database

@@ -42,6 +42,9 @@ class ServiceManualActionsTests(TestCase):
         self.assertContains(response, 'id="manual-new-visitor-form" class="cats-new-visitor-form" hidden')
         self.assertContains(response, "Attendees")
         self.assertContains(response, "First-time visitors")
+        self.assertContains(response, "Not checked in")
+        self.assertContains(response, 'id="missing-tab"')
+        self.assertContains(response, 'id="missing-view"')
         self.assertContains(response, "cats-person-badge")
         self.assertNotContains(response, "Quick Check-In &amp; Print")
 

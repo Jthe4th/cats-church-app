@@ -23,7 +23,7 @@ Open PowerShell and run:
 cd C:\
 git clone https://github.com/Jthe4th/cats-church-app.git WelcomeSystem
 cd C:\WelcomeSystem
-.\scripts\deploy_windows.cmd
+.\scripts\control_panel\SETUP_WELCOME_SYSTEM_WINDOWS.cmd
 ```
 
 The deployment script will:
@@ -34,9 +34,9 @@ The deployment script will:
 - Offer to create an administrator account.
 - Collect static files.
 - Check the application configuration.
-- Start the Waitress web server.
+- Prepare the computer for the Welcome System Control Panel.
 
-Keep the server PC powered on while the kiosk is being used.
+When setup completes, double-click `scripts\control_panel\OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd` and click **Start Welcome System**. Keep the server PC powered on while the kiosk is being used.
 
 ## Application URLs
 
@@ -64,6 +64,10 @@ Allow Python or TCP port `8000` through Windows Defender Firewall on **Private n
 
 ### 1. Stop the server
 
+Open `scripts\control_panel\OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd` and click **Stop Welcome System**. This also stops a Welcome System server that was started manually on port `8000`.
+
+If the Control Panel is unavailable, use PowerShell:
+
 Find the process listening on port `8000`:
 
 ```powershell
@@ -89,6 +93,10 @@ The application database, uploaded media, backups, virtual environment, and `.en
 
 ### 3. Pull and deploy the update
 
+The normal path is the Control Panel's **Install Update** action. It creates a backup, stops the server, pulls `main`, installs dependencies, applies migrations, collects static files, and starts the server.
+
+If the Control Panel is unavailable, run:
+
 ```powershell
 git pull --ff-only origin main
 
@@ -98,6 +106,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```
 
 ### 4. Restart the application
+
+Open the Control Panel and click **Start Welcome System**. For the manual recovery path, run:
 
 ```powershell
 .\scripts\start_windows.cmd

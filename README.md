@@ -1,5 +1,5 @@
 # Welcome System
-Version: `0.9.4-beta`
+Version: `0.9.5-beta`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
@@ -36,7 +36,7 @@ python manage.py createsuperuser
 python manage.py runserver 0.0.0.0:8000
 ```
 
-Open `http://<host-ip>:8000/` on kiosk machines.
+Open `http://<host-ip>:8000/kiosk/` on kiosk machines.
 
 ## Quick Start (macOS/Linux)
 ```bash
@@ -54,11 +54,18 @@ Cross-platform helpers that create a venv, install deps, run migrations, and sta
 - Windows (PowerShell): `scripts\run_dev.ps1`
 - Windows production (PowerShell + Waitress): `scripts\run_prod.ps1`
 
-## Starting/Restarting The Server
+## Easy Weekly Server Controls
+
+Use the tracked [Welcome System Control Panel](scripts/control_panel/README.md) for weekly Start, Stop, Restart, Backup, Update, Admin, Kiosk, and Logs actions on either Windows or Mac. It manages the production Waitress server without staff needing to type commands.
+
+## Manual Server Commands
+
+For normal weekly use, start and stop the server from the [Welcome System Control Panel](scripts/control_panel/README.md). Use these commands only for local development or recovery when the panel is unavailable.
+
 - Start (macOS/Linux): `source .venv/bin/activate` then `python3 manage.py runserver 0.0.0.0:8000`
 - Start (Windows): `.\.venv\Scripts\activate` then `python manage.py runserver 0.0.0.0:8000`
 - Start (Windows production): `.\.venv\Scripts\activate` then `python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application`
-- Stop: press `Ctrl+C` in the terminal where the server is running
+- Stop a manually started server: press `Ctrl+C` in its terminal, or use the Control Panel's **Stop Welcome System** action.
 - Restart: stop with `Ctrl+C`, then run the start command again
 
 Tip (macOS): if shell aliases cause issues, run `.venv/bin/python manage.py runserver 0.0.0.0:8000` directly.

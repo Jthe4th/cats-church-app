@@ -6,31 +6,28 @@ Welcome System should provide fast, reliable church check-in for kiosks and staf
 ## Current State
 - Kiosk check-in with greeter login, search, print, and check-in-only flows
 - Service open/closed controls with kiosk lockout when closed
-- Admin and staff management for people, families, services, and reports
-- System settings for kiosk look/feel and label formatting
+- Admin and staff management for people, families, services, attendance, imports, backups, and reports
+- Manage Church Service console with live attendance, quick check-in, first-time visitor, and missing-member tabs
+- Printer profiles, test labels, PrintNode, and direct server-printer support
+- Cross-platform weekly server control panel for start, stop, backup, and updates
+- System settings for kiosk appearance, fonts, labels, and printing backends
 
-## Phase 1 (Next 2-4 Weeks)
+## Phase 1 (Next)
 - **Role hardening + permissions**
   - Enforce clear role boundaries for Greeter, Admin, and Pastor.
-- **Audit log**
-  - Track check-ins, reprints, settings changes, and service open/close actions.
-- **Manual attendance workflow**
-  - Add a quick staff flow to mark attendees who did not print a nametag.
-- **Printer reliability tools**
-  - Add printer test label, media preset checks, and retry guidance.
 - **Kiosk resiliency**
   - Improve offline queue visibility and sync status feedback.
+- **Data quality tools**
+  - Add duplicate detection and merge flows for people and families.
+  - Add an optional full record deletion flow to permanently remove a person's entire profile and related data.
 
-## Phase 2 (Next 1-2 Months)
+## Phase 2 (Upcoming)
 - **Operational service console**
   - Build a dedicated “Today’s Service” screen for staff (counts, search, quick actions).
   - Enhance the post-login dashboard with attendance charts/trends:
     - weekly check-in totals
     - first-time visitor counts
     - member vs visitor mix over time
-- **Data quality tools**
-  - Add duplicate detection and merge flows for people/families.
-  - Add an optional full record deletion flow to permanently remove a person's entire profile and related data.
 - **Reporting pack**
   - Weekly/monthly attendance trends, first-time visitor follow-up list, export bundles.
 - **Digital outreach lists**

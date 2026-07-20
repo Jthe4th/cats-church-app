@@ -1,5 +1,5 @@
 # Repository Guidelines
-Current version: `0.9.4-beta`
+Current version: `0.9.5-beta`
 
 ## Project Direction
 Welcome System is a lightweight, local-network, web-based check-in system. The primary goals are:
@@ -86,7 +86,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - Batch print uses one label per page and auto-returns to `/kiosk/` after printing.
 - Kiosk supports iframe print mode and Chrome kiosk printing flow.
 - Kiosk can use global PrintNode or Server Printer mode for silent printing; each kiosk identifies itself with `?kiosk=...` and maps to either a PrintNode printer id through `printnode_printer_map` or a LAN printer address through `server_printer_map`.
-- System settings control label font family/source, first/last name colors, and optional last-name hiding.
+- System settings control label font, first/last name colors, and optional last-name hiding. Kiosk heading settings separately control optional Google Font loading.
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indentation, snake_case functions/variables, PascalCase classes
@@ -94,7 +94,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - CSS: use kebab-case class names and keep print styles in `static/css/print.css`
 
 ## Testing Guidelines
-Tests are not configured yet. When added, prefer Django's built-in test runner and place tests in `core/tests.py` or `core/tests/`.
+Tests use Django's built-in test runner in `core/tests/`; control-panel tests live in `scripts/control_panel/tests/`.
 - For user-requested UI/text changes, verify the change is actually visible in the rendered page before reporting completion.
 - If visibility cannot be verified in-session, explicitly state that and provide the exact manual check performed/needed.
 

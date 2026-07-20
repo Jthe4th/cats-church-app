@@ -348,9 +348,11 @@
       align-items: center;
       gap: 2px;
       padding: 0 14px;
+      overflow-x: auto;
       border-bottom: 1px solid var(--hairline-color);
     }
     .cats-attendance-tab {
+      flex: 0 0 auto;
       appearance: none;
       border: 0;
       border-bottom: 3px solid transparent;
@@ -379,8 +381,12 @@
     }
     .cats-tab-export {
       margin-left: auto;
+      flex: 0 0 auto;
       font-size: 14px;
       text-decoration: none;
+    }
+    .cats-tab-export[hidden] {
+      display: none;
     }
     .cats-attendance-view {
       padding: 14px;
@@ -390,18 +396,6 @@
     }
     .cats-attendance-view .results {
       margin: 0;
-    }
-    .cats-missing-panel {
-      border: 1px solid var(--hairline-color);
-      border-radius: 8px;
-      padding: 14px;
-    }
-    .cats-missing-panel summary {
-      cursor: pointer;
-      font-weight: 700;
-    }
-    .cats-missing-content {
-      margin-top: 14px;
     }
     @media (max-width: 760px) {
       .cats-service-dashboard {
@@ -562,6 +556,9 @@
       <button id="first-time-tab" class="cats-attendance-tab" type="button" role="tab" aria-controls="first-time-view" aria-selected="false" data-attendance-view="first-time-view">
         First-time visitors <span class="cats-tab-count" id="first-time-count">{{ first_time_visitor_count }}</span>
       </button>
+      <button id="missing-tab" class="cats-attendance-tab" type="button" role="tab" aria-controls="missing-view" aria-selected="false" data-attendance-view="missing-view">
+        Not checked in <span class="cats-tab-count" id="missing-count">{{ missing_member_count }}</span>
+      </button>
       <a id="attendance-export" class="cats-tab-export" href="{{ request.path }}?export=attendees">Export CSV</a>
     </div>
     <div id="attendees-view" class="cats-attendance-view" role="tabpanel" aria-labelledby="attendees-tab">
@@ -641,11 +638,7 @@
       </div>
       <p id="first-time-empty" {% if first_time_visitor_count %}style="display: none;"{% endif %}>No first-time visitors for this service.</p>
     </div>
-  </div>
-
-  <details class="cats-full cats-missing-panel">
-    <summary>Not checked in / Missing (<span id="missing-count">{{ missing_member_count }}</span>)</summary>
-    <div class="cats-missing-content">
+    <div id="missing-view" class="cats-attendance-view" role="tabpanel" aria-labelledby="missing-tab" hidden>
     {% if missing_members %}
       <p>
         <label for="missing-search"><strong>Find person:</strong></label>
@@ -702,7 +695,7 @@
       <p>All active members checked in for this service.</p>
     {% endif %}
     </div>
-  </details>
+  </div>
 
   <script>
     (function () {
@@ -994,7 +987,9 @@
           view.hidden = view.id !== viewId;
         });
         if (attendanceExport) {
-          attendanceExport.href = `${window.location.pathname}?export=${viewId === "first-time-view" ? "first_time" : "attendees"}`;
+          const exportName = viewId === "first-time-view" ? "first_time" : "attendees";
+          attendanceExport.hidden = viewId === "missing-view";
+          attendanceExport.href = `${window.location.pathname}?export=${exportName}`;
         }
       };
       attendanceTabs.forEach((tab) => {

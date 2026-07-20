@@ -3,9 +3,10 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Bumped software version to `0.9.4-beta`.
-- Streamlined Manage Church Service with compact metrics, unified check-in, attendance tabs, contextual export, and a collapsible missing-member list.
+- Bumped software version to `0.9.5-beta`.
+- Streamlined Manage Church Service with compact metrics, unified check-in, three attendance tabs, and contextual CSV export.
 - Added optional person profile photos with initials fallback badges throughout the service check-in interface.
+- Added the cross-platform Welcome System Control Panel for routine start, stop, restart, backup, update, and local page access.
 - Preserved the full admin sidebar context on the missing-members report.
 - Added global printer mode setting with connected-printer, PrintNode silent-print, and server-side LAN printer options.
 - Added PrintNode API key and kiosk-to-printer JSON map settings for per-kiosk label routing.
