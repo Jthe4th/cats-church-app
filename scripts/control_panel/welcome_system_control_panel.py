@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -30,6 +31,7 @@ PID_PATH = LOG_DIRECTORY / "welcome-system-server.pid"
 OUTPUT_LOG_PATH = LOG_DIRECTORY / "welcome-system-server.log"
 ERROR_LOG_PATH = LOG_DIRECTORY / "welcome-system-server-error.log"
 DEFAULT_PORT = 8000
+VERSION_PATTERN = re.compile(r'^CATS_VERSION = "([^"]+)"$', re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,15 @@ class WelcomeSystemController:
         relative_path = ".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python"
         return self.project_root / relative_path
 
+    @property
+    def app_version(self) -> str:
+        try:
+            settings_text = (self.project_root / "cats" / "settings.py").read_text(encoding="utf-8")
+        except OSError:
+            return "unknown"
+        match = VERSION_PATTERN.search(settings_text)
+        return match.group(1) if match else "unknown"
+
     def health_check(self, timeout: float = 1.5) -> bool:
         try:
             with urllib.request.urlopen(f"{self.local_url}/healthz/", timeout=timeout) as response:
@@ -82,6 +93,40 @@ class WelcomeSystemController:
         if self.health_check():
             return ActionResult(True, f"Welcome System is running. Kiosk: {self.lan_kiosk_url}")
         return ActionResult(False, "Welcome System is not running.")
+
+    def check_for_updates(self) -> ActionResult:
+        """Compare the installed commit to the latest main commit on GitHub."""
+        version = self.app_version
+        try:
+            fetch = subprocess.run(
+                ["git", "fetch", "--quiet", "origin", "main"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=12,
+            )
+            if fetch.returncode:
+                return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+            comparison = subprocess.run(
+                ["git", "rev-list", "--count", "HEAD..FETCH_HEAD"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+
+        if comparison.returncode:
+            return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+        try:
+            commits_behind = int(comparison.stdout.strip())
+        except ValueError:
+            return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+        if commits_behind:
+            noun = "commit" if commits_behind == 1 else "commits"
+            return ActionResult(True, f"Version {version}. Update available on GitHub ({commits_behind} new {noun}).")
+        return ActionResult(True, f"Version {version}. Already up to date.")
 
     def start(self) -> ActionResult:
         if self.health_check():
@@ -267,17 +312,21 @@ class ControlPanelWindow:
         self.controller = controller
         self.root = tk.Tk()
         self.root.title("Welcome System Control Panel")
-        self.root.minsize(560, 410)
+        self.root.minsize(560, 470)
         self.root.resizable(False, False)
         self.status_text = tk.StringVar(value="Checking server status...")
         self.status_color = tk.StringVar(value="#6c757d")
+        self.version_text = tk.StringVar(value=f"Installed version: {controller.app_version}")
+        self.update_text = tk.StringVar(value="Checking GitHub for updates...")
         self._build(ttk)
         self.refresh_status()
+        self.refresh_update_status()
 
     def _build(self, ttk):
         frame = ttk.Frame(self.root, padding=24)
         frame.pack(fill="both", expand=True)
         ttk.Label(frame, text="Welcome System Control Panel", font=("Arial", 18, "bold")).pack(anchor="w")
+        self.tk.Label(frame, textvariable=self.version_text, fg="#495057", font=("Arial", 10, "bold")).pack(anchor="w", pady=(3, 0))
         ttk.Label(frame, text="Use this window to run the church check-in server.").pack(anchor="w", pady=(4, 18))
 
         status_frame = ttk.LabelFrame(frame, text="Server status", padding=14)
@@ -293,6 +342,20 @@ class ControlPanelWindow:
         )
         self.status_label.pack(fill="x")
         ttk.Button(status_frame, text="Refresh status", command=self.refresh_status).pack(anchor="w", pady=(10, 0))
+
+        update_frame = ttk.LabelFrame(frame, text="Software update", padding=12)
+        update_frame.pack(fill="x", pady=(16, 0))
+        self.update_label = self.tk.Label(
+            update_frame,
+            textvariable=self.update_text,
+            anchor="w",
+            justify="left",
+            wraplength=500,
+            fg="#6c757d",
+            font=("Arial", 10, "bold"),
+        )
+        self.update_label.pack(fill="x")
+        ttk.Button(update_frame, text="Check for updates", command=self.refresh_update_status).pack(anchor="w", pady=(10, 0))
 
         server_frame = ttk.LabelFrame(frame, text="Weekly server controls", padding=12)
         server_frame.pack(fill="x", pady=(16, 0))
@@ -355,7 +418,7 @@ class ControlPanelWindow:
         button.bind("<Leave>", lambda _event: button.configure(background=background))
         return button
 
-    def _run(self, action, confirm: str | None = None, show_error: bool = True):
+    def _run(self, action, confirm: str | None = None, show_error: bool = True, on_success=None):
         if confirm and not self.messagebox.askyesno("Please confirm", confirm):
             return
         self.status_text.set("Working...")
@@ -363,18 +426,40 @@ class ControlPanelWindow:
 
         def worker():
             result = action()
-            self.root.after(0, lambda: self._show_result(result, show_error))
+            self.root.after(0, lambda: self._show_result(result, show_error, on_success))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _show_result(self, result: ActionResult, show_error: bool = True):
+    def _show_result(self, result: ActionResult, show_error: bool = True, on_success=None):
         self.status_text.set(result.message)
         self.status_label.configure(fg="#198754" if result.success else "#b02a37")
         if show_error and not result.success:
             self.messagebox.showerror("Welcome System", result.message)
+        if result.success and on_success:
+            on_success()
 
     def refresh_status(self):
         self._run(self.controller.status, show_error=False)
+
+    def refresh_update_status(self):
+        self.update_text.set("Checking GitHub for updates...")
+        self.update_label.configure(fg="#6c757d")
+
+        def worker():
+            result = self.controller.check_for_updates()
+            self.root.after(0, lambda: self._show_update_result(result))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _show_update_result(self, result: ActionResult):
+        self.update_text.set(result.message)
+        if not result.success:
+            color = "#b02a37"
+        elif "Update available" in result.message:
+            color = "#a15c00"
+        else:
+            color = "#198754"
+        self.update_label.configure(fg=color)
 
     def start(self):
         self._run(self.controller.start)
@@ -389,7 +474,15 @@ class ControlPanelWindow:
         self._run(self.controller.create_backup)
 
     def update(self):
-        self._run(self.controller.update, "Install the latest approved update from GitHub and restart the server?")
+        self._run(
+            self.controller.update,
+            "Install the latest approved update from GitHub and restart the server?",
+            on_success=self._refresh_version_after_update,
+        )
+
+    def _refresh_version_after_update(self):
+        self.version_text.set(f"Installed version: {self.controller.app_version}")
+        self.refresh_update_status()
 
     def open_logs(self):
         self._run(self.controller.open_logs)
@@ -409,7 +502,10 @@ def run_terminal_menu(controller: WelcomeSystemController) -> int:
         "7": ("Install Update", controller.update),
         "8": ("Open Logs Folder", controller.open_logs),
         "9": ("Refresh Status", controller.status),
+        "10": ("Check for updates", controller.check_for_updates),
     }
+    print(f"Installed version: {controller.app_version}")
+    print(controller.check_for_updates().message)
     while True:
         print("\nWelcome System Control Panel")
         for key, (label, _action) in actions.items():

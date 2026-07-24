@@ -30,6 +30,11 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         python.touch()
         return python
 
+    def write_version(self, version="0.9.6-beta"):
+        settings_path = self.project_root / "cats" / "settings.py"
+        settings_path.parent.mkdir()
+        settings_path.write_text(f'CATS_VERSION = "{version}"\n', encoding="utf-8")
+
     def test_status_reports_lan_kiosk_url_when_healthy(self):
         with patch.object(self.controller, "health_check", return_value=True):
             result = self.controller.status()
@@ -44,6 +49,32 @@ class WelcomeSystemControllerTests(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertIn("Setup is incomplete", result.message)
+
+    def test_check_for_updates_reports_when_current_version_is_up_to_date(self):
+        self.write_version()
+        with patch.object(
+            control_panel.subprocess,
+            "run",
+            side_effect=[Mock(returncode=0), Mock(returncode=0, stdout="0\n")],
+        ):
+            result = self.controller.check_for_updates()
+
+        self.assertTrue(result.success)
+        self.assertIn("0.9.6-beta", result.message)
+        self.assertIn("Already up to date", result.message)
+
+    def test_check_for_updates_reports_available_commit_count(self):
+        self.write_version("0.9.4-beta")
+        with patch.object(
+            control_panel.subprocess,
+            "run",
+            side_effect=[Mock(returncode=0), Mock(returncode=0, stdout="2\n")],
+        ):
+            result = self.controller.check_for_updates()
+
+        self.assertTrue(result.success)
+        self.assertIn("0.9.4-beta", result.message)
+        self.assertIn("2 new commits", result.message)
 
     def test_start_launches_waitress_and_records_pid(self):
         python = self.create_virtualenv_python()
@@ -141,6 +172,18 @@ class ControlPanelWindowTests(unittest.TestCase):
         window.refresh_status()
 
         window._run.assert_called_once_with(window.controller.status, show_error=False)
+
+    def test_successful_update_refreshes_the_displayed_version(self):
+        version_text = Mock()
+        window = control_panel.ControlPanelWindow.__new__(control_panel.ControlPanelWindow)
+        window.controller = Mock(app_version="0.9.6-beta")
+        window.version_text = version_text
+        window.refresh_update_status = Mock()
+
+        window._refresh_version_after_update()
+
+        version_text.set.assert_called_once_with("Installed version: 0.9.6-beta")
+        window.refresh_update_status.assert_called_once_with()
 
 
 if __name__ == "__main__":

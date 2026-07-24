@@ -124,7 +124,7 @@ class Service(models.Model):
     ]
 
     date = models.DateField()
-    label = models.CharField(max_length=100, default="Sunday Service")
+    label = models.CharField(max_length=100, default="Sabbath Service")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN)
     notes = models.TextField(blank=True)
 

@@ -1,5 +1,5 @@
 # Repository Guidelines
-Current version: `0.9.5-beta`
+Current version: `0.9.6-beta`
 
 ## Project Direction
 Welcome System is a lightweight, local-network, web-based check-in system. The primary goals are:

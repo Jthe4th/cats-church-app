@@ -48,6 +48,13 @@ class ServiceManualActionsTests(TestCase):
         self.assertContains(response, "cats-person-badge")
         self.assertNotContains(response, "Quick Check-In &amp; Print")
 
+    def test_service_add_form_uses_sabbath_service_default(self):
+        response = self.client.get("/admin/core/service/add/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sabbath Service")
+        self.assertNotContains(response, "Sunday Service")
+
     def test_person_initials_and_live_counts_include_badge_data(self):
         person = Person.objects.create(
             first_name="Ada",

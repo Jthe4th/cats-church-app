@@ -1,3 +1,5 @@
+from datetime import date
+
 from django import forms
 from django.conf import settings
 from django.contrib import admin
@@ -118,7 +120,19 @@ class ServiceAdmin(admin.ModelAdmin):
     ordering = ("-date", "-id")
     sortable_by = ()
     change_form_template = "admin/core/service/change_form.html"
+    add_form_template = "admin/change_form.html"
     save_on_top = False
+
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        service_date = date.today()
+        initial.update(
+            {
+                "date": service_date,
+                "label": f"Sabbath Service {service_date:%m-%d-%Y}",
+            }
+        )
+        return initial
 
     def has_delete_permission(self, request, obj=None):
         # Keep services immutable from this workflow to avoid accidental data loss.
