@@ -16,6 +16,7 @@ from core.printnode import (
     build_test_label_pdf,
     get_kiosk_printer_id,
     get_kiosk_server_printer,
+    _configured_font_file_candidates,
     submit_attendance_print_job,
     submit_server_attendance_print_job,
 )
@@ -413,6 +414,13 @@ class ServerPrinterSettingsTests(TestCase):
 
 
 class PrintNodeFallbackTests(TestCase):
+    def test_arial_label_font_includes_windows_font_filenames(self):
+        SystemSetting.objects.update_or_create(key="label_font", defaults={"value": "Arial"})
+
+        candidates = _configured_font_file_candidates()
+
+        self.assertIn(("arialbd.ttf", "arial.ttf"), candidates)
+
     def test_staff_print_page_remains_available_in_printnode_mode(self):
         admin_user = User.objects.create_superuser(
             username="admin",

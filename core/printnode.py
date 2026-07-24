@@ -2,6 +2,7 @@ import base64
 import html
 import json
 import logging
+import os
 import platform
 from pathlib import Path
 import re
@@ -34,12 +35,12 @@ LABEL_WIDTH_PX = 696
 LABEL_HEIGHT_PX = 330
 BROTHER_QL_LOGGER = "brother_ql.devicedependent"
 FONT_FILE_CANDIDATES = {
-    "Arial": (("Arial Bold.ttf", "Arial.ttf"), ("ArialHB.ttc", "Arial.ttf")),
+    "Arial": (("Arial Bold.ttf", "Arial.ttf"), ("ArialHB.ttc", "Arial.ttf"), ("arialbd.ttf", "arial.ttf")),
     "Helvetica": (("Helvetica.ttc", "Helvetica.ttc"), ("HelveticaNeue.ttc", "HelveticaNeue.ttc")),
-    "Georgia": (("Georgia Bold.ttf", "Georgia.ttf"),),
-    "Times New Roman": (("Times New Roman Bold.ttf", "Times New Roman.ttf"), ("Times.ttc", "Times.ttc")),
-    "Trebuchet MS": (("Trebuchet MS Bold.ttf", "Trebuchet MS.ttf"),),
-    "Verdana": (("Verdana Bold.ttf", "Verdana.ttf"),),
+    "Georgia": (("Georgia Bold.ttf", "Georgia.ttf"), ("georgiab.ttf", "georgia.ttf")),
+    "Times New Roman": (("Times New Roman Bold.ttf", "Times New Roman.ttf"), ("Times.ttc", "Times.ttc"), ("timesbd.ttf", "times.ttf")),
+    "Trebuchet MS": (("Trebuchet MS Bold.ttf", "Trebuchet MS.ttf"), ("trebucbd.ttf", "trebuc.ttf")),
+    "Verdana": (("Verdana Bold.ttf", "Verdana.ttf"), ("verdanab.ttf", "verdana.ttf")),
 }
 
 
@@ -490,6 +491,8 @@ def _fit_font(text, starting_size, max_width, *, bold):
 def _load_font(size, *, bold):
     font_names = _configured_font_file_candidates()
     search_dirs = (
+        Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts",
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "Windows" / "Fonts",
         Path("/System/Library/Fonts/Supplemental"),
         Path("/System/Library/Fonts"),
         Path("/Library/Fonts"),

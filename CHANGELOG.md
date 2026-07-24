@@ -3,12 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Bumped software version to `0.9.7-beta`.
+- Bumped software version to `0.9.8-beta`.
 - Streamlined Manage Church Service with compact metrics, unified check-in, three attendance tabs, and contextual CSV export.
 - Added optional person profile photos with initials fallback badges throughout the service check-in interface.
 - Added the cross-platform Welcome System Control Panel for routine start, stop, restart, backup, update, and local page access.
 - Added installed-version display and GitHub update status checks to the Control Panel.
+- Moved Control Panel update actions together and added an explicit GitHub reinstall path when the installed version is current.
 - Fixed the new Church Service form and changed its default terminology from Sunday Service to Sabbath Service.
+- Fixed Server Printer label rendering on Windows by locating installed TrueType fonts instead of falling back to a tiny bitmap font.
 - Preserved the full admin sidebar context on the missing-members report.
 - Added global printer mode setting with connected-printer, PrintNode silent-print, and server-side LAN printer options.
 - Added PrintNode API key and kiosk-to-printer JSON map settings for per-kiosk label routing.

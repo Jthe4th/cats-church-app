@@ -262,7 +262,7 @@ class WelcomeSystemController:
         backup_path = completed.stdout.strip().splitlines()[-1]
         return ActionResult(True, f"Backup created: {backup_path}")
 
-    def update(self) -> ActionResult:
+    def update(self, reinstall: bool = False) -> ActionResult:
         python = self.python_path()
         if not python.exists():
             return ActionResult(False, "Setup is incomplete. Run the deployment/setup instructions first.")
@@ -273,8 +273,12 @@ class WelcomeSystemController:
         if not stopped.success:
             return stopped
 
-        steps = [
-            ["git", "pull", "--ff-only", "origin", "main"],
+        source_steps = (
+            [["git", "fetch", "--quiet", "origin", "main"], ["git", "reset", "--hard", "FETCH_HEAD"]]
+            if reinstall
+            else [["git", "pull", "--ff-only", "origin", "main"]]
+        )
+        steps = source_steps + [
             [str(python), "-m", "pip", "install", "-r", "requirements.txt"],
             [str(python), "manage.py", "migrate"],
             [str(python), "manage.py", "collectstatic", "--noinput"],
@@ -360,6 +364,7 @@ class ControlPanelWindow:
         self.status_color = tk.StringVar(value="#6c757d")
         self.version_text = tk.StringVar(value=f"Installed version: {controller.app_version}")
         self.update_text = tk.StringVar(value="Checking GitHub for updates...")
+        self.update_available = None
         self._build(ttk)
         self.refresh_status()
         self.refresh_update_status()
@@ -397,7 +402,10 @@ class ControlPanelWindow:
             font=("Arial", 10, "bold"),
         )
         self.update_label.pack(fill="x")
-        ttk.Button(update_frame, text="Check for updates", command=self.refresh_update_status).pack(anchor="w", pady=(10, 0))
+        self._button_row(
+            update_frame,
+            [("Check for updates", self.refresh_update_status), ("Install Update", self.update)],
+        )
 
         server_frame = ttk.LabelFrame(frame, text="Weekly server controls", padding=12)
         server_frame.pack(fill="x", pady=(16, 0))
@@ -413,7 +421,7 @@ class ControlPanelWindow:
         helpful_frame = ttk.LabelFrame(frame, text="Helpful actions", padding=12)
         helpful_frame.pack(fill="x", pady=(16, 0))
         self._button_row(helpful_frame, [("Open Admin", lambda: webbrowser.open(self.controller.admin_url)), ("Open Kiosk 1", lambda: webbrowser.open(self.controller.kiosk_url)), ("Create Backup", self.create_backup)])
-        self._button_row(helpful_frame, [("Install Update", self.update), ("Open Logs Folder", self.open_logs)])
+        self._button_row(helpful_frame, [("Open Logs Folder", self.open_logs)])
 
         ttk.Label(
             frame,
@@ -496,10 +504,13 @@ class ControlPanelWindow:
     def _show_update_result(self, result: ActionResult):
         self.update_text.set(result.message)
         if not result.success:
+            self.update_available = None
             color = "#b02a37"
         elif "Update available" in result.message:
+            self.update_available = True
             color = "#a15c00"
         else:
+            self.update_available = False
             color = "#198754"
         self.update_label.configure(fg=color)
 
@@ -516,9 +527,17 @@ class ControlPanelWindow:
         self._run(self.controller.create_backup)
 
     def update(self):
+        reinstall = self.update_available is False
+        if reinstall:
+            confirmation = (
+                "Welcome System is already up to date. Reinstall the current version from GitHub, "
+                "replace tracked application files, and restart the server?"
+            )
+        else:
+            confirmation = "Install the latest approved update from GitHub and restart the server?"
         self._run(
-            self.controller.update,
-            "Install the latest approved update from GitHub and restart the server?",
+            lambda: self.controller.update(reinstall=reinstall),
+            confirmation,
             on_success=self._refresh_version_after_update,
         )
 
