@@ -36,6 +36,7 @@ VERSION_PATTERN = re.compile(r'^CATS_VERSION = "([^"]+)"$', re.MULTILINE)
 VERSION_NUMBER_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta))?$")
 GITHUB_SETTINGS_URL = "https://raw.githubusercontent.com/Jthe4th/cats-church-app/main/cats/settings.py"
 GITHUB_REPOSITORY_URL = "https://github.com/Jthe4th/cats-church-app"
+GITHUB_REPOSITORY_GIT_URL = f"{GITHUB_REPOSITORY_URL}.git"
 
 
 @dataclass(frozen=True)
@@ -112,6 +113,11 @@ class WelcomeSystemController:
                 False,
                 f"Version {version}. Git is not installed. {self._git_installation_instruction()}, then check again.",
             )
+        if not self._is_git_repository():
+            return ActionResult(
+                True,
+                f"Version {version}. This installation is not connected to GitHub. Reinstall required to connect and update it.",
+            )
         try:
             fetch = subprocess.run(
                 ["git", "fetch", "--quiet", "origin", "main"],
@@ -160,6 +166,42 @@ class WelcomeSystemController:
         except (OSError, subprocess.TimeoutExpired):
             return False
         return completed.returncode == 0 and bool(completed.stdout.strip())
+
+    def _is_git_repository(self) -> bool:
+        try:
+            completed = subprocess.run(
+                ["git", "rev-parse", "--is-inside-work-tree"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return completed.returncode == 0 and completed.stdout.strip() == "true"
+
+    def _connect_to_github_repository(self) -> ActionResult:
+        commands = [
+            ["git", "init"],
+            ["git", "remote", "remove", "origin"],
+            ["git", "remote", "add", "origin", GITHUB_REPOSITORY_GIT_URL],
+        ]
+        for command in commands:
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=self.project_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return ActionResult(False, f"Could not connect this installation to GitHub. {exc}")
+            if command[2:] == ["remove", "origin"] and completed.returncode:
+                continue
+            if completed.returncode:
+                return ActionResult(False, f"Could not connect this installation to GitHub. {self._command_error(completed)}")
+        return ActionResult(True, "This installation is connected to GitHub.")
 
     def _check_github_version_fallback(self, installed_version: str, git_error: str) -> ActionResult:
         """Fall back to the public version file when local Git cannot check updates."""
@@ -322,6 +364,12 @@ class WelcomeSystemController:
                 False,
                 f"Git is not installed. {self._git_installation_instruction()}, then install the update again.",
             )
+        if not self._is_git_repository():
+            report("Connecting this installation to GitHub...")
+            connected = self._connect_to_github_repository()
+            if not connected.success:
+                return connected
+            reinstall = True
         report("Checking GitHub connection...")
         try:
             fetch = subprocess.run(

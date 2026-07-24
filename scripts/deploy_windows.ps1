@@ -72,9 +72,33 @@ function Ensure-Git {
   Write-Host "Git for Windows is ready."
 }
 
+function Ensure-GitRepository {
+  & git rev-parse --is-inside-work-tree 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "This folder is connected to GitHub."
+    return
+  }
+
+  Write-Host "Connecting this Welcome System folder to GitHub..." -ForegroundColor Yellow
+  & git init
+  if ($LASTEXITCODE -ne 0) { throw "Could not initialize this folder for GitHub updates." }
+  & git remote remove origin 2>$null
+  & git remote add origin "https://github.com/Jthe4th/cats-church-app.git"
+  if ($LASTEXITCODE -ne 0) { throw "Could not connect this folder to the Welcome System GitHub repository." }
+  & git fetch --quiet origin main
+  if ($LASTEXITCODE -ne 0) { throw "Could not download Welcome System from GitHub." }
+  & git reset --hard FETCH_HEAD
+  if ($LASTEXITCODE -ne 0) { throw "Could not restore the Welcome System application files from GitHub." }
+  Write-Host "This folder is now connected to GitHub."
+}
+
 try {
   Invoke-Step "Checking for Git updates support" {
     Ensure-Git
+  }
+
+  Invoke-Step "Connecting Welcome System to GitHub" {
+    Ensure-GitRepository
   }
 
   if (-not (Get-Command python -ErrorAction SilentlyContinue)) {

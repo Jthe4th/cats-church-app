@@ -3,7 +3,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Bumped software version to `0.9.11-beta`.
+- Bumped software version to `0.9.12-beta`.
+- Added automatic GitHub connection repair for Welcome System folders copied onto a server without a `.git` directory.
 - Made Control Panel updates safer with GitHub preflight checks, local-file repair detection, and automatic restart attempts after post-stop failures.
 - Added Git installation checks to Windows and macOS setup flows.
 - Prevented duplicate visitor records when kiosk submissions are repeated or a response is interrupted.
