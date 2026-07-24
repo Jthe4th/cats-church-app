@@ -251,43 +251,64 @@ class WelcomeSystemController:
             "from core.backups import create_database_backup; "
             "backup = create_database_backup(label='control-panel'); print(backup.path)"
         )
-        completed = subprocess.run(
-            [str(python), "manage.py", "shell", "-c", command],
-            cwd=self.project_root,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            completed = subprocess.run(
+                [str(python), "manage.py", "shell", "-c", command],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+        except subprocess.TimeoutExpired:
+            return ActionResult(False, "Backup timed out after 90 seconds.")
         if completed.returncode:
             return ActionResult(False, f"Backup failed. See {self.error_log_path.name} or run the setup check.")
-        backup_path = completed.stdout.strip().splitlines()[-1]
+        output_lines = completed.stdout.strip().splitlines()
+        if not output_lines:
+            return ActionResult(False, "Backup did not report its saved file path.")
+        backup_path = output_lines[-1]
         return ActionResult(True, f"Backup created: {backup_path}")
 
-    def update(self, reinstall: bool = False) -> ActionResult:
+    def update(self, reinstall: bool = False, progress=None) -> ActionResult:
+        def report(message: str):
+            if progress:
+                progress(message)
+
         python = self.python_path()
         if not python.exists():
             return ActionResult(False, "Setup is incomplete. Run the deployment/setup instructions first.")
+        report("Creating database backup...")
         backup = self.create_backup()
         if not backup.success:
             return backup
+        report("Stopping Welcome System...")
         stopped = self.stop()
         if not stopped.success:
             return stopped
 
         source_steps = (
-            [["git", "fetch", "--quiet", "origin", "main"], ["git", "reset", "--hard", "FETCH_HEAD"]]
+            [
+                ("Downloading the current version from GitHub...", ["git", "fetch", "--quiet", "origin", "main"], 90),
+                ("Restoring tracked application files...", ["git", "reset", "--hard", "FETCH_HEAD"], 30),
+            ]
             if reinstall
-            else [["git", "pull", "--ff-only", "origin", "main"]]
+            else [("Downloading updates from GitHub...", ["git", "pull", "--ff-only", "origin", "main"], 90)]
         )
         steps = source_steps + [
-            [str(python), "-m", "pip", "install", "-r", "requirements.txt"],
-            [str(python), "manage.py", "migrate"],
-            [str(python), "manage.py", "collectstatic", "--noinput"],
+            ("Installing application requirements...", [str(python), "-m", "pip", "install", "-r", "requirements.txt"], 300),
+            ("Applying database updates...", [str(python), "manage.py", "migrate"], 90),
+            ("Preparing static files...", [str(python), "manage.py", "collectstatic", "--noinput"], 90),
         ]
-        for command in steps:
-            completed = subprocess.run(command, cwd=self.project_root, capture_output=True, text=True)
+        for message, command, timeout in steps:
+            report(message)
+            try:
+                completed = subprocess.run(command, cwd=self.project_root, capture_output=True, text=True, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                return ActionResult(False, f"Update timed out during {message.rstrip('.')} after {timeout} seconds.")
             if completed.returncode:
                 detail = (completed.stderr or completed.stdout).strip().splitlines()[-1:]
                 return ActionResult(False, f"Update failed during {' '.join(command[:3])}. {' '.join(detail)}")
+        report("Starting Welcome System...")
         return self.start()
 
     def open_logs(self) -> ActionResult:
@@ -475,7 +496,10 @@ class ControlPanelWindow:
         self.status_label.configure(fg="#6c757d")
 
         def worker():
-            result = action()
+            try:
+                result = action()
+            except Exception as exc:
+                result = ActionResult(False, f"Operation failed unexpectedly: {exc}")
             self.root.after(0, lambda: self._show_result(result, show_error, on_success))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -514,6 +538,13 @@ class ControlPanelWindow:
             color = "#198754"
         self.update_label.configure(fg=color)
 
+    def _show_update_progress(self, message: str):
+        def render():
+            self.status_text.set(message)
+            self.status_label.configure(fg="#6c757d")
+
+        self.root.after(0, render)
+
     def start(self):
         self._run(self.controller.start)
 
@@ -536,7 +567,7 @@ class ControlPanelWindow:
         else:
             confirmation = "Install the latest approved update from GitHub and restart the server?"
         self._run(
-            lambda: self.controller.update(reinstall=reinstall),
+            lambda: self.controller.update(reinstall=reinstall, progress=self._show_update_progress),
             confirmation,
             on_success=self._refresh_version_after_update,
         )

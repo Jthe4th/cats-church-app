@@ -30,7 +30,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         python.touch()
         return python
 
-    def write_version(self, version="0.9.8-beta"):
+    def write_version(self, version="0.9.9-beta"):
         settings_path = self.project_root / "cats" / "settings.py"
         settings_path.parent.mkdir()
         settings_path.write_text(f'CATS_VERSION = "{version}"\n', encoding="utf-8")
@@ -60,7 +60,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
             result = self.controller.check_for_updates()
 
         self.assertTrue(result.success)
-        self.assertIn("0.9.8-beta", result.message)
+        self.assertIn("0.9.9-beta", result.message)
         self.assertIn("Already up to date", result.message)
 
     def test_check_for_updates_reports_available_commit_count(self):
@@ -79,7 +79,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
     def test_check_for_updates_uses_github_version_when_git_fetch_fails(self):
         self.write_version("0.9.5-beta")
         response = MagicMock()
-        response.read.return_value = b'CATS_VERSION = "0.9.8-beta"\n'
+        response.read.return_value = b'CATS_VERSION = "0.9.9-beta"\n'
         response.__enter__.return_value = response
         with (
             patch.object(control_panel.subprocess, "run", return_value=Mock(returncode=1, stderr="git unavailable")),
@@ -89,7 +89,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertIn("Update available", result.message)
-        self.assertIn("latest: 0.9.8-beta", result.message)
+        self.assertIn("latest: 0.9.9-beta", result.message)
 
     def test_start_launches_waitress_and_records_pid(self):
         python = self.create_virtualenv_python()
@@ -150,6 +150,31 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         self.assertEqual(run.call_args_list[0].args[0], ["git", "fetch", "--quiet", "origin", "main"])
         self.assertEqual(run.call_args_list[1].args[0], ["git", "reset", "--hard", "FETCH_HEAD"])
 
+    def test_update_reports_progress_for_each_deployment_stage(self):
+        self.create_virtualenv_python()
+        progress = Mock()
+        with (
+            patch.object(self.controller, "create_backup", return_value=control_panel.ActionResult(True, "Backed up")),
+            patch.object(self.controller, "stop", return_value=control_panel.ActionResult(True, "Stopped")),
+            patch.object(self.controller, "start", return_value=control_panel.ActionResult(True, "Started")),
+            patch.object(control_panel.subprocess, "run", return_value=Mock(returncode=0, stdout="", stderr="")),
+        ):
+            result = self.controller.update(progress=progress)
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            [call.args[0] for call in progress.call_args_list],
+            [
+                "Creating database backup...",
+                "Stopping Welcome System...",
+                "Downloading updates from GitHub...",
+                "Installing application requirements...",
+                "Applying database updates...",
+                "Preparing static files...",
+                "Starting Welcome System...",
+            ],
+        )
+
 
 class ControlPanelWindowTests(unittest.TestCase):
     def test_button_row_uses_colored_actions_and_native_secondary_buttons(self):
@@ -206,13 +231,13 @@ class ControlPanelWindowTests(unittest.TestCase):
     def test_successful_update_refreshes_the_displayed_version(self):
         version_text = Mock()
         window = control_panel.ControlPanelWindow.__new__(control_panel.ControlPanelWindow)
-        window.controller = Mock(app_version="0.9.8-beta")
+        window.controller = Mock(app_version="0.9.9-beta")
         window.version_text = version_text
         window.refresh_update_status = Mock()
 
         window._refresh_version_after_update()
 
-        version_text.set.assert_called_once_with("Installed version: 0.9.8-beta")
+        version_text.set.assert_called_once_with("Installed version: 0.9.9-beta")
         window.refresh_update_status.assert_called_once_with()
 
     def test_update_offers_to_reinstall_when_already_up_to_date(self):
@@ -226,7 +251,9 @@ class ControlPanelWindowTests(unittest.TestCase):
         action, confirmation = window._run.call_args.args[:2]
         self.assertIn("already up to date", confirmation)
         action()
-        window.controller.update.assert_called_once_with(reinstall=True)
+        self.assertTrue(window.controller.update.called)
+        self.assertTrue(window.controller.update.call_args.kwargs["reinstall"])
+        self.assertTrue(callable(window.controller.update.call_args.kwargs["progress"]))
 
 
 if __name__ == "__main__":
