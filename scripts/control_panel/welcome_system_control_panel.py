@@ -32,6 +32,8 @@ OUTPUT_LOG_PATH = LOG_DIRECTORY / "welcome-system-server.log"
 ERROR_LOG_PATH = LOG_DIRECTORY / "welcome-system-server-error.log"
 DEFAULT_PORT = 8000
 VERSION_PATTERN = re.compile(r'^CATS_VERSION = "([^"]+)"$', re.MULTILINE)
+VERSION_NUMBER_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta))?$")
+GITHUB_SETTINGS_URL = "https://raw.githubusercontent.com/Jthe4th/cats-church-app/main/cats/settings.py"
 
 
 @dataclass(frozen=True)
@@ -106,7 +108,7 @@ class WelcomeSystemController:
                 timeout=12,
             )
             if fetch.returncode:
-                return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+                return self._check_github_version_fallback(version, self._command_error(fetch))
             comparison = subprocess.run(
                 ["git", "rev-list", "--count", "HEAD..FETCH_HEAD"],
                 cwd=self.project_root,
@@ -114,19 +116,59 @@ class WelcomeSystemController:
                 text=True,
                 timeout=8,
             )
-        except (OSError, subprocess.TimeoutExpired):
-            return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return self._check_github_version_fallback(version, str(exc) or "Git is unavailable")
 
         if comparison.returncode:
-            return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+            return self._check_github_version_fallback(version, self._command_error(comparison))
         try:
             commits_behind = int(comparison.stdout.strip())
         except ValueError:
-            return ActionResult(False, f"Version {version}. Could not check GitHub for updates.")
+            return self._check_github_version_fallback(version, "Git returned an invalid update result")
         if commits_behind:
             noun = "commit" if commits_behind == 1 else "commits"
             return ActionResult(True, f"Version {version}. Update available on GitHub ({commits_behind} new {noun}).")
         return ActionResult(True, f"Version {version}. Already up to date.")
+
+    def _check_github_version_fallback(self, installed_version: str, git_error: str) -> ActionResult:
+        """Fall back to the public version file when local Git cannot check updates."""
+        try:
+            request = urllib.request.Request(GITHUB_SETTINGS_URL, headers={"User-Agent": "Welcome-System-Control-Panel"})
+            with urllib.request.urlopen(request, timeout=8) as response:
+                remote_settings = response.read().decode("utf-8")
+        except (urllib.error.URLError, TimeoutError, OSError, UnicodeDecodeError):
+            detail = git_error.strip() or "Git could not contact the repository"
+            return ActionResult(
+                False,
+                f"Version {installed_version}. Could not check GitHub: {detail}. Check internet access and Git for Windows.",
+            )
+
+        match = VERSION_PATTERN.search(remote_settings)
+        if not match:
+            return ActionResult(False, f"Version {installed_version}. GitHub did not return a valid version.")
+        remote_version = match.group(1)
+        if self._is_newer_version(remote_version, installed_version):
+            return ActionResult(True, f"Version {installed_version}. Update available on GitHub (latest: {remote_version}).")
+        return ActionResult(True, f"Version {installed_version}. Already up to date.")
+
+    @staticmethod
+    def _command_error(completed) -> str:
+        output = (completed.stderr or completed.stdout or "").strip()
+        return output.splitlines()[-1] if output else "Git could not contact the repository"
+
+    @staticmethod
+    def _is_newer_version(candidate: str, installed: str) -> bool:
+        def parse(version: str):
+            match = VERSION_NUMBER_PATTERN.match(version)
+            if not match:
+                return None
+            major, minor, patch, qualifier = match.groups()
+            qualifier_rank = {"alpha": 0, "beta": 1, None: 2}[qualifier]
+            return int(major), int(minor), int(patch), qualifier_rank
+
+        candidate_parts = parse(candidate)
+        installed_parts = parse(installed)
+        return bool(candidate_parts and installed_parts and candidate_parts > installed_parts)
 
     def start(self) -> ActionResult:
         if self.health_check():

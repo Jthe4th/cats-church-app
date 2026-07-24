@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Bumped software version to `0.9.6-beta`.
+- Bumped software version to `0.9.7-beta`.
 - Streamlined Manage Church Service with compact metrics, unified check-in, three attendance tabs, and contextual CSV export.
 - Added optional person profile photos with initials fallback badges throughout the service check-in interface.
 - Added the cross-platform Welcome System Control Panel for routine start, stop, restart, backup, update, and local page access.

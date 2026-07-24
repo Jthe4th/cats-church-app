@@ -1,5 +1,5 @@
 # Welcome System
-Version: `0.9.6-beta`
+Version: `0.9.7-beta`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
