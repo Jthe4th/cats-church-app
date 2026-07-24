@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Min, Q
 import csv
 
@@ -43,6 +44,10 @@ from .settings_store import get_setting
 
 def _service_label(service_date: date) -> str:
     return f"Sabbath Service {service_date.strftime('%m-%d-%Y')}"
+
+
+def _valid_kiosk_submission_token(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9_-]{16,64}", value))
 
 
 def _safe_hex_color(value: str, default: str) -> str:
@@ -739,17 +744,29 @@ def checkin(request, *, kiosk_mode: bool = False):
                 birth_day_raw = request.POST.get("birth_day", "").strip()
                 birth_month = int(birth_month_raw) if birth_month_raw.isdigit() else None
                 birth_day = int(birth_day_raw) if birth_day_raw.isdigit() else None
-                person = Person.objects.create(
-                    first_name=first_name,
-                    middle_initial=middle_initial,
-                    last_name=last_name,
-                    street_address=street_address,
-                    phone=phone,
-                    email=email,
-                    birth_month=birth_month,
-                    birth_day=birth_day,
-                    member_type=Person.VISITOR,
-                )
+                person_defaults = {
+                    "first_name": first_name,
+                    "middle_initial": middle_initial,
+                    "last_name": last_name,
+                    "street_address": street_address,
+                    "phone": phone,
+                    "email": email,
+                    "birth_month": birth_month,
+                    "birth_day": birth_day,
+                    "member_type": Person.VISITOR,
+                }
+                submission_token = request.POST.get("submission_token", "").strip()
+                if _valid_kiosk_submission_token(submission_token):
+                    try:
+                        with transaction.atomic():
+                            person, _person_created = Person.objects.get_or_create(
+                                kiosk_submission_token=submission_token,
+                                defaults=person_defaults,
+                            )
+                    except IntegrityError:
+                        person = Person.objects.get(kiosk_submission_token=submission_token)
+                else:
+                    person = Person.objects.create(**person_defaults)
 
             service = _get_or_create_service()
             attendance, _created = Attendance.objects.get_or_create(

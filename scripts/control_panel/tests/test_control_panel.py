@@ -30,7 +30,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         python.touch()
         return python
 
-    def write_version(self, version="0.9.9-beta"):
+    def write_version(self, version="0.9.10-beta"):
         settings_path = self.project_root / "cats" / "settings.py"
         settings_path.parent.mkdir()
         settings_path.write_text(f'CATS_VERSION = "{version}"\n', encoding="utf-8")
@@ -60,7 +60,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
             result = self.controller.check_for_updates()
 
         self.assertTrue(result.success)
-        self.assertIn("0.9.9-beta", result.message)
+        self.assertIn("0.9.10-beta", result.message)
         self.assertIn("Already up to date", result.message)
 
     def test_check_for_updates_reports_available_commit_count(self):
@@ -79,7 +79,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
     def test_check_for_updates_uses_github_version_when_git_fetch_fails(self):
         self.write_version("0.9.5-beta")
         response = MagicMock()
-        response.read.return_value = b'CATS_VERSION = "0.9.9-beta"\n'
+        response.read.return_value = b'CATS_VERSION = "0.9.10-beta"\n'
         response.__enter__.return_value = response
         with (
             patch.object(control_panel.subprocess, "run", return_value=Mock(returncode=1, stderr="git unavailable")),
@@ -89,7 +89,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertIn("Update available", result.message)
-        self.assertIn("latest: 0.9.9-beta", result.message)
+        self.assertIn("latest: 0.9.10-beta", result.message)
 
     def test_start_launches_waitress_and_records_pid(self):
         python = self.create_virtualenv_python()
@@ -175,6 +175,13 @@ class WelcomeSystemControllerTests(unittest.TestCase):
             ],
         )
 
+    def test_open_github_uses_the_default_browser(self):
+        with patch.object(control_panel.webbrowser, "open", return_value=True) as open_browser:
+            result = self.controller.open_github()
+
+        self.assertTrue(result.success)
+        open_browser.assert_called_once_with(control_panel.GITHUB_REPOSITORY_URL, new=2)
+
 
 class ControlPanelWindowTests(unittest.TestCase):
     def test_button_row_uses_colored_actions_and_native_secondary_buttons(self):
@@ -228,16 +235,25 @@ class ControlPanelWindowTests(unittest.TestCase):
 
         window._run.assert_called_once_with(window.controller.status, show_error=False)
 
+    def test_open_github_runs_the_controller_action(self):
+        window = control_panel.ControlPanelWindow.__new__(control_panel.ControlPanelWindow)
+        window.controller = Mock()
+        window._run = Mock()
+
+        window.open_github()
+
+        window._run.assert_called_once_with(window.controller.open_github)
+
     def test_successful_update_refreshes_the_displayed_version(self):
         version_text = Mock()
         window = control_panel.ControlPanelWindow.__new__(control_panel.ControlPanelWindow)
-        window.controller = Mock(app_version="0.9.9-beta")
+        window.controller = Mock(app_version="0.9.10-beta")
         window.version_text = version_text
         window.refresh_update_status = Mock()
 
         window._refresh_version_after_update()
 
-        version_text.set.assert_called_once_with("Installed version: 0.9.9-beta")
+        version_text.set.assert_called_once_with("Installed version: 0.9.10-beta")
         window.refresh_update_status.assert_called_once_with()
 
     def test_update_offers_to_reinstall_when_already_up_to_date(self):

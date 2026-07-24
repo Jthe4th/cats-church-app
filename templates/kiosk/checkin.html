@@ -160,6 +160,7 @@
           <div class="modal-body">
             <form method="post" class="row g-3" id="visitor-form">
               {% csrf_token %}
+              <input type="hidden" name="submission_token" id="visitor-submission-token" />
               <div class="col-md-6">
                 <label class="form-label">First name</label>
                 <input class="form-control form-control-lg" name="first_name" required />
@@ -225,6 +226,7 @@
       const form = document.getElementById("search-form");
       const input = document.getElementById("search-input");
       const visitorForm = document.getElementById("visitor-form");
+      const visitorSubmissionToken = document.getElementById("visitor-submission-token");
       const toggle = document.getElementById("visitor-toggle");
       const visitorModalEl = document.getElementById("visitor-modal");
       const resultsModalEl = document.getElementById("search-results-modal");
@@ -295,6 +297,36 @@
 
       const visitorModal = createModalController(visitorModalEl);
       const resultsModal = createModalController(resultsModalEl);
+      let visitorSubmissionInFlight = false;
+
+      const createVisitorSubmissionToken = () => {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          return window.crypto.randomUUID();
+        }
+        if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+          const values = new Uint32Array(4);
+          window.crypto.getRandomValues(values);
+          return Array.from(values, (value) => value.toString(36)).join("-");
+        }
+        return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+      };
+
+      const setVisitorSubmitting = (submitting) => {
+        visitorSubmissionInFlight = submitting;
+        if (!visitorForm) return;
+        visitorForm.querySelectorAll("button[type='submit']").forEach((button) => {
+          button.disabled = submitting;
+        });
+      };
+
+      const resetVisitorForm = () => {
+        if (!visitorForm) return;
+        visitorForm.reset();
+        if (visitorSubmissionToken) {
+          visitorSubmissionToken.value = createVisitorSubmissionToken();
+        }
+        setVisitorSubmitting(false);
+      };
 
       if (!hasBootstrapModal) {
         document.querySelectorAll("[data-bs-dismiss='modal']").forEach((button) => {
@@ -312,9 +344,7 @@
       }
       if (toggle && visitorModal) {
         toggle.addEventListener("click", () => {
-          if (visitorForm) {
-            visitorForm.reset();
-          }
+          resetVisitorForm();
           visitorModal.show();
         });
       }
@@ -389,9 +419,7 @@
           }
         });
         visitorModal.onHidden(() => {
-          if (visitorForm) {
-            visitorForm.reset();
-          }
+          resetVisitorForm();
           if (keyboard && printModal && !printModal.classList.contains("is-visible")) {
             keyboard.classList.remove("kiosk-keyboard-hidden");
           }
@@ -474,7 +502,7 @@
           visitorModal.hide();
         }
         if (visitorForm) {
-          visitorForm.reset();
+          resetVisitorForm();
         }
         input.value = "";
         moveCursorToEnd();
@@ -829,20 +857,32 @@
           const submitter = event.submitter;
           const actionValue = submitter ? submitter.value : "print_single";
           event.preventDefault();
+          if (visitorSubmissionInFlight) return;
+          if (visitorSubmissionToken && !visitorSubmissionToken.value) {
+            visitorSubmissionToken.value = createVisitorSubmissionToken();
+          }
+          setVisitorSubmitting(true);
           if (!navigator.onLine) {
             const formData = new FormData(visitorForm);
             formData.set("action", actionValue);
             enqueue({ url: visitorForm.getAttribute("action") || window.location.pathname, body: formData });
             alert("Offline: check-in queued. It will sync when connection returns.");
             updateStatus();
+            setVisitorSubmitting(false);
             return;
           }
           const formData = new FormData(visitorForm);
           formData.set("action", actionValue);
           submitAttendance(formData)
             .then((data) => {
-              if (!data) return;
-              if (handleManagedPrintResult(data)) return;
+              if (!data || data.service_closed) {
+                setVisitorSubmitting(false);
+                return;
+              }
+              if (handleManagedPrintResult(data)) {
+                if (data.print_error) setVisitorSubmitting(false);
+                return;
+              }
               if (data.print_url) {
                 if (visitorModal) {
                   visitorModal.hide();
@@ -853,14 +893,15 @@
                   window.location.href = data.print_url;
                 }
               } else if (data.checked_in) {
-                visitorForm.reset();
+                resetVisitorForm();
                 if (visitorModal) {
                   visitorModal.hide();
                 }
               }
             })
             .catch(() => {
-              visitorForm.submit();
+              alert("Check-in could not be confirmed. Please try again.");
+              setVisitorSubmitting(false);
             });
         });
       }

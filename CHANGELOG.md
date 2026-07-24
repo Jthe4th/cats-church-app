@@ -3,7 +3,9 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Bumped software version to `0.9.9-beta`.
+- Bumped software version to `0.9.10-beta`.
+- Prevented duplicate visitor records when kiosk submissions are repeated or a response is interrupted.
+- Added a Control Panel button to open the Welcome System GitHub repository in the default browser.
 - Streamlined Manage Church Service with compact metrics, unified check-in, three attendance tabs, and contextual CSV export.
 - Added optional person profile photos with initials fallback badges throughout the service check-in interface.
 - Added the cross-platform Welcome System Control Panel for routine start, stop, restart, backup, update, and local page access.

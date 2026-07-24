@@ -67,6 +67,13 @@ class Person(models.Model):
         null=True,
     )
     member_type = models.CharField(max_length=20, choices=MEMBER_TYPES, default=VISITOR)
+    kiosk_submission_token = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        unique=True,
+        editable=False,
+    )
     family = models.ForeignKey(Family, on_delete=models.SET_NULL, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     tags = models.ManyToManyField("Tag", blank=True)

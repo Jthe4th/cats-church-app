@@ -34,6 +34,7 @@ DEFAULT_PORT = 8000
 VERSION_PATTERN = re.compile(r'^CATS_VERSION = "([^"]+)"$', re.MULTILINE)
 VERSION_NUMBER_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta))?$")
 GITHUB_SETTINGS_URL = "https://raw.githubusercontent.com/Jthe4th/cats-church-app/main/cats/settings.py"
+GITHUB_REPOSITORY_URL = "https://github.com/Jthe4th/cats-church-app"
 
 
 @dataclass(frozen=True)
@@ -324,6 +325,15 @@ class WelcomeSystemController:
             return ActionResult(False, f"Could not open the logs folder: {exc}")
         return ActionResult(True, "Opened the logs folder.")
 
+    def open_github(self) -> ActionResult:
+        try:
+            opened = webbrowser.open(GITHUB_REPOSITORY_URL, new=2)
+        except webbrowser.Error as exc:
+            return ActionResult(False, f"Could not open GitHub: {exc}")
+        if not opened:
+            return ActionResult(False, "Could not open GitHub in the default browser.")
+        return ActionResult(True, "Opened Welcome System on GitHub.")
+
     def _start_failure_message(self) -> str:
         return f"Welcome System did not start. Open {self.error_log_path.name} in the logs folder for details."
 
@@ -425,7 +435,11 @@ class ControlPanelWindow:
         self.update_label.pack(fill="x")
         self._button_row(
             update_frame,
-            [("Check for updates", self.refresh_update_status), ("Install Update", self.update)],
+            [
+                ("Check for updates", self.refresh_update_status),
+                ("Install Update", self.update),
+                ("View on GitHub", self.open_github),
+            ],
         )
 
         server_frame = ttk.LabelFrame(frame, text="Weekly server controls", padding=12)
@@ -579,6 +593,9 @@ class ControlPanelWindow:
     def open_logs(self):
         self._run(self.controller.open_logs)
 
+    def open_github(self):
+        self._run(self.controller.open_github)
+
     def run(self):
         self.root.mainloop()
 
@@ -595,6 +612,7 @@ def run_terminal_menu(controller: WelcomeSystemController) -> int:
         "8": ("Open Logs Folder", controller.open_logs),
         "9": ("Refresh Status", controller.status),
         "10": ("Check for updates", controller.check_for_updates),
+        "11": ("View on GitHub", controller.open_github),
     }
     print(f"Installed version: {controller.app_version}")
     print(controller.check_for_updates().message)
