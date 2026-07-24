@@ -7,6 +7,13 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "Welcome System first-time setup"
+if ! command -v git >/dev/null 2>&1; then
+  echo "Git is required for Welcome System updates. Starting the macOS Command Line Tools installer..."
+  xcode-select --install || true
+  echo "Complete the macOS installer, then run this setup file again."
+  exit 1
+fi
+
 if [ ! -x ".venv/bin/python" ]; then
   python3 -m venv .venv
 fi

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -97,9 +98,20 @@ class WelcomeSystemController:
             return ActionResult(True, f"Welcome System is running. Kiosk: {self.lan_kiosk_url}")
         return ActionResult(False, "Welcome System is not running.")
 
+    @staticmethod
+    def _git_installation_instruction() -> str:
+        if os.name == "nt":
+            return "Run SETUP_WELCOME_SYSTEM_WINDOWS.cmd to install it"
+        return "Install Git, then run setup again"
+
     def check_for_updates(self) -> ActionResult:
         """Compare the installed commit to the latest main commit on GitHub."""
         version = self.app_version
+        if not shutil.which("git"):
+            return ActionResult(
+                False,
+                f"Version {version}. Git is not installed. {self._git_installation_instruction()}, then check again.",
+            )
         try:
             fetch = subprocess.run(
                 ["git", "fetch", "--quiet", "origin", "main"],
@@ -126,10 +138,28 @@ class WelcomeSystemController:
             commits_behind = int(comparison.stdout.strip())
         except ValueError:
             return self._check_github_version_fallback(version, "Git returned an invalid update result")
+        if self._working_tree_has_changes():
+            return ActionResult(
+                True,
+                f"Version {version}. Local app files differ from GitHub. Reinstall required to repair them.",
+            )
         if commits_behind:
             noun = "commit" if commits_behind == 1 else "commits"
             return ActionResult(True, f"Version {version}. Update available on GitHub ({commits_behind} new {noun}).")
         return ActionResult(True, f"Version {version}. Already up to date.")
+
+    def _working_tree_has_changes(self) -> bool:
+        try:
+            completed = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return completed.returncode == 0 and bool(completed.stdout.strip())
 
     def _check_github_version_fallback(self, installed_version: str, git_error: str) -> ActionResult:
         """Fall back to the public version file when local Git cannot check updates."""
@@ -275,9 +305,42 @@ class WelcomeSystemController:
             if progress:
                 progress(message)
 
+        def failed_after_stop(message: str) -> ActionResult:
+            if not was_running:
+                return ActionResult(False, message)
+            report("Update failed. Restarting Welcome System...")
+            restarted = self.start()
+            if restarted.success:
+                return ActionResult(False, f"{message} Welcome System was restarted.")
+            return ActionResult(False, f"{message} {restarted.message}")
+
         python = self.python_path()
         if not python.exists():
             return ActionResult(False, "Setup is incomplete. Run the deployment/setup instructions first.")
+        if not shutil.which("git"):
+            return ActionResult(
+                False,
+                f"Git is not installed. {self._git_installation_instruction()}, then install the update again.",
+            )
+        report("Checking GitHub connection...")
+        try:
+            fetch = subprocess.run(
+                ["git", "fetch", "--quiet", "origin", "main"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return ActionResult(False, f"Could not contact GitHub. {str(exc) or 'Try again when the internet is available.'}")
+        if fetch.returncode:
+            return ActionResult(False, f"Could not contact GitHub. {self._command_error(fetch)}")
+        if not reinstall and self._working_tree_has_changes():
+            return ActionResult(
+                False,
+                "Local Welcome System files differ from GitHub. Check for updates, then choose the repair reinstall option.",
+            )
+        was_running = self.health_check()
         report("Creating database backup...")
         backup = self.create_backup()
         if not backup.success:
@@ -289,11 +352,10 @@ class WelcomeSystemController:
 
         source_steps = (
             [
-                ("Downloading the current version from GitHub...", ["git", "fetch", "--quiet", "origin", "main"], 90),
                 ("Restoring tracked application files...", ["git", "reset", "--hard", "FETCH_HEAD"], 30),
             ]
             if reinstall
-            else [("Downloading updates from GitHub...", ["git", "pull", "--ff-only", "origin", "main"], 90)]
+            else [("Installing downloaded update...", ["git", "merge", "--ff-only", "FETCH_HEAD"], 30)]
         )
         steps = source_steps + [
             ("Installing application requirements...", [str(python), "-m", "pip", "install", "-r", "requirements.txt"], 300),
@@ -305,10 +367,12 @@ class WelcomeSystemController:
             try:
                 completed = subprocess.run(command, cwd=self.project_root, capture_output=True, text=True, timeout=timeout)
             except subprocess.TimeoutExpired:
-                return ActionResult(False, f"Update timed out during {message.rstrip('.')} after {timeout} seconds.")
+                return failed_after_stop(f"Update timed out during {message.rstrip('.')} after {timeout} seconds.")
+            except OSError as exc:
+                return failed_after_stop(f"Update could not run {' '.join(command[:3])}. {exc}")
             if completed.returncode:
                 detail = (completed.stderr or completed.stdout).strip().splitlines()[-1:]
-                return ActionResult(False, f"Update failed during {' '.join(command[:3])}. {' '.join(detail)}")
+                return failed_after_stop(f"Update failed during {' '.join(command[:3])}. {' '.join(detail)}")
         report("Starting Welcome System...")
         return self.start()
 
@@ -396,6 +460,7 @@ class ControlPanelWindow:
         self.version_text = tk.StringVar(value=f"Installed version: {controller.app_version}")
         self.update_text = tk.StringVar(value="Checking GitHub for updates...")
         self.update_available = None
+        self.reinstall_required = False
         self._build(ttk)
         self.refresh_status()
         self.refresh_update_status()
@@ -541,11 +606,15 @@ class ControlPanelWindow:
 
     def _show_update_result(self, result: ActionResult):
         self.update_text.set(result.message)
+        self.reinstall_required = bool(result.success and "Reinstall required" in result.message)
         if not result.success:
             self.update_available = None
             color = "#b02a37"
         elif "Update available" in result.message:
             self.update_available = True
+            color = "#a15c00"
+        elif self.reinstall_required:
+            self.update_available = False
             color = "#a15c00"
         else:
             self.update_available = False
@@ -573,7 +642,12 @@ class ControlPanelWindow:
 
     def update(self):
         reinstall = self.update_available is False
-        if reinstall:
+        if getattr(self, "reinstall_required", False):
+            confirmation = (
+                "Local Welcome System files differ from GitHub. Repair them with the current version, "
+                "then restart the server?"
+            )
+        elif reinstall:
             confirmation = (
                 "Welcome System is already up to date. Reinstall the current version from GitHub, "
                 "replace tracked application files, and restart the server?"

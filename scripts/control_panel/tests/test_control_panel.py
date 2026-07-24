@@ -30,7 +30,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         python.touch()
         return python
 
-    def write_version(self, version="0.9.10-beta"):
+    def write_version(self, version="0.9.11-beta"):
         settings_path = self.project_root / "cats" / "settings.py"
         settings_path.parent.mkdir()
         settings_path.write_text(f'CATS_VERSION = "{version}"\n', encoding="utf-8")
@@ -55,12 +55,16 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         with patch.object(
             control_panel.subprocess,
             "run",
-            side_effect=[Mock(returncode=0), Mock(returncode=0, stdout="0\n")],
+            side_effect=[
+                Mock(returncode=0),
+                Mock(returncode=0, stdout="0\n"),
+                Mock(returncode=0, stdout=""),
+            ],
         ):
             result = self.controller.check_for_updates()
 
         self.assertTrue(result.success)
-        self.assertIn("0.9.10-beta", result.message)
+        self.assertIn("0.9.11-beta", result.message)
         self.assertIn("Already up to date", result.message)
 
     def test_check_for_updates_reports_available_commit_count(self):
@@ -68,7 +72,11 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         with patch.object(
             control_panel.subprocess,
             "run",
-            side_effect=[Mock(returncode=0), Mock(returncode=0, stdout="2\n")],
+            side_effect=[
+                Mock(returncode=0),
+                Mock(returncode=0, stdout="2\n"),
+                Mock(returncode=0, stdout=""),
+            ],
         ):
             result = self.controller.check_for_updates()
 
@@ -79,7 +87,7 @@ class WelcomeSystemControllerTests(unittest.TestCase):
     def test_check_for_updates_uses_github_version_when_git_fetch_fails(self):
         self.write_version("0.9.5-beta")
         response = MagicMock()
-        response.read.return_value = b'CATS_VERSION = "0.9.10-beta"\n'
+        response.read.return_value = b'CATS_VERSION = "0.9.11-beta"\n'
         response.__enter__.return_value = response
         with (
             patch.object(control_panel.subprocess, "run", return_value=Mock(returncode=1, stderr="git unavailable")),
@@ -89,7 +97,18 @@ class WelcomeSystemControllerTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertIn("Update available", result.message)
-        self.assertIn("latest: 0.9.10-beta", result.message)
+        self.assertIn("latest: 0.9.11-beta", result.message)
+
+    @patch.object(control_panel.os, "name", "nt")
+    @patch.object(control_panel.shutil, "which", return_value=None)
+    def test_check_for_updates_explains_when_git_is_not_installed(self, _which):
+        self.write_version()
+
+        result = self.controller.check_for_updates()
+
+        self.assertFalse(result.success)
+        self.assertIn("Git is not installed", result.message)
+        self.assertIn("SETUP_WELCOME_SYSTEM_WINDOWS.cmd", result.message)
 
     def test_start_launches_waitress_and_records_pid(self):
         python = self.create_virtualenv_python()
@@ -132,8 +151,94 @@ class WelcomeSystemControllerTests(unittest.TestCase):
             result = self.controller.update()
 
         self.assertTrue(result.success)
-        self.assertEqual(run.call_count, 4)
-        self.assertEqual(run.call_args_list[0].args[0], ["git", "pull", "--ff-only", "origin", "main"])
+        self.assertEqual(run.call_count, 6)
+        self.assertEqual(run.call_args_list[0].args[0], ["git", "fetch", "--quiet", "origin", "main"])
+        self.assertEqual(run.call_args_list[1].args[0], ["git", "status", "--porcelain"])
+        self.assertEqual(run.call_args_list[2].args[0], ["git", "merge", "--ff-only", "FETCH_HEAD"])
+
+    def test_update_does_not_stop_the_server_when_github_cannot_be_reached(self):
+        self.create_virtualenv_python()
+        with (
+            patch.object(self.controller, "create_backup") as create_backup,
+            patch.object(self.controller, "stop") as stop,
+            patch.object(control_panel.subprocess, "run", return_value=Mock(returncode=1, stderr="network unavailable")),
+        ):
+            result = self.controller.update()
+
+        self.assertFalse(result.success)
+        self.assertIn("Could not contact GitHub", result.message)
+        create_backup.assert_not_called()
+        stop.assert_not_called()
+
+    def test_update_does_not_stop_the_server_when_local_files_need_repair(self):
+        self.create_virtualenv_python()
+        with (
+            patch.object(self.controller, "create_backup") as create_backup,
+            patch.object(self.controller, "stop") as stop,
+            patch.object(
+                control_panel.subprocess,
+                "run",
+                side_effect=[
+                    Mock(returncode=0),
+                    Mock(returncode=0, stdout=" M cats/settings.py\n"),
+                ],
+            ),
+        ):
+            result = self.controller.update()
+
+        self.assertFalse(result.success)
+        self.assertIn("repair reinstall option", result.message)
+        create_backup.assert_not_called()
+        stop.assert_not_called()
+
+    def test_update_restarts_an_already_running_server_after_a_post_stop_failure(self):
+        self.create_virtualenv_python()
+        with (
+            patch.object(self.controller, "health_check", return_value=True),
+            patch.object(self.controller, "create_backup", return_value=control_panel.ActionResult(True, "Backed up")),
+            patch.object(self.controller, "stop", return_value=control_panel.ActionResult(True, "Stopped")),
+            patch.object(self.controller, "start", return_value=control_panel.ActionResult(True, "Restarted")) as start,
+            patch.object(
+                control_panel.subprocess,
+                "run",
+                side_effect=[
+                    Mock(returncode=0),
+                    Mock(returncode=0, stdout=""),
+                    Mock(returncode=1, stderr="merge failed"),
+                ],
+            ),
+        ):
+            result = self.controller.update()
+
+        self.assertFalse(result.success)
+        self.assertIn("Welcome System was restarted", result.message)
+        start.assert_called_once_with()
+
+    def test_check_for_updates_requests_reinstall_when_local_files_have_changed(self):
+        self.write_version()
+        with patch.object(
+            control_panel.subprocess,
+            "run",
+            side_effect=[
+                Mock(returncode=0),
+                Mock(returncode=0, stdout="2\n"),
+                Mock(returncode=0, stdout=" M cats/settings.py\n"),
+            ],
+        ):
+            result = self.controller.check_for_updates()
+
+        self.assertTrue(result.success)
+        self.assertIn("Reinstall required", result.message)
+
+    @patch.object(control_panel.os, "name", "nt")
+    @patch.object(control_panel.shutil, "which", return_value=None)
+    def test_update_explains_when_git_is_not_installed(self, _which):
+        self.create_virtualenv_python()
+
+        result = self.controller.update()
+
+        self.assertFalse(result.success)
+        self.assertIn("Git is not installed", result.message)
 
     def test_reinstall_fetches_and_restores_the_current_github_version(self):
         self.create_virtualenv_python()
@@ -165,9 +270,10 @@ class WelcomeSystemControllerTests(unittest.TestCase):
         self.assertEqual(
             [call.args[0] for call in progress.call_args_list],
             [
+                "Checking GitHub connection...",
                 "Creating database backup...",
                 "Stopping Welcome System...",
-                "Downloading updates from GitHub...",
+                "Installing downloaded update...",
                 "Installing application requirements...",
                 "Applying database updates...",
                 "Preparing static files...",
@@ -247,13 +353,13 @@ class ControlPanelWindowTests(unittest.TestCase):
     def test_successful_update_refreshes_the_displayed_version(self):
         version_text = Mock()
         window = control_panel.ControlPanelWindow.__new__(control_panel.ControlPanelWindow)
-        window.controller = Mock(app_version="0.9.10-beta")
+        window.controller = Mock(app_version="0.9.11-beta")
         window.version_text = version_text
         window.refresh_update_status = Mock()
 
         window._refresh_version_after_update()
 
-        version_text.set.assert_called_once_with("Installed version: 0.9.10-beta")
+        version_text.set.assert_called_once_with("Installed version: 0.9.11-beta")
         window.refresh_update_status.assert_called_once_with()
 
     def test_update_offers_to_reinstall_when_already_up_to_date(self):

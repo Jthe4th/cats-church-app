@@ -32,7 +32,7 @@ On a Mac with a Python installation that does not include Tkinter, the same cont
 
 ## First-Time Setup
 
-Run the clearly named setup file for the server computer first. It creates `.venv`, installs Waitress and other requirements, applies database migrations, and prepares static files. Then install optional automatic startup:
+Run the clearly named setup file for the server computer first. It creates `.venv`, installs Waitress and other requirements, applies database migrations, and prepares static files. On Windows, it also checks for Git and installs Git for Windows automatically when Windows Package Manager is available. On a Mac, it prompts for the Apple Command Line Tools when Git is missing. Then install optional automatic startup:
 
 ### Windows
 
@@ -53,4 +53,4 @@ chmod +x scripts/control_panel/*.sh
 
 - The panel confirms Welcome System through its local health check and can stop a manually started Welcome System server listening on its configured port.
 - Do not run more than one Welcome System server on the same port. The panel will report that the server is already running.
-- **Install Update** creates a backup, stops the server, pulls approved changes from `main`, updates dependencies, applies migrations, collects static files, and starts the server again. When the installed version is already current, it offers to reinstall the tracked application files from GitHub instead.
+- **Install Update** first confirms GitHub can be reached, then creates a backup, stops the server, installs approved changes from `main`, updates dependencies, applies migrations, collects static files, and starts the server again. When installed files differ from GitHub or the installed version is current, it offers to reinstall tracked application files from GitHub instead.

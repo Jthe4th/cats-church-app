@@ -38,7 +38,45 @@ function Invoke-Step {
   & $Command
 }
 
+function Ensure-Git {
+  if (Get-Command git -ErrorAction SilentlyContinue) {
+    Write-Host "Git is ready."
+    return
+  }
+
+  $Winget = Get-Command winget -ErrorAction SilentlyContinue
+  if (-not $Winget) {
+    throw "Git is required for Welcome System updates. Windows could not find winget to install it automatically. Install Git for Windows from https://git-scm.com/download/win, then run this setup again."
+  }
+
+  Write-Host "Git for Windows is not installed. Installing it now..." -ForegroundColor Yellow
+  & winget install --id Git.Git --exact --source winget --silent --accept-source-agreements --accept-package-agreements
+  if ($LASTEXITCODE -ne 0) {
+    throw "Git for Windows could not be installed automatically. Install it from https://git-scm.com/download/win, then run this setup again."
+  }
+
+  $GitCommandDirectories = @(
+    (Join-Path $env:ProgramFiles "Git\cmd"),
+    (Join-Path ${env:ProgramFiles(x86)} "Git\cmd"),
+    (Join-Path $env:LOCALAPPDATA "Programs\Git\cmd")
+  )
+  foreach ($Directory in $GitCommandDirectories) {
+    if ((Test-Path $Directory) -and ($env:Path -notlike "*$Directory*")) {
+      $env:Path = "$Directory;$env:Path"
+    }
+  }
+
+  if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    throw "Git was installed but is not yet available to this setup window. Close this window, open it again, and rerun setup."
+  }
+  Write-Host "Git for Windows is ready."
+}
+
 try {
+  Invoke-Step "Checking for Git updates support" {
+    Ensure-Git
+  }
+
   if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     throw "Python was not found. Install Python 3.12+ from python.org, then reopen PowerShell."
   }
