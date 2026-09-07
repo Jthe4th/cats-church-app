@@ -78,6 +78,9 @@
       <p class="lead"></p>
     </div>
 
+    {% for message in messages %}
+      <div class="alert alert-danger" role="alert">{{ message }}</div>
+    {% endfor %}
     <form class="mb-4" method="get" id="search-form">
       <div class="input-group input-group-lg">
         <input
@@ -158,24 +161,29 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
+            <div class="alert alert-danger" role="alert" data-checkin-message hidden>
+              <span data-checkin-message-text></span>
+              <a href="/kiosk/" class="btn btn-primary btn-lg mt-2" data-checkin-login hidden>Sign in again</a>
+            </div>
+            <p role="status" class="fw-semibold" data-checkin-progress hidden>Saving check-in… Please wait.</p>
             <form method="post" class="row g-3" id="visitor-form">
               {% csrf_token %}
               <input type="hidden" name="submission_token" id="visitor-submission-token" />
               <div class="col-md-6">
                 <label class="form-label">First name</label>
-                <input class="form-control form-control-lg" name="first_name" required />
+                <input class="form-control form-control-lg" name="first_name" maxlength="120" required />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Last name</label>
-                <input class="form-control form-control-lg" name="last_name" required />
+                <input class="form-control form-control-lg" name="last_name" maxlength="120" required />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Phone (optional)</label>
-                <input class="form-control form-control-lg" name="phone" />
+                <input class="form-control form-control-lg" name="phone" maxlength="30" />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Email (optional)</label>
-                <input class="form-control form-control-lg" name="email" />
+                <input class="form-control form-control-lg" name="email" type="email" maxlength="254" />
               </div>
               <div class="col-12">
                 <div class="d-flex gap-2 flex-wrap">
@@ -196,6 +204,11 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
+            <div class="alert alert-danger" role="alert" data-checkin-message hidden>
+              <span data-checkin-message-text></span>
+              <a href="/kiosk/" class="btn btn-primary btn-lg mt-2" data-checkin-login hidden>Sign in again</a>
+            </div>
+            <p role="status" class="fw-semibold" data-checkin-progress hidden>Saving check-in… Please wait.</p>
             <div id="search-results-list" class="d-flex flex-column gap-3"></div>
             <p id="search-results-empty" class="text-muted mb-0 d-none">No matches found. Add as a new visitor below.</p>
           </div>
@@ -427,15 +440,53 @@
       }
 
       if (!form || !input) return;
+      const escapeMarkup = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      })[character]);
+      let attendanceSubmissionInFlight = false;
+      [visitorModalEl, resultsModalEl].forEach((modal) => {
+        if (modal) modal.addEventListener("hide.bs.modal", (event) => {
+          if (attendanceSubmissionInFlight) event.preventDefault();
+        });
+      });
+      const updateSelectionControls = () => {
+        if (!resultsList) return;
+        resultsList.querySelectorAll(".result-action-btn").forEach((button) => {
+          const group = button.dataset.group;
+          const selected = Array.from(resultsList.querySelectorAll(`.result-person-checkbox[data-group="${group}"]:checked`));
+          const alreadyCheckedIn = selected.every((checkbox) => checkbox.dataset.checkedIn === "true");
+          button.disabled = attendanceSubmissionInFlight || !selected.length ||
+            (button.dataset.action === "check_in_selected" && alreadyCheckedIn);
+        });
+        resultsList.querySelectorAll(".reprint-one-btn, .result-person-checkbox").forEach((control) => {
+          control.disabled = attendanceSubmissionInFlight;
+        });
+      };
+      const showCheckinError = (error) => {
+        document.querySelectorAll("[data-checkin-message]").forEach((box) => {
+          box.hidden = false;
+          box.querySelector("[data-checkin-message-text]").textContent = error.message;
+          box.querySelector("[data-checkin-login]").hidden = !error.loginRequired;
+        });
+      };
+      const setAttendanceSubmitting = (submitting) => {
+        attendanceSubmissionInFlight = submitting;
+        updateSelectionControls();
+        document.querySelectorAll("[data-checkin-progress]").forEach((line) => { line.hidden = !submitting; });
+        document.querySelectorAll("#visitor-modal .btn-close, #search-results-modal .btn-close").forEach((button) => {
+          button.disabled = submitting;
+        });
+      };
+
       const createGroupMarkup = (group, groupIndex) => {
-        const familyLabel = group.family_name || group.members[0]?.name || "Match";
+        const familyLabel = escapeMarkup(group.family_name || group.members[0]?.name || "Match");
         const allCheckedIn = group.members.length > 0 && group.members.every((member) => member.checked_in);
         const members = group.members
           .map(
             (member) =>
               `<label class="d-flex align-items-center gap-2 result-member-row ${member.checked_in ? "member-checked-in" : ""}">
-                <input class="form-check-input result-person-checkbox" type="checkbox" value="${member.id}" data-group="${groupIndex}" checked />
-                <span>${member.name}</span>
+                <input class="form-check-input result-person-checkbox" type="checkbox" value="${member.id}" data-group="${groupIndex}" data-checked-in="${member.checked_in}" checked />
+                <span>${escapeMarkup(member.name)}</span>
                 ${
                   member.checked_in
                     ? `<span class="result-member-actions ms-auto d-flex align-items-center gap-2">
@@ -463,27 +514,51 @@
         `;
       };
 
-      const submitAttendance = (formData) => {
+      const submitAttendance = async (formData) => {
+        if (attendanceSubmissionInFlight) return null;
         if (!navigator.onLine) {
-          alert("Offline: check-in actions require a connection right now.");
-          return Promise.resolve(null);
+          throw new Error("The server is offline. Nothing was sent. Keep this form open and try again when connected.");
         }
+        document.querySelectorAll("[data-checkin-message]").forEach((box) => { box.hidden = true; });
         if (managedPrinterMode && kioskId && !formData.has("kiosk_id")) {
           formData.append("kiosk_id", kioskId);
         }
-        return fetch(window.location.pathname, {
-          method: "POST",
-          body: formData,
-          headers: {
-            "X-Requested-With": "XMLHttpRequest",
-            "X-CSRFToken": csrfToken,
-          },
-        }).then((response) => {
+        setAttendanceSubmitting(true);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 90000);
+        try {
+          let response;
+          try {
+            response = await fetch(window.location.pathname, {
+              method: "POST", body: formData, signal: controller.signal,
+              headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrfToken },
+            });
+          } catch (error) {
+            throw new Error("Check-in could not be confirmed. Search again to check attendance. If printing was requested, check the printer before reprinting.");
+          }
           if (response.status === 423) {
+            window.location.href = "/kiosk/logout/?service_closed=1";
             return { service_closed: true };
           }
-          return response.json();
-        });
+          if (response.redirected || response.status === 401 || response.status === 403) {
+            const error = new Error("Your session has ended or access changed. Sign in again before continuing.");
+            error.loginRequired = true;
+            throw error;
+          }
+          let data;
+          try {
+            data = await response.json();
+          } catch (error) {
+            throw new Error("The server could not confirm check-in. Search again to check attendance before retrying or reprinting.");
+          }
+          if (!response.ok && !data.print_error) {
+            throw new Error(data.error || "The server could not confirm check-in. Search again before retrying.");
+          }
+          return data;
+        } finally {
+          clearTimeout(timeout);
+          setAttendanceSubmitting(false);
+        }
       };
 
       const handleManagedPrintResult = (data) => {
@@ -492,7 +567,7 @@
         }
         const printModeLabel = data.print_mode_label || "Printer";
         if (data.print_error) {
-          alert(`${printModeLabel} error: ${data.print_error}`);
+          showCheckinError(new Error(`Attendance is saved. ${printModeLabel}: ${data.print_error} Check the printer before reprinting; the job may already have been accepted.`));
           return true;
         }
         if (resultsModal) {
@@ -607,6 +682,7 @@
             const groups = data.groups || [];
             if (resultsList) {
               resultsList.innerHTML = groups.map((group, index) => createGroupMarkup(group, index)).join("");
+              updateSelectionControls();
             }
             if (resultsEmpty) {
               resultsEmpty.classList.toggle("d-none", groups.length > 0);
@@ -662,6 +738,7 @@
 
       if (initialGroups.length && resultsList) {
         resultsList.innerHTML = initialGroups.map((group, index) => createGroupMarkup(group, index)).join("");
+        updateSelectionControls();
         if (resultsEmpty) {
           resultsEmpty.classList.toggle("d-none", initialGroups.length > 0);
         }
@@ -671,7 +748,9 @@
       }
 
       if (resultsList) {
+        resultsList.addEventListener("change", updateSelectionControls);
         resultsList.addEventListener("click", (event) => {
+          if (attendanceSubmissionInFlight) return;
           const reprintButton = event.target.closest(".reprint-one-btn");
           if (reprintButton) {
             const personId = reprintButton.getAttribute("data-person-id");
@@ -698,7 +777,7 @@
                   window.location.href = data.print_url;
                 }
               })
-              .catch(() => {});
+              .catch(showCheckinError);
             return;
           }
           const button = event.target.closest(".result-action-btn");
@@ -709,6 +788,10 @@
           const selected = Array.from(
             resultsList.querySelectorAll(`.result-person-checkbox[data-group='${groupIndex}']:checked`)
           ).map((checkbox) => checkbox.value);
+          if (!selected.length) {
+            showCheckinError(new Error("Select at least one person."));
+            return;
+          }
           const formData = new FormData();
           formData.append("csrfmiddlewaretoken", csrfToken);
           formData.append("action", action || "print_selected");
@@ -749,7 +832,7 @@
                 moveCursorToEnd();
               }
             })
-            .catch(() => {});
+            .catch(showCheckinError);
         });
       }
 
@@ -781,7 +864,7 @@
       const serviceLine = document.getElementById("service-line-menu");
       const setStatus = (isOnline) => {
         if (statusDot) statusDot.classList.toggle("offline", !isOnline);
-        if (statusText) statusText.textContent = isOnline ? "Server online" : "Server offline (queued)";
+        if (statusText) statusText.textContent = isOnline ? "Server online" : "Server offline";
       };
       const updateStatus = () => {
         if (!navigator.onLine) {
@@ -821,37 +904,6 @@
         setInterval(updatePrinterStatus, 30000);
       }
 
-      const queueKey = "kioskOfflineQueue";
-      const enqueue = (payload) => {
-        const queue = JSON.parse(localStorage.getItem(queueKey) || "[]");
-        queue.push(payload);
-        localStorage.setItem(queueKey, JSON.stringify(queue));
-      };
-
-      const flushQueue = () => {
-        const queue = JSON.parse(localStorage.getItem(queueKey) || "[]");
-        if (!queue.length || !navigator.onLine) return;
-        const next = queue.shift();
-        localStorage.setItem(queueKey, JSON.stringify(queue));
-        fetch(next.url, {
-          method: "POST",
-          body: next.body,
-        })
-          .then((resp) => {
-            if (resp.redirected) {
-              window.open(resp.url, "_blank", "noopener,noreferrer");
-            }
-          })
-          .finally(() => {
-            setTimeout(flushQueue, 300);
-          });
-      };
-
-      window.addEventListener("online", () => {
-        updateStatus();
-        flushQueue();
-      });
-
       if (visitorForm) {
         visitorForm.addEventListener("submit", (event) => {
           const submitter = event.submitter;
@@ -862,15 +914,6 @@
             visitorSubmissionToken.value = createVisitorSubmissionToken();
           }
           setVisitorSubmitting(true);
-          if (!navigator.onLine) {
-            const formData = new FormData(visitorForm);
-            formData.set("action", actionValue);
-            enqueue({ url: visitorForm.getAttribute("action") || window.location.pathname, body: formData });
-            alert("Offline: check-in queued. It will sync when connection returns.");
-            updateStatus();
-            setVisitorSubmitting(false);
-            return;
-          }
           const formData = new FormData(visitorForm);
           formData.set("action", actionValue);
           submitAttendance(formData)
@@ -899,8 +942,8 @@
                 }
               }
             })
-            .catch(() => {
-              alert("Check-in could not be confirmed. Please try again.");
+            .catch((error) => {
+              showCheckinError(error);
               setVisitorSubmitting(false);
             });
         });

@@ -1,6 +1,5 @@
-from datetime import date
-
 from django import forms
+from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import Group
@@ -125,7 +124,7 @@ class ServiceAdmin(admin.ModelAdmin):
 
     def get_changeform_initial_data(self, request):
         initial = super().get_changeform_initial_data(request)
-        service_date = date.today()
+        service_date = timezone.localdate()
         initial.update(
             {
                 "date": service_date,
@@ -151,6 +150,15 @@ class ServiceAdmin(admin.ModelAdmin):
         missing_members = []
         first_time_visitors = []
         if object_id:
+            obj = self.get_object(request, object_id)
+            if request.method == "POST":
+                permitted = self.has_change_permission(request, obj)
+            else:
+                permitted = self.has_view_or_change_permission(request, obj)
+            if not permitted:
+                raise PermissionDenied
+            if obj is None:
+                return self._get_obj_does_not_exist_redirect(request, self.opts, object_id)
             if request.method == "POST" and request.POST.get("action") in {"close_service", "reopen_service"}:
                 service = Service.objects.filter(id=object_id).first()
                 if service:

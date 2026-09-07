@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
 
@@ -8,6 +7,7 @@ from core.permissions import can_access_admin_site
 
 urlpatterns = [
     path("healthz/", views.healthz, name="healthz"),
+    path("media/<path:media_path>", views.media_file, name="media_file"),
     path("accounts/profile/", views.admin_root_redirect, name="accounts_profile_redirect"),
     path("admin/", views.admin_root_redirect, name="admin_root_redirect"),
     path("admin/quick-logout/", views.admin_quick_logout, name="admin_quick_logout"),
@@ -35,9 +35,6 @@ urlpatterns = [
     path("print/<int:attendance_id>/", views.print_tag, name="print_tag"),
     path("print-batch/", views.print_batch, name="print_batch"),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.has_permission = lambda request: can_access_admin_site(request.user)
 admin.site.site_header = f"Welcome System v{settings.CATS_VERSION}"

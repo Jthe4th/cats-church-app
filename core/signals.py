@@ -1,28 +1,18 @@
-from datetime import date
-
 from django.contrib.auth.signals import user_logged_in
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
+from django.utils import timezone
 
-from .models import Service
 from .settings_store import ensure_default_groups, ensure_default_settings
-
-
-def _service_label(service_date: date) -> str:
-    return f"Sabbath Service {service_date.strftime('%m-%d-%Y')}"
+from .services import get_current_service
 
 
 @receiver(user_logged_in)
 def ensure_sabbath_service(sender, user, request, **kwargs):
-    today = date.today()
+    today = timezone.localdate()
     if today.weekday() != 5:  # Saturday
         return
-    if Service.objects.filter(date=today).exists():
-        return
-    Service.objects.create(
-        date=today,
-        label=_service_label(today),
-    )
+    get_current_service()
 
 
 @receiver(post_migrate)

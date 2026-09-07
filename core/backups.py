@@ -1,10 +1,15 @@
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
+from uuid import uuid4
+from tempfile import TemporaryDirectory
 
 from django.conf import settings
+from django.apps import apps
 from django.db import connections
+from django.db.migrations.loader import MigrationLoader
 from django.utils import timezone
+from .maintenance import database_access, MaintenanceBusy
 
 
 BACKUP_SUFFIX = ".sqlite3"
@@ -50,7 +55,7 @@ def create_database_backup(*, label: str = "manual") -> DatabaseBackup:
     timestamp = timezone.localtime().strftime("%Y%m%d-%H%M%S")
     safe_label = "".join(char for char in label.lower() if char.isalnum() or char in {"-", "_"}).strip("-_")
     safe_label = safe_label or "manual"
-    backup_path = get_backup_dir() / f"welcome-system-{safe_label}-{timestamp}{BACKUP_SUFFIX}"
+    backup_path = get_backup_dir() / f"welcome-system-{safe_label}-{timestamp}-{uuid4().hex[:8]}{BACKUP_SUFFIX}"
 
     connections.close_all()
     source = sqlite3.connect(source_name, uri=_is_sqlite_uri(source_name))
@@ -63,7 +68,7 @@ def create_database_backup(*, label: str = "manual") -> DatabaseBackup:
     finally:
         source.close()
 
-    validate_sqlite_database(backup_path)
+    validate_sqlite_database(backup_path, require_compatible=False)
     return _backup_from_path(backup_path)
 
 
@@ -88,7 +93,7 @@ def get_backup_path(name: str) -> Path:
 
 def save_uploaded_backup(uploaded_file) -> DatabaseBackup:
     timestamp = timezone.localtime().strftime("%Y%m%d-%H%M%S")
-    candidate_path = get_backup_dir() / f"welcome-system-uploaded-{timestamp}{BACKUP_SUFFIX}"
+    candidate_path = get_backup_dir() / f"welcome-system-uploaded-{timestamp}-{uuid4().hex[:8]}{BACKUP_SUFFIX}"
     with candidate_path.open("wb") as output:
         for chunk in uploaded_file.chunks():
             output.write(chunk)
@@ -101,38 +106,77 @@ def save_uploaded_backup(uploaded_file) -> DatabaseBackup:
 
 
 def restore_database_backup(backup_name: str) -> DatabaseBackup:
-    backup_path = get_backup_path(backup_name)
-    validate_sqlite_database(backup_path)
-    create_database_backup(label="pre-restore")
-    database_name = get_database_name()
-
-    connections.close_all()
-    source = sqlite3.connect(f"file:{backup_path}?mode=ro", uri=True)
     try:
-        destination = sqlite3.connect(database_name, uri=_is_sqlite_uri(database_name))
+        with database_access(exclusive=True):
+            return _restore_database_backup(backup_name)
+    except (MaintenanceBusy, sqlite3.DatabaseError, OSError) as exc:
+        raise BackupError(f"Restore could not be completed: {exc}") from exc
+
+
+def _restore_database_backup(backup_name: str) -> DatabaseBackup:
+    backup_path = get_backup_path(backup_name)
+    # Stage the exact snapshot being restored and remove old sessions before
+    # replacement, so even a process exit cannot revive backed-up sessions.
+    with TemporaryDirectory(prefix=".restore-", dir=get_backup_dir()) as directory:
+        staged_path = Path(directory) / "staged.sqlite3"
+        source = sqlite3.connect(f"file:{backup_path}?mode=ro", uri=True)
+        staged = sqlite3.connect(staged_path)
         try:
-            source.backup(destination)
+            source.backup(staged)
+            validate_sqlite_database(staged_path)
+            staged.execute("DELETE FROM django_session")
+            staged.commit()
+            create_database_backup(label="pre-restore")
+            database_name = get_database_name()
+            connections.close_all()
+            destination = sqlite3.connect(database_name, uri=_is_sqlite_uri(database_name))
+            try:
+                staged.backup(destination)
+            finally:
+                destination.close()
         finally:
-            destination.close()
-    finally:
-        source.close()
-        connections.close_all()
+            source.close()
+            staged.close()
+            connections.close_all()
     return _backup_from_path(backup_path)
 
 
-def validate_sqlite_database(path: Path) -> None:
+def validate_sqlite_database(path: Path, *, require_compatible=True) -> None:
     if not path.exists() or not path.is_file():
         raise BackupError("Backup file not found.")
     try:
         connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
         try:
             result = connection.execute("PRAGMA integrity_check").fetchone()
+            if require_compatible:
+                _validate_application_schema(connection)
         finally:
             connection.close()
     except sqlite3.DatabaseError as exc:
         raise BackupError("The selected file is not a valid SQLite database.") from exc
     if not result or result[0] != "ok":
         raise BackupError("SQLite integrity check failed for the selected backup.")
+
+
+def _validate_application_schema(connection):
+    tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "django_migrations" not in tables:
+        raise BackupError("This is not a Welcome System backup.")
+    applied = set(connection.execute("SELECT app, name FROM django_migrations"))
+    expected = set(MigrationLoader(None).disk_migrations)
+    if applied != expected:
+        raise BackupError("This backup uses a different database version. Restore it with its matching Welcome System version, then update the application.")
+    for model in apps.get_models(include_auto_created=True):
+        if not model._meta.managed or model._meta.proxy:
+            continue
+        table = model._meta.db_table
+        if table not in tables:
+            raise BackupError("The backup is missing required Welcome System tables.")
+        columns = {row[1] for row in connection.execute(f'PRAGMA table_info("{table}")')}
+        if not {field.column for field in model._meta.local_fields}.issubset(columns):
+            raise BackupError("The backup is missing required Welcome System fields.")
+    if connection.execute("PRAGMA foreign_key_check").fetchone():
+        raise BackupError("The backup contains broken record relationships.")
 
 
 def _backup_from_path(path: Path) -> DatabaseBackup:

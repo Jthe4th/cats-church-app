@@ -1,6 +1,8 @@
 """Django settings for Welcome System."""
 from pathlib import Path
 from django.contrib.auth.apps import AuthConfig
+from django.core.exceptions import ImproperlyConfigured
+from .configuration import env_bool, load_environment
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CATS_VERSION = "0.9.12-beta"
@@ -8,9 +10,17 @@ CATS_VERSION = "0.9.12-beta"
 # Rename the built-in auth app label in admin navigation.
 AuthConfig.verbose_name = "Configuration"
 
-SECRET_KEY = "change-me-in-production"
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+ENV = load_environment(BASE_DIR)
+SECRET_KEY = ENV.get("DJANGO_SECRET_KEY", "")
+if len(SECRET_KEY) < 50 or SECRET_KEY.startswith(("change-me", "replace-with", "django-insecure-")):
+    raise ImproperlyConfigured("Set DJANGO_SECRET_KEY in .env to a random value of at least 50 characters.")
+DEBUG = env_bool(ENV, "DJANGO_DEBUG")
+ALLOWED_HOSTS = [host.strip() for host in ENV.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]").split(",") if host.strip()]
+if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must list explicit hostnames or IP addresses.")
+SECURE_SSL_REDIRECT = env_bool(ENV, "DJANGO_HTTPS")
+SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
+CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
 
 INSTALLED_APPS = [
     "jazzmin",
@@ -110,6 +120,7 @@ JAZZMIN_UI_TWEAKS = {
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "core.maintenance.DatabaseMaintenanceMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -143,6 +154,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "cats.sqlite3",
+        "OPTIONS": {"timeout": 20, "transaction_mode": "IMMEDIATE"},
     }
 }
 

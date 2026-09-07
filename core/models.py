@@ -131,6 +131,7 @@ class Service(models.Model):
     ]
 
     date = models.DateField()
+    automatic_date = models.DateField(null=True, blank=True, unique=True, editable=False)
     label = models.CharField(max_length=100, default="Sabbath Service")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN)
     notes = models.TextField(blank=True)
@@ -142,6 +143,14 @@ class Service(models.Model):
 
     def __str__(self) -> str:
         return f"{self.label} ({self.date})"
+
+    def save(self, *args, **kwargs):
+        if self.automatic_date and self.date != self.automatic_date:
+            # Moving a service to another day releases its automatic identity.
+            self.automatic_date = None
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"automatic_date"}
+        return super().save(*args, **kwargs)
 
 
 class Attendance(models.Model):

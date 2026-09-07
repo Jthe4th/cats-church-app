@@ -199,3 +199,19 @@ Static files are served by WhiteNoise under Waitress.
 ## License
 This project uses the **Welcome System Non-Commercial License v1.0**.
 Commercial use, sale, or resale is not permitted. See `LICENSE`.
+
+## Installation Configuration
+
+On first startup, Welcome System creates a private, ignored `.env` file with a random installation secret, debug mode disabled, and explicit local hostnames/IP addresses. Keep this file on the server across restarts and updates. Environment variables override `.env`; see `.env.example` for supported values.
+
+Before connecting LAN kiosks, check `DJANGO_ALLOWED_HOSTS` in `.env` and add the server's LAN IP and hostname (comma-separated, without port numbers). Update this list if the server address changes. `DJANGO_DEBUG=True` is available for local troubleshooting; leave it `False` for church use. Uploaded logos and authorized profile photos are served under Waitress with debug disabled.
+
+Local HTTP remains supported. Enable `DJANGO_HTTPS=True` only after HTTPS is configured; this enables HTTPS redirects and secure session/CSRF cookies. Do not enable it on an HTTP-only installation.
+
+### Recovery behavior
+
+Backups must match the installed database migration version and contain the required application tables and fields. For an older backup, use its matching Welcome System version in a separate installation, restore there, and then update that installation normally. Database backups do not include the `.env` file or uploaded images; preserve `.env` and `media/` separately.
+
+Restoration waits for active web requests to finish and temporarily blocks new requests. All users must sign in again afterward. The separate `maintenance.sqlite3` file coordinates this across server workers; never upload or restore it as an application backup. Stop the server before running database-changing maintenance commands such as migrations or imports from a terminal.
+
+Kiosk submissions require a live server connection. If a request fails, the form remains available and displays an error. Search again to confirm attendance, and check the printer before requesting another copy when the print outcome is uncertain.

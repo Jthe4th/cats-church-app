@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, Permission, User
 from django.test import TestCase
 
 from core.models import Attendance, Person, Service
@@ -116,3 +116,42 @@ class ServiceManualActionsTests(TestCase):
 
         self.assertEqual(response.status_code, 409)
         self.assertFalse(Attendance.objects.filter(service=self.service, person=person).exists())
+
+
+class ServiceActionPermissionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="pastor", is_staff=True)
+        self.user.groups.add(Group.objects.get_or_create(name="Pastor")[0])
+        self.client.force_login(self.user)
+        self.service = Service.objects.create(date="2026-02-21")
+        self.person = Person.objects.create(first_name="Test", last_name="Member")
+        self.attendance = Attendance.objects.create(service=self.service, person=self.person)
+        self.url = f"/admin/core/service/{self.service.pk}/change/"
+
+    def test_all_custom_actions_require_change_permission(self):
+        self.user.user_permissions.add(Permission.objects.get(codename="view_service"))
+        for action in ["close_service", "reopen_service", "manual_checkin_person",
+                       "manual_print_person", "manual_create_visitor", "manual_create_visitor_print",
+                       "check_in_missing", "undo_checkin"]:
+            with self.subTest(action=action):
+                response = self.client.post(self.url, {
+                    "action": action, "person_id": self.person.pk, "attendance_id": self.attendance.pk,
+                    "first_name": "Forbidden", "last_name": "Visitor",
+                })
+                self.assertEqual(response.status_code, 403)
+        self.service.refresh_from_db()
+        self.assertEqual(self.service.status, Service.OPEN)
+        self.assertEqual(Person.objects.count(), 1)
+        self.assertTrue(Attendance.objects.filter(pk=self.attendance.pk).exists())
+
+    def test_custom_reads_require_view_permission(self):
+        for query in ["live_counts=1", "manual_search=Test"]:
+            self.assertEqual(self.client.get(f"{self.url}?{query}").status_code, 403)
+        self.user.user_permissions.add(Permission.objects.get(codename="view_service"))
+        self.assertEqual(self.client.get(f"{self.url}?live_counts=1").status_code, 200)
+
+    def test_user_with_change_permission_can_close_service(self):
+        self.user.user_permissions.add(Permission.objects.get(codename="change_service"))
+        self.assertEqual(self.client.post(self.url, {"action": "close_service"}).status_code, 302)
+        self.service.refresh_from_db()
+        self.assertEqual(self.service.status, Service.CLOSED)

@@ -1,6 +1,28 @@
 from django import forms
+from datetime import date
 
 from .models import Person
+
+
+class KioskVisitorForm(forms.ModelForm):
+    class Meta:
+        model = Person
+        fields = [
+            "first_name", "middle_initial", "last_name", "street_address",
+            "phone", "email", "birth_month", "birth_day",
+        ]
+
+    def clean(self):
+        cleaned = super().clean()
+        month, day = cleaned.get("birth_month"), cleaned.get("birth_day")
+        if bool(month) != bool(day):
+            raise forms.ValidationError("Enter both birth month and day, or leave both blank.")
+        if month and day:
+            try:
+                date(2000, month, day)  # Allow February 29 without collecting a birth year.
+            except ValueError:
+                raise forms.ValidationError("Enter a valid birthday.")
+        return cleaned
 
 
 class PersonForm(forms.ModelForm):

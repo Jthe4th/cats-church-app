@@ -1,11 +1,13 @@
 from datetime import date, timedelta
 import re
+import mimetypes
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Count, Max, Min, Q
 import csv
 
@@ -19,7 +21,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .audit import log_event
 from .backups import BackupError, create_database_backup, get_backup_path, list_database_backups, restore_database_backup, save_uploaded_backup
 from .fonts import GOOGLE_FONT_HREFS, SYSTEM_FONT_CHOICES
-from .forms import PersonForm
+from .forms import KioskVisitorForm, PersonForm
 from .member_import import MemberImportError, import_member_rows, parse_member_csv
 from .member_queries import members_active_for_service
 from .models import Attendance, AuditLog, Family, Person, Service
@@ -40,10 +42,7 @@ from .printnode import (
     submit_test_print_job,
 )
 from .settings_store import get_setting
-
-
-def _service_label(service_date: date) -> str:
-    return f"Sabbath Service {service_date.strftime('%m-%d-%Y')}"
+from .services import get_current_service
 
 
 def _valid_kiosk_submission_token(value: str) -> bool:
@@ -270,6 +269,26 @@ def healthz(request):
     return JsonResponse({"ok": True})
 
 
+def media_file(request, media_path):
+    """Serve uploaded images under Waitress, independently of DEBUG."""
+    root = Path(settings.MEDIA_ROOT).resolve()
+    path = (root / media_path).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise Http404
+    # The kiosk logo is public because it is also used on the sign-in page.
+    is_logo = media_path.startswith("branding/")
+    if not is_logo and not can_print_labels(request.user):
+        return HttpResponse(status=403)
+    content_type = mimetypes.guess_type(path.name)[0]
+    if content_type not in {"image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"}:
+        raise Http404
+    response = FileResponse(path.open("rb"), content_type=content_type)
+    response["Cache-Control"] = "private, no-cache"
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+    return response
+
+
 @login_required
 @user_passes_test(can_manage_configuration)
 def database_backup_view(request):
@@ -303,15 +322,17 @@ def database_backup_view(request):
                     try:
                         log_event(
                             AuditLog.ACTION_DATABASE_RESTORE,
-                            user=request.user,
+                            user=None,
                             message="Database restored from backup.",
                             metadata={"backup_name": backup.name, "size_bytes": backup.size_bytes},
                         )
                     except Exception:
-                        # A restored database may come from an older schema; do not hide
-                        # the successful restore behind an audit-log write failure.
+                        # The database has already been replaced. An audit failure
+                        # must not imply that it is safe to retry restoration.
                         pass
-                    messages.success(request, f"Database restored from backup: {backup.name}")
+                    logout(request)
+                    messages.success(request, f"Database restored from backup: {backup.name}. Sign in again to continue.")
+                    return redirect("admin:login")
             else:
                 messages.error(request, "Unknown backup action.")
         except BackupError as exc:
@@ -440,23 +461,7 @@ def member_import_sample(request):
 
 
 def _get_or_create_service() -> Service:
-    today = date.today()
-    # Multiple same-day services may exist from historical data; pick a stable
-    # current record instead of raising MultipleObjectsReturned.
-    service = (
-        Service.objects.filter(date=today, status=Service.OPEN)
-        .order_by("-id")
-        .first()
-    )
-    if service:
-        return service
-    service = Service.objects.filter(date=today).order_by("-id").first()
-    if service:
-        return service
-    return Service.objects.create(
-        date=today,
-        label=_service_label(today),
-    )
+    return get_current_service()
 
 
 def _is_current_service_open() -> bool:
@@ -512,7 +517,7 @@ def _submit_managed_print_or_error(request, attendance_ids, service: Service):
         )
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse(
-                {"print_error": str(exc), "print_mode": print_mode_key, "print_mode_label": print_mode_label},
+                {"print_error": str(exc), "checked_in": True, "print_mode": print_mode_key, "print_mode_label": print_mode_label},
                 status=502,
             )
         return redirect("kiosk")
@@ -664,6 +669,89 @@ def kiosk_test_print(request):
     return JsonResponse({"printed": True, "print_job_id": print_job_id, "print_mode_label": print_mode_label})
 
 
+def _submission_error(request, message, *, status=400, **details):
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"error": message, **details}, status=status)
+    messages.error(request, message)
+    return redirect("kiosk")
+
+
+def _process_kiosk_submission(request, service, auto_print, kiosk_mode):
+    action = request.POST.get("action")
+    if action not in {"print_selected", "check_in_selected", "print_single", "check_in_only"}:
+        return _submission_error(request, "Choose a valid check-in action.")
+    selected_action = action in {"print_selected", "check_in_selected"}
+    person_ids = request.POST.getlist("person_ids") if selected_action else []
+    if not selected_action and request.POST.get("person_id"):
+        person_ids = [request.POST["person_id"]]
+    if selected_action and not person_ids:
+        return _submission_error(request, "Select at least one person.")
+    if any(not value.isascii() or not value.isdigit() or len(value) > 18 for value in person_ids):
+        return _submission_error(request, "Select valid people and try again.")
+    person_ids = list(dict.fromkeys(int(value) for value in person_ids))
+    visitor_form = None
+    if not person_ids:
+        visitor_form = KioskVisitorForm(request.POST)
+        if not visitor_form.is_valid():
+            error_text = " ".join(
+                f"{visitor_form.fields[field].label or field.replace('_', ' ').capitalize()}: {error}"
+                if field != "__all__" else str(error)
+                for field, errors in visitor_form.errors.items() for error in errors
+            )
+            return _submission_error(request, error_text, fields=visitor_form.errors.get_json_data())
+
+    # Keep validation, person creation, attendance and audit writes together.
+    # Printer I/O starts only after the transaction has committed.
+    with transaction.atomic():
+        service.refresh_from_db()
+        if service.status != Service.OPEN:
+            return _submission_error(request, "This service is closed.", status=423, service_closed=True)
+        if person_ids:
+            people_by_id = Person.objects.in_bulk(person_ids)
+            if len(people_by_id) != len(person_ids):
+                return _submission_error(request, "One of these people no longer exists. Search again.")
+            people = [people_by_id[pk] for pk in person_ids]
+        else:
+            token = request.POST.get("submission_token", "").strip()
+            if token and not _valid_kiosk_submission_token(token):
+                return _submission_error(request, "Please reopen the visitor form and try again.")
+            if token:
+                person, _ = Person.objects.get_or_create(
+                    kiosk_submission_token=token,
+                    defaults={**visitor_form.cleaned_data, "member_type": Person.VISITOR},
+                )
+            else:
+                person = visitor_form.save()
+            people = [person]
+        attendance_ids = []
+        for person in people:
+            attendance, created = Attendance.objects.get_or_create(person=person, service=service)
+            if created:
+                log_event(
+                    AuditLog.ACTION_CHECKIN, user=request.user, service=service,
+                    person=person, attendance=attendance, message="Checked in from kiosk.",
+                )
+            attendance_ids.append(attendance.id)
+
+    if action in {"check_in_selected", "check_in_only"}:
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"checked_in": True, "count": len(attendance_ids)})
+        return redirect("kiosk")
+    if kiosk_mode and is_managed_printer_mode():
+        return _submit_managed_print_or_error(request, attendance_ids, service)
+    if selected_action:
+        url = "/print-batch/?ids=" + ",".join(str(pk) for pk in attendance_ids)
+        if auto_print:
+            url += "&auto=1"
+    else:
+        url = reverse("print_tag", kwargs={"attendance_id": attendance_ids[0]})
+        if auto_print:
+            url += "?auto=1"
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"print_url": url})
+    return redirect(url)
+
+
 def checkin(request, *, kiosk_mode: bool = False):
     query = request.GET.get("q", "").strip()
     match_groups = []
@@ -687,113 +775,7 @@ def checkin(request, *, kiosk_mode: bool = False):
     logo_path = get_setting("kiosk_logo_path", "/static/img/EC-SDA-Church_Stacked_Final.png") or "/static/img/EC-SDA-Church_Stacked_Final.png"
 
     if request.method == "POST":
-        if kiosk_mode and not _is_current_service_open():
-            if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"service_closed": True, "message": "This service is closed."}, status=423)
-            return redirect("/kiosk/logout/?service_closed=1")
-        action = request.POST.get("action")
-        if action in {"print_selected", "check_in_selected"}:
-            person_ids = [pid for pid in request.POST.getlist("person_ids") if pid.isdigit()]
-            if not person_ids:
-                primary_id = request.POST.get("primary_person_id")
-                if primary_id and primary_id.isdigit():
-                    person_ids = [primary_id]
-            if person_ids:
-                service = _get_or_create_service()
-                attendance_ids = []
-                for person_id in person_ids:
-                    person = get_object_or_404(Person, pk=int(person_id))
-                    attendance, _created = Attendance.objects.get_or_create(
-                        person=person,
-                        service=service,
-                    )
-                    if _created:
-                        log_event(
-                            AuditLog.ACTION_CHECKIN,
-                            user=request.user,
-                            service=service,
-                            person=person,
-                            attendance=attendance,
-                            message="Checked in from kiosk selection flow.",
-                        )
-                    attendance_ids.append(attendance.id)
-                ids_param = ",".join(str(aid) for aid in attendance_ids)
-                if action == "check_in_selected":
-                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                        return JsonResponse({"checked_in": True, "count": len(attendance_ids)})
-                    return redirect("kiosk" if kiosk_mode else "checkin")
-                if kiosk_mode and is_managed_printer_mode():
-                    return _submit_managed_print_or_error(request, attendance_ids, service)
-                auto_param = "&auto=1" if auto_print else ""
-                print_url = f"/print-batch/?ids={ids_param}{auto_param}"
-                if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                    return JsonResponse({"print_url": print_url})
-                return redirect(print_url)
-        else:
-            person_id = request.POST.get("person_id")
-            if person_id:
-                person = get_object_or_404(Person, pk=person_id)
-            else:
-                first_name = request.POST.get("first_name", "").strip()
-                middle_initial = request.POST.get("middle_initial", "").strip()
-                last_name = request.POST.get("last_name", "").strip()
-                street_address = request.POST.get("street_address", "").strip()
-                phone = request.POST.get("phone", "").strip()
-                email = request.POST.get("email", "").strip()
-                birth_month_raw = request.POST.get("birth_month", "").strip()
-                birth_day_raw = request.POST.get("birth_day", "").strip()
-                birth_month = int(birth_month_raw) if birth_month_raw.isdigit() else None
-                birth_day = int(birth_day_raw) if birth_day_raw.isdigit() else None
-                person_defaults = {
-                    "first_name": first_name,
-                    "middle_initial": middle_initial,
-                    "last_name": last_name,
-                    "street_address": street_address,
-                    "phone": phone,
-                    "email": email,
-                    "birth_month": birth_month,
-                    "birth_day": birth_day,
-                    "member_type": Person.VISITOR,
-                }
-                submission_token = request.POST.get("submission_token", "").strip()
-                if _valid_kiosk_submission_token(submission_token):
-                    try:
-                        with transaction.atomic():
-                            person, _person_created = Person.objects.get_or_create(
-                                kiosk_submission_token=submission_token,
-                                defaults=person_defaults,
-                            )
-                    except IntegrityError:
-                        person = Person.objects.get(kiosk_submission_token=submission_token)
-                else:
-                    person = Person.objects.create(**person_defaults)
-
-            service = _get_or_create_service()
-            attendance, _created = Attendance.objects.get_or_create(
-                person=person,
-                service=service,
-            )
-            if _created:
-                log_event(
-                    AuditLog.ACTION_CHECKIN,
-                    user=request.user,
-                    service=service,
-                    person=person,
-                    attendance=attendance,
-                    message="Checked in from kiosk single-person flow.",
-                )
-            if action == "check_in_only":
-                if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                    return JsonResponse({"checked_in": True, "count": 1})
-                return redirect("kiosk" if kiosk_mode else "checkin")
-            if kiosk_mode and is_managed_printer_mode():
-                return _submit_managed_print_or_error(request, [attendance.id], service)
-            url = reverse("print_tag", kwargs={"attendance_id": attendance.id})
-            if auto_print:
-                url = f"{url}?auto=1"
-            if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"print_url": url})
-            return redirect(url)
+        return _process_kiosk_submission(request, current_service, auto_print, kiosk_mode)
 
     return render(
         request,
@@ -829,8 +811,12 @@ def checkin(request, *, kiosk_mode: bool = False):
 
 def kiosk(request):
     if not can_access_kiosk(request.user):
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"error": "Your session has ended. Sign in again.", "login_required": True}, status=401)
         return _kiosk_login(request)
     if not _is_current_service_open():
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"service_closed": True}, status=423)
         return redirect("/kiosk/logout/?service_closed=1")
     return checkin(request, kiosk_mode=True)
 
