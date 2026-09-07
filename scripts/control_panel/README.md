@@ -1,6 +1,6 @@
 # Welcome System Control Panel
 
-For Welcome System `0.9.13-beta`. See the [Leader Guide](../../WELCOME_LEADER_README.md) for kiosk operation and [Windows Deployment](../../WINDOWS_DEPLOYMENT.md) for installation details.
+For Welcome System `0.9.13-beta`. See the [Leader Guide](../../WELCOME_LEADER_README.md) for kiosk operation and the [Mac](../../MAC_DEPLOYMENT.md) or [Windows](../../WINDOWS_DEPLOYMENT.md) installation guide for setup details.
 
 This folder contains the simple weekly controls for the church server. Staff should use the Control Panel instead of typing server commands.
 
@@ -34,24 +34,30 @@ On a Mac with a Python installation that does not include Tkinter, the same cont
 
 ## First-Time Setup
 
-Run the clearly named setup file for the server computer first. It creates `.venv`, installs Waitress and other requirements, applies database migrations, and prepares static files. On Windows, it also checks for Git and installs Git for Windows automatically when Windows Package Manager is available. On a Mac, it prompts for the Apple Command Line Tools when Git is missing. The first Django command also creates `.env` when needed, with an installation secret, debug disabled, and explicit allowed hosts. Check that `DJANGO_ALLOWED_HOSTS` includes the LAN address shown by the panel before opening kiosks. Keep the generated secret; see [Installation Configuration](../../README.md#installation-configuration). Then install optional automatic startup:
+Run the clearly named setup file for the server computer first. It creates `.venv`, installs Waitress and other requirements, applies database migrations, and prepares static files. On Windows, it also checks for Git and installs Git for Windows automatically when Windows Package Manager is available. On a Mac, it prompts for the Apple Command Line Tools when Git is missing. The first Django command also creates `.env` when needed, with an installation secret, debug disabled, and explicit allowed hosts. Check that `DJANGO_ALLOWED_HOSTS` includes the LAN address shown by the panel before opening kiosks. Keep the generated secret; see [Installation Configuration](../../README.md#installation-configuration). Complete the platform steps below, then enable automatic startup only if wanted:
 
 ### Windows
 
-1. Double-click `SETUP_WELCOME_SYSTEM_WINDOWS.cmd`.
-2. Double-click `INSTALL_AUTOSTART_WINDOWS.cmd` if you want the server to start when this Windows account signs in.
+1. Follow [Windows first installation](../../WINDOWS_DEPLOYMENT.md#first-installation) to download the project and install prerequisites.
+2. Double-click `SETUP_WELCOME_SYSTEM_WINDOWS.cmd` and accept the administrator-creation prompt for a new installation.
+3. Check `.env` allowed hosts, then double-click `OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd`.
+4. Press **Start Welcome System**, configure accounts, and test the kiosk.
+5. Optionally double-click `INSTALL_AUTOSTART_WINDOWS.cmd` to start the server when this Windows account signs in.
 
 ### Mac
 
-The Mac setup script does not offer to create an administrator. After setup, run `.venv/bin/python manage.py createsuperuser` from the project folder if this is a new installation.
-
-In Terminal from the project folder, run:
+Follow [Mac first installation](../../MAC_DEPLOYMENT.md#first-time-installation) for prerequisites and downloading the project. From the project folder in Terminal:
 
 ```bash
-chmod +x scripts/control_panel/*.sh
+chmod +x scripts/control_panel/*.sh scripts/control_panel/*.command
 ./scripts/control_panel/SETUP_WELCOME_SYSTEM_MAC.sh
-./scripts/control_panel/INSTALL_AUTOSTART_MAC.sh
+.venv/bin/python manage.py createsuperuser
+./scripts/control_panel/OPEN_WELCOME_SYSTEM_CONTROL_PANEL.sh
 ```
+
+Run each command after the previous one succeeds. The administrator command is for a new installation; the setup script does not prompt for it. Check `.env` allowed hosts before connecting kiosks. For future use, double-click `OPEN_WELCOME_SYSTEM_CONTROL_PANEL.command` in Finder or use the Terminal launcher above.
+
+After testing startup, optionally run `./scripts/control_panel/INSTALL_AUTOSTART_MAC.sh`. It installs sign-in startup and loads the server immediately.
 
 ## Important Notes
 

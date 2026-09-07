@@ -4,7 +4,7 @@ For Welcome System `0.9.13-beta`.
 
 This guide is for starting the Welcome System on Sabbath and getting the three kiosks ready for check-in.
 
-The system is already installed on the local server computer. These steps assume you are only starting it and opening the kiosks.
+The system is already installed on the local server computer. These steps apply to both Mac and Windows servers. If setup is still needed, use [Mac Setup and Usage](MAC_DEPLOYMENT.md) or [Windows Deployment](WINDOWS_DEPLOYMENT.md).
 
 ## Morning Startup Checklist
 

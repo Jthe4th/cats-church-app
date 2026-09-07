@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Added a dedicated Mac setup/usage guide and clear Mac/Windows setup, launcher, update, and daily-use links.
+
 - Updated project, deployment, operator, and contributor documentation for the 0.9.13-beta behavior; separated shipped features from roadmap work.
 
 ## [0.9.13-beta] - 2026-09-07

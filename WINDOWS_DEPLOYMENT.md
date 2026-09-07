@@ -1,6 +1,6 @@
 # Windows Deployment
 
-Applies to Welcome System `0.9.13-beta`.
+Applies to Welcome System `0.9.13-beta`. For Mac, use [Mac Setup and Usage](MAC_DEPLOYMENT.md). For routine check-in on either platform, use the [Leader Guide](WELCOME_LEADER_README.md).
 
 These instructions deploy Welcome System on the church Windows PC and make it available to other devices on the local network.
 

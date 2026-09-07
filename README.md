@@ -4,7 +4,19 @@ Version: `0.9.13-beta`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
 
-For weekly operation, use the [Leader Guide](WELCOME_LEADER_README.md). For installation, use [Windows Deployment](WINDOWS_DEPLOYMENT.md) or the [Control Panel setup guide](scripts/control_panel/README.md). Future work is tracked in the [Roadmap](ROADMAP.md); releases are recorded in the [Changelog](CHANGELOG.md).
+For weekly operation, use the [Leader Guide](WELCOME_LEADER_README.md). For installation, use [Mac Setup and Usage](MAC_DEPLOYMENT.md) or [Windows Deployment](WINDOWS_DEPLOYMENT.md). The [Control Panel guide](scripts/control_panel/README.md) covers the shared controls. Future work is tracked in the [Roadmap](ROADMAP.md); releases are recorded in the [Changelog](CHANGELOG.md).
+
+## Setup and Usage by Platform
+
+| Task | Mac | Windows |
+| --- | --- | --- |
+| First-time setup | [Mac installation steps](MAC_DEPLOYMENT.md#first-time-installation) | [Windows installation steps](WINDOWS_DEPLOYMENT.md#first-installation) |
+| Open the Control Panel | Double-click `scripts/control_panel/OPEN_WELCOME_SYSTEM_CONTROL_PANEL.command` | Double-click `scripts\control_panel\OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd` |
+| Start and stop | **Start Welcome System** / **Stop Welcome System** in the panel | Same panel actions |
+| Daily check-in | [Leader Guide](WELCOME_LEADER_README.md) | [Leader Guide](WELCOME_LEADER_README.md) |
+| Install updates | [Mac updates and recovery](MAC_DEPLOYMENT.md#updates) | [Windows updates and recovery](WINDOWS_DEPLOYMENT.md#installing-updates) |
+
+Install the server on one computer. Other kiosk and staff devices only need a browser and access to that computer's LAN address.
 
 ## Highlights
 
