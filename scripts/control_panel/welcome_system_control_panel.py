@@ -105,6 +105,14 @@ class WelcomeSystemController:
             return "Run SETUP_WELCOME_SYSTEM_WINDOWS.cmd to install it"
         return "Install Git, then run setup again"
 
+    @staticmethod
+    def _public_git_environment() -> dict[str, str]:
+        """Fetch this public repository without invoking credential prompts."""
+        environment = os.environ.copy()
+        environment["GIT_TERMINAL_PROMPT"] = "0"
+        environment["GCM_INTERACTIVE"] = "never"
+        return environment
+
     def check_for_updates(self) -> ActionResult:
         """Compare the installed commit to the latest main commit on GitHub."""
         version = self.app_version
@@ -125,6 +133,7 @@ class WelcomeSystemController:
                 capture_output=True,
                 text=True,
                 timeout=12,
+                env=self._public_git_environment(),
             )
             if fetch.returncode:
                 return self._check_github_version_fallback(version, self._command_error(fetch))
@@ -378,6 +387,7 @@ class WelcomeSystemController:
                 capture_output=True,
                 text=True,
                 timeout=90,
+                env=self._public_git_environment(),
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             return ActionResult(False, f"Could not contact GitHub. {str(exc) or 'Try again when the internet is available.'}")

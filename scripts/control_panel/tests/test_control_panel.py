@@ -63,12 +63,20 @@ class WelcomeSystemControllerTests(unittest.TestCase):
                 Mock(returncode=0, stdout="0\n"),
                 Mock(returncode=0, stdout=""),
             ],
-        ):
+        ) as run:
             result = self.controller.check_for_updates()
 
         self.assertTrue(result.success)
         self.assertIn("0.9.12-beta", result.message)
         self.assertIn("Already up to date", result.message)
+        self.assertEqual(
+            run.call_args_list[0].kwargs["env"]["GIT_TERMINAL_PROMPT"],
+            "0",
+        )
+        self.assertEqual(
+            run.call_args_list[0].kwargs["env"]["GCM_INTERACTIVE"],
+            "never",
+        )
 
     def test_check_for_updates_reports_available_commit_count(self):
         self.write_version("0.9.4-beta")
