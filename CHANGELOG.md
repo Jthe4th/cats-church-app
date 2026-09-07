@@ -4,15 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Updated project, deployment, operator, and contributor documentation for the 0.9.13-beta behavior; separated shipped features from roadmap work.
+
 ## [0.9.13-beta] - 2026-09-07
+
 - Enforced permissions on custom service actions and reports.
 - Validated backup compatibility and paused concurrent requests during restoration.
 - Added installation-specific configuration, secure production defaults, and production photo serving.
 - Validated visitor submissions and rejected empty family selections.
 - Prevented simultaneous kiosk requests from creating duplicate automatic services.
 - Added visible check-in errors, session-expiry guidance, and protection against repeated clicks.
+- Removed the broken offline submission queue; kiosk check-in now requires a live server connection.
+- Added migration `0026_service_automatic_date` and raised the Django dependency floor to 5.2.
+- Made Control Panel Git fetches non-interactive to avoid credential-prompt stalls.
 
 ## [0.9.12-beta]
+
 - Bumped software version to `0.9.12-beta`.
 - Added automatic GitHub connection repair for Welcome System folders copied onto a server without a `.git` directory.
 - Made Control Panel updates safer with GitHub preflight checks, local-file repair detection, and automatic restart attempts after post-stop failures.
@@ -38,15 +45,18 @@ All notable changes to this project will be documented in this file.
 - Added configurable PrintNode PDF label dimensions and margin defaults for Brother QL/DK label media, with a border on test labels for troubleshooting.
 
 ## [0.9.0-beta] - 2026-04-16
+
 - Bumped software version to `0.9.0-beta`.
 
 ## [0.6.5-alpha] - 2026-02-21
+
 - Added admin audit log report page with filters and linked person names to their edit pages.
 - Added admin skin system setting (`admin_skin`) with Jazzmin theme selection and middleware-based apply/fallback behavior.
 - Added smoother Manage Church Service UX updates, including AJAX check-in/undo actions and improved section spacing.
 - Added migration `0012_seed_admin_skin_setting` to seed the new admin skin setting.
 
 ## [0.6.4-alpha] - 2026-02-16
+
 - Added Windows-first production runtime support using Waitress and a new `scripts/run_prod.ps1`.
 - Refactored default settings/group seeding from app startup into `post_migrate` to remove startup DB warnings.
 - Expanded service-page live polling payload with service metadata (`service_id`, `service_label`, `service_status`).
@@ -57,11 +67,13 @@ All notable changes to this project will be documented in this file.
 - Replaced MIT with a custom non-commercial license and updated README licensing text.
 
 ## [0.6.3-alpha] - 2026-02-13
+
 - Rebranded user-facing product name from CATS to Welcome System across docs and UI labels.
 - Added `ROADMAP.md` with phased delivery priorities, risks, and decision notes.
 - Updated developer guidance to keep internal `CATS_VERSION` while using Welcome System branding.
 
 ## [0.6.2-alpha] - 2026-02-13
+
 - Added Church Service status (`open`/`closed`) with admin controls to close/reopen a service.
 - Defaulted existing past services to `closed` during migration.
 - Added a status toolbar on Manage Church Service with clear open/closed badge and action buttons.
@@ -72,6 +84,7 @@ All notable changes to this project will be documented in this file.
 - Disabled Missing-list check-in buttons when managing a closed service (with server-side enforcement).
 
 ## [0.6.1-alpha] - 2026-02-13
+
 - Added groups-based kiosk login gate (`Greeter`/`Admin`) and kiosk logout path.
 - Added Pastor-only confidential notes field for people records in admin/staff flows.
 - Added kiosk modal-based search results and visitor modal flow to avoid kiosk scrolling.
@@ -86,6 +99,7 @@ All notable changes to this project will be documented in this file.
 - Added admin root redirect so `/admin/` lands on Church Services list after login.
 
 ## [0.5-alpha] - 2026-02-11
+
 - Initial Django scaffold for Welcome System
 - Core models (Family, Person, Service, Attendance)
 - Kiosk check-in flow and label print view

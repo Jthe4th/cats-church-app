@@ -1,78 +1,65 @@
 # Welcome System Roadmap
 
+Reviewed against `0.9.13-beta` on 2026-09-07. This roadmap separates shipped behavior from proposed work; priorities are planning guidance, not release commitments.
+
 ## Vision
-Welcome System should provide fast, reliable church check-in for kiosks and staff while staying simple to operate on a local network.
 
-## Current State
-- Kiosk check-in with greeter login, search, print, and check-in-only flows
-- Service open/closed controls with kiosk lockout when closed
-- Admin and staff management for people, families, services, attendance, imports, backups, and reports
-- Manage Church Service console with live attendance, quick check-in, first-time visitor, and missing-member tabs
-- Printer profiles, test labels, PrintNode, and direct server-printer support
-- Cross-platform weekly server control panel for start, stop, backup, and updates
-- System settings for kiosk appearance, fonts, labels, and printing backends
+Provide fast, reliable church check-in for kiosks and staff while keeping local-network operation simple.
 
-## Phase 1 (Next)
-- **Role hardening + permissions**
-  - Enforce clear role boundaries for Greeter, Admin, and Pastor.
-- **Kiosk resiliency**
-  - Improve offline queue visibility and sync status feedback.
-- **Data quality tools**
-  - Add duplicate detection and merge flows for people and families.
-  - Add an optional full record deletion flow to permanently remove a person's entire profile and related data.
+## Shipped
 
-## Phase 2 (Upcoming)
-- **Operational service console**
-  - Build a dedicated “Today’s Service” screen for staff (counts, search, quick actions).
-  - Enhance the post-login dashboard with attendance charts/trends:
-    - weekly check-in totals
-    - first-time visitor counts
-    - member vs visitor mix over time
-- **Reporting pack**
-  - Weekly/monthly attendance trends, first-time visitor follow-up list, export bundles.
-- **Digital outreach lists**
-  - Allow staff to add people to church email and/or text messaging lists with clear opt-in tracking.
-- **Settings UX improvements**
-  - Group settings, add validation helpers, defaults reset, and preview controls.
+- Greeter/Admin kiosk login, family-grouped search, visitor registration, check-in-only, and label printing.
+- Service close/reopen controls and kiosk lockout; one automatic service per local day even when kiosks start together.
+- Server validation, atomic visitor/attendance saves, repeat-click protection, and visible submission errors. Check-in requires a live server connection; there is no offline queue.
+- Staff/admin people and family management, photo badges, CSV imports, audit logs, and missing-member reports.
+- Manage Church Service with 5-second live attendance updates, manual check-in, visitor creation, and attendee/first-time/missing-member tabs and CSV exports.
+- Admin dashboard with eight recent services, attendance and first-time counts, member/visitor composition, check-in pace, last check-in, absent-member count, and first-time visitor list.
+- Connected Printer, PrintNode, and Server Printer modes, printer profiles, per-kiosk mappings, and test labels.
+- Grouped system settings with validation for appearance and printer configuration.
+- Windows/Mac Control Panel for start, stop, restart, backups, GitHub update checks, and updates.
+- Explicit service-action permissions, installation-specific secret/host configuration, and photo serving with debug disabled.
+- Validated database backups/restores with request coordination and session invalidation after restore.
 
-## Phase 3 (Later)
-- **Native kiosk packaging**
-  - Evaluate Electron/Tauri for stable silent printing and stronger kiosk lock-down.
-- **Local HTTPS gateway**
-  - Add Caddy as a reverse proxy in front of Waitress for LAN TLS termination.
-  - Use trusted internal certificates and a stable local hostname (for example, `welcome.local`) to remove browser security warnings on kiosks.
-- **Security and recovery**
-  - Add stronger auth controls and scheduled backup/restore workflows.
-- **Multi-service enhancements**
-  - Support multiple services per day with clear kiosk/staff service selection.
+## Next Priorities
 
-## Dashboard Analytics Backlog
-- **Trend charts**
-  - 8-12 week rolling chart for total attendance.
-  - 8-12 week rolling chart for first-time visitors.
-  - Attendance composition (members vs visitors) by week.
-- **Operational visibility**
-  - Current open service card with live count, check-in pace, and last check-in time.
-  - Quick “at-risk follow-up” card (members absent 2+ weeks).
-  - Top families by attendance consistency (optional encouragement metric).
-- **Follow-up and outreach**
-  - First-time visitor follow-up queue (new this week, not yet contacted).
-  - Return-visitor indicator (visited before but not a member).
-  - Recent notes/tasks summary for greeters/pastoral staff.
-- **Data quality and reliability**
-  - Duplicate-risk summary (similar names/phones).
-  - Kiosk health indicators (online/offline, last sync time).
-  - Print reliability snapshot (failed/redo print attempts).
-- **Reporting UX**
-  - Date range filter and one-click CSV export from each chart/widget.
-  - “Compare to prior period” indicators (+/- vs previous 4 weeks).
+### Data quality
 
-## Risks / Dependencies
-- Old kiosk browsers may require compatibility-safe JS/CSS patterns.
-- Printer behavior varies by driver/model and needs real-device validation.
-- LAN-only deployment requires stable host uptime and local backup discipline.
+- Build a staff workflow for reviewing and merging duplicate people/families. Person pages already show same-last-name candidates, and CSV import matches existing people.
+- Design a clearer record-removal workflow explaining effects on attendance, audit history, and uploaded media. Basic Django person deletion already exists.
 
-## Decision Log
-- SQLite remains default for lightweight local deployment.
-- Django admin remains core staff management surface for now.
-- Kiosk UX prioritizes large touch targets and minimal navigation.
+### Kiosk and printing reliability
+
+- Validate Windows/Mac printer drivers, label rolls, long names, and batch printing on real devices.
+- Add durable print-job tracking and explicit retry/reprint handling for uncertain outcomes.
+- Add staff visibility into kiosk health and printer failures. Current readiness labels confirm configuration; test prints establish actual printer operation.
+- If offline capture is reconsidered, first define reliable persistence, service selection, duplicate prevention, and clear sync/error behavior.
+
+### Staff workflows
+
+- Extend dashboard trends with date filters, period comparisons, and exports. Current charts cover the latest eight service records, not necessarily eight weeks.
+- Add contact tracking to the existing first-time visitor list and distinguish returning visitors.
+- Add opt-in tracking before building email/text outreach lists.
+- Add settings previews, reset-to-default controls, and guided printer discovery/configuration.
+
+## Later
+
+- Explicit kiosk/staff selection among multiple services on the same day. Multiple records are supported today, but the kiosk chooses automatically.
+- Optional local HTTPS gateway with a reverse proxy, trusted certificates, and a stable LAN hostname. The app has an HTTPS configuration switch; gateway setup and deployment validation remain future work.
+- Scheduled backups, retention, off-machine copies, and recovery drills that include `.env` and `media/`.
+- Stronger authentication controls and continued permission regression coverage.
+- Optional Electron/Tauri kiosk packaging for kiosk-local printing and lock-down. Managed silent printing already works without a native kiosk wrapper.
+- An on-screen exit-kiosk helper for devices without a keyboard.
+
+## Risks and Dependencies
+
+- Older kiosk browsers require compatibility checks.
+- Printer behavior varies by model, driver, and media; automated tests do not replace physical test labels.
+- LAN operation depends on server uptime, stable allowed host addresses, and backup discipline.
+- Bootstrap and optional Google Fonts use external resources; LAN operation does not imply that all visual assets work without internet access.
+
+## Decisions
+
+- SQLite remains the default database for a single server on the local network.
+- Django admin remains the main staff management surface.
+- Waitress is the production runtime used by the Control Panel on Windows and Mac.
+- Large touch targets and minimal navigation remain kiosk priorities.

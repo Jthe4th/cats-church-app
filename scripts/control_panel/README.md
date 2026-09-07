@@ -1,5 +1,7 @@
 # Welcome System Control Panel
 
+For Welcome System `0.9.13-beta`. See the [Leader Guide](../../WELCOME_LEADER_README.md) for kiosk operation and [Windows Deployment](../../WINDOWS_DEPLOYMENT.md) for installation details.
+
 This folder contains the simple weekly controls for the church server. Staff should use the Control Panel instead of typing server commands.
 
 Start with the one-time `SETUP_WELCOME_SYSTEM_...` file for the server's operating system. After setup, open the matching `OPEN_WELCOME_SYSTEM_CONTROL_PANEL...` file each week. The files themselves have a short description and run instruction at the top.
@@ -32,7 +34,7 @@ On a Mac with a Python installation that does not include Tkinter, the same cont
 
 ## First-Time Setup
 
-Run the clearly named setup file for the server computer first. It creates `.venv`, installs Waitress and other requirements, applies database migrations, and prepares static files. On Windows, it also checks for Git and installs Git for Windows automatically when Windows Package Manager is available. On a Mac, it prompts for the Apple Command Line Tools when Git is missing. Then install optional automatic startup:
+Run the clearly named setup file for the server computer first. It creates `.venv`, installs Waitress and other requirements, applies database migrations, and prepares static files. On Windows, it also checks for Git and installs Git for Windows automatically when Windows Package Manager is available. On a Mac, it prompts for the Apple Command Line Tools when Git is missing. The first Django command also creates `.env` when needed, with an installation secret, debug disabled, and explicit allowed hosts. Check that `DJANGO_ALLOWED_HOSTS` includes the LAN address shown by the panel before opening kiosks. Keep the generated secret; see [Installation Configuration](../../README.md#installation-configuration). Then install optional automatic startup:
 
 ### Windows
 
@@ -40,6 +42,8 @@ Run the clearly named setup file for the server computer first. It creates `.ven
 2. Double-click `INSTALL_AUTOSTART_WINDOWS.cmd` if you want the server to start when this Windows account signs in.
 
 ### Mac
+
+The Mac setup script does not offer to create an administrator. After setup, run `.venv/bin/python manage.py createsuperuser` from the project folder if this is a new installation.
 
 In Terminal from the project folder, run:
 
@@ -53,4 +57,21 @@ chmod +x scripts/control_panel/*.sh
 
 - The panel confirms Welcome System through its local health check and can stop a manually started Welcome System server listening on its configured port.
 - Do not run more than one Welcome System server on the same port. The panel will report that the server is already running.
-- **Install Update** first confirms GitHub can be reached, then creates a backup, stops the server, installs approved changes from `main`, updates dependencies, applies migrations, collects static files, and starts the server again. If the app was copied to the computer instead of cloned from GitHub, it connects that folder to the official repository before updating. When installed files differ from GitHub or the installed version is current, it offers to reinstall tracked application files from GitHub instead. The local database, uploaded photos, backups, logs, and virtual environment are preserved.
+- **Install Update** first confirms GitHub can be reached, then creates a backup, stops the server, installs changes from the repository’s `main` branch, updates dependencies, applies migrations, collects static files, and starts the server again. If the app was copied to the computer instead of cloned from GitHub, it connects that folder to the official repository before updating. When installed files differ from GitHub or the installed version is current, it offers to reinstall tracked application files from GitHub instead. The local database, `.env`, uploaded photos, backups, logs, and virtual environment are preserved. Dependencies inside the virtual environment are updated. Repair/reinstall replaces tracked files, so preserve intentional local code changes separately.
+
+- Finish kiosk activity before installing updates. On a failed update, the panel attempts to restart a previously running server; it does not automatically roll back code, dependencies, or migrations.
+- Backups contain the database only. Copy `.env` and `media/` separately for recovery. Restores are performed on the admin backup page, require compatible migrations/schema, pause web requests, and sign users out.
+- Automatic startup runs when the configured staff account signs in. It does not make the server available before sign-in.
+- Configuration changes in `.env` require a restart. The panel’s health checks and displayed links use HTTP; the HTTPS gateway and any associated Control Panel changes need separate deployment validation.
+
+## Logs and Checks
+
+Use **Open Logs Folder** for `logs/welcome-system-server.log` and `logs/welcome-system-server-error.log`. Windows setup also writes `logs/deploy-windows.log`.
+
+Run the Control Panel tests from the project root:
+
+```bash
+.venv/bin/python -m unittest discover -s scripts/control_panel/tests
+```
+
+On Windows, use `.\.venv\Scripts\python.exe` in place of `.venv/bin/python`.
