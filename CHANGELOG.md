@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [0.9.13-beta] - 2026-09-07
+- Enforced permissions on custom service actions and reports.
+- Validated backup compatibility and paused concurrent requests during restoration.
+- Added installation-specific configuration, secure production defaults, and production photo serving.
+- Validated visitor submissions and rejected empty family selections.
+- Prevented simultaneous kiosk requests from creating duplicate automatic services.
+- Added visible check-in errors, session-expiry guidance, and protection against repeated clicks.
+
+## [0.9.12-beta]
 - Bumped software version to `0.9.12-beta`.
 - Added automatic GitHub connection repair for Welcome System folders copied onto a server without a `.git` directory.
 - Made Control Panel updates safer with GitHub preflight checks, local-file repair detection, and automatic restart attempts after post-stop failures.
