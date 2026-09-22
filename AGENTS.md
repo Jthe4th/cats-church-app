@@ -81,7 +81,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 
 - Large text, high contrast, and oversized touch targets for older users.
 - Single-screen primary flow; avoid multi-step wizards.
-- Bootstrap is used via CDN for rapid, consistent UI.
+- Kiosk Bootstrap assets are bundled locally. Optional Google Fonts load without blocking the page, with system-font fallbacks.
 - Kiosk uses an on-screen keyboard with letters + number row.
 - Missing-members report defaults to the latest closed service (or latest service if none is closed), excluding members created after that service date.
 - New rows in Attendees/First-Time lists are highlighted briefly to show real-time check-ins.

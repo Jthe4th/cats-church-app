@@ -50,12 +50,22 @@ Provide fast, reliable church check-in for kiosks and staff while keeping local-
 - Optional Electron/Tauri kiosk packaging for kiosk-local printing and lock-down. Managed silent printing already works without a native kiosk wrapper.
 - An on-screen exit-kiosk helper for devices without a keyboard.
 
+### Server installers (deferred)
+
+Installer creation is future development and is not part of the current work. Continue using the documented setup scripts and Control Panel for now.
+
+- Create a Windows installer first, followed by a Mac installer, bundling a tested Python runtime and application dependencies.
+- Provide administrator setup, application shortcuts, server-address configuration, and optional sign-in startup. Kiosk devices continue using a browser and do not need the server installer.
+- Separate application files from persistent church data before packaging. Preserve attendance, photos, configuration, and backups during upgrades and uninstall.
+- Design release-package updates for installed copies, with pre-update backups and recovery handling, in place of the current Git-based update workflow.
+- Plan code signing, printer-driver guidance, and installation/upgrade testing on both platforms. Choose packaging tools when implementation begins.
+
 ## Risks and Dependencies
 
 - Older kiosk browsers require compatibility checks.
 - Printer behavior varies by model, driver, and media; automated tests do not replace physical test labels.
 - LAN operation depends on server uptime, stable allowed host addresses, and backup discipline.
-- Bootstrap and optional Google Fonts use external resources; LAN operation does not imply that all visual assets work without internet access.
+- Kiosk Bootstrap assets are bundled locally. Optional Google Fonts require internet access, load without blocking the page, and fall back to system fonts.
 
 ## Decisions
 

@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
-from django.db.models import Count, Max, Min, Q
+from django.db.models import Count, Max, Min, Prefetch, Q
 import csv
 
 from django.contrib import admin
@@ -821,15 +821,18 @@ def kiosk(request):
     return checkin(request, kiosk_mode=True)
 
 
-@login_required
 def kiosk_search_groups(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Your session has ended. Sign in again.", "login_required": True}, status=401)
     if not can_access_kiosk(request.user):
-        return JsonResponse({"groups": []}, status=403)
+        return JsonResponse({"error": "This account does not have kiosk access."}, status=403)
     if not _is_current_service_open():
         return JsonResponse({"groups": [], "service_closed": True}, status=423)
     query = request.GET.get("q", "").strip()
-    if len(query) < 3:
+    if not query:
         return JsonResponse({"groups": []})
+    if query.isdigit() and (len(query) != 4 or not query.isascii()):
+        return JsonResponse({"error": "Enter the last four phone digits, or a name."}, status=400)
     service = _get_or_create_service()
     groups_raw = _build_match_groups(query)
     groups = _serialize_kiosk_groups(groups_raw, service)
@@ -898,13 +901,22 @@ def _kiosk_login(request):
 
 
 def _build_match_groups(query: str):
-    filters = Q(first_name__icontains=query) | Q(last_name__icontains=query)
-    if query.isdigit() and len(query) == 4:
-        filters |= Q(phone__icontains=query)
+    query = query.strip()
+    if not query or (query.isdigit() and (len(query) != 4 or not query.isascii())):
+        return []
+    if query.isdigit():
+        # Match the final four digits even when punctuation separates them.
+        filters = Q(phone__regex=r"\D*".join(query) + r"\D*$")
+    else:
+        filters = Q(first_name__icontains=query) | Q(last_name__icontains=query)
     matches = (
-        Person.objects.filter(filters)
+        Person.objects.filter(filters, is_active=True)
         .select_related("family")
-        .prefetch_related("family__person_set")
+        .prefetch_related(Prefetch(
+            "family__person_set",
+            queryset=Person.objects.filter(is_active=True).order_by("last_name", "first_name"),
+            to_attr="kiosk_members",
+        ))
         .order_by("last_name", "first_name")
     )
     groups = []
@@ -917,7 +929,7 @@ def _build_match_groups(query: str):
             groups.append(
                 {
                     "family": person.family,
-                    "members": list(person.family.person_set.all().order_by("last_name", "first_name")),
+                    "members": person.family.kiosk_members,
                     "primary": person,
                 }
             )

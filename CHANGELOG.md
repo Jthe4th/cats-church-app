@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Kiosk search supports short names, matches the final four phone digits across formatting, and excludes inactive people from matches and family groups.
+- Search failures show explicit errors and Retry instead of no matches, with session-expiry guidance and a connection timeout.
+- Bundled Bootstrap 5.3.3 locally for kiosk login/check-in; optional Google Fonts load without blocking the system-font fallback.
+
 - Added a dedicated Mac setup/usage guide and clear Mac/Windows setup, launcher, update, and daily-use links.
 
 - Updated project, deployment, operator, and contributor documentation for the 0.9.13-beta behavior; separated shipped features from roadmap work.
