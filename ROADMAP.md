@@ -1,6 +1,6 @@
 # Welcome System Roadmap
 
-Reviewed against `0.9.14-beta` on 2026-09-22. This roadmap separates shipped behavior from proposed work; priorities are planning guidance, not release commitments.
+Reviewed against `0.9.15-beta` on 2026-09-22. This roadmap separates shipped behavior from proposed work; priorities are planning guidance, not release commitments.
 
 ## Vision
 

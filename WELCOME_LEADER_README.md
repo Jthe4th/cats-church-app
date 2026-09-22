@@ -1,6 +1,6 @@
 # Welcome System Leader Guide
 
-For Welcome System `0.9.14-beta`.
+For Welcome System `0.9.15-beta`.
 
 This guide is for starting the Welcome System on Sabbath and getting the three kiosks ready for check-in.
 
@@ -137,14 +137,16 @@ This is the browser-based option for a printer connected to the kiosk.
 For existing people:
 
 1. Choose **Last name** for the letter keyboard, or **Phone digits** for the number pad. Enter a name or exactly four phone digits, then tap **Search**. Apostrophe and hyphen keys are available for names; hold **Delete** to erase repeatedly.
-2. Tap the person rows to select or deselect family members. Everyone is selected initially; check the selected-person count before continuing. **Already checked in** badges identify people who can have their nametags reprinted.
+2. Tap the person rows to select or deselect family members. Everyone is selected initially; use **Select all** or **Clear selection** for that family. The count and action buttons stay below the scrolling member list. Check the count before continuing. **Already checked in** badges identify people who can have their nametags reprinted.
 3. Tap `Print Nametags` or `Check in only`. Both buttons are disabled if nobody is selected; check-in-only is disabled when all selected people are already checked in.
 4. Wait while check-in is saving. The buttons temporarily disable to prevent repeated submissions.
+
+If a search has no matches, use **Try another name**, **Search by phone**, or **Register a visitor** directly in the results window.
 
 For visitors:
 
 1. Tap `I'm new here`.
-2. Enter their first and last names. Phone and email are optional. Correct any validation message before continuing.
+2. Enter their first and last names. Expand **Add contact details** only if adding optional phone or email. The action buttons remain below the scrolling form; correct any validation message before continuing.
 3. Tap `Print Name Tag` or `Check in only`.
 
 ## Closing Or Reopening A Service

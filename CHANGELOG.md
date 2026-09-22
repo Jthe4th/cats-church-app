@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.15-beta] - 2026-09-22
+
+- Simplified visitor entry with expandable optional contact details and a viewport-aware action footer; added useful empty-search actions and per-family Select all/Clear selection controls below scrolling member lists.
+
 ## [0.9.14-beta] - 2026-09-22
 
 - Improved tablet kiosk layout with intact keyboard rows, separate name/phone modes, four-digit phone entry, punctuation keys, hold-to-delete, larger family selection rows, live selection counts, and readable checked-in badges.

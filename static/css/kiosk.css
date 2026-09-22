@@ -371,3 +371,27 @@ input.form-control-lg {
   .kiosk-checkin .kb-row { gap: 3px; }
   .kiosk-checkin .kb-key { font-size: 18px; }
 }
+
+/* Each family's action footer stays outside its independently scrolling list. */
+#search-results-modal .family-result { padding: 12px; }
+.family-members {
+  max-height: min(30vh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 10px;
+  padding: 2px 4px;
+}
+.family-actions { padding-top: 10px; border-top: 1px solid #a9b4bb; margin-top: 10px; }
+.kiosk-checkin .selection-toggle { min-height: 44px; font-size: 18px; }
+#visitor-contact summary { padding: 12px 4px; min-height: 48px; cursor: pointer; }
+#visitor-modal {
+  top: var(--visitor-top, 0px);
+  height: var(--visitor-height, 100dvh);
+}
+#visitor-modal .modal-dialog { min-height: calc(var(--visitor-height, 100dvh) - 24px); margin: 12px auto; padding: 0 8px; }
+#visitor-modal .modal-content { max-height: calc(var(--visitor-height, 100dvh) - 24px); }
+#visitor-modal .modal-body { max-height: none; min-height: 0; overflow-y: auto; }
+#visitor-modal .modal-header, #visitor-modal .visitor-actions { flex-shrink: 0; }
+#visitor-modal .visitor-actions { justify-content: flex-start; gap: 8px; padding: 10px 16px; }
+#visitor-modal .visitor-actions .btn { margin: 0; min-height: 48px; }
+#visitor-modal .btn-close { min-width: 44px; min-height: 44px; padding: 0; }

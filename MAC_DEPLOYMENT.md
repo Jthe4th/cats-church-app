@@ -1,6 +1,6 @@
 # Mac Setup and Usage
 
-Applies to Welcome System `0.9.14-beta`. For Windows, use [Windows Deployment](WINDOWS_DEPLOYMENT.md). The [Leader Guide](WELCOME_LEADER_README.md) covers check-in on either platform.
+Applies to Welcome System `0.9.15-beta`. For Windows, use [Windows Deployment](WINDOWS_DEPLOYMENT.md). The [Leader Guide](WELCOME_LEADER_README.md) covers check-in on either platform.
 
 ## Recommended Setup and Launch
 

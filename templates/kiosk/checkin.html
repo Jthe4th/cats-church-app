@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="{{ font_href }}" media="print" onload="this.media='all'" />
   {% endfor %}
   <link rel="stylesheet" href="/static/css/theme.css" />
-  <link rel="stylesheet" href="/static/css/kiosk.css?v=14" />
+  <link rel="stylesheet" href="/static/css/kiosk.css?v=15" />
 </head>
 <body
   class="kiosk-body"
@@ -130,7 +130,7 @@
         I'm new here 🙂
       </button>
     </div>
-    <div class="modal fade" id="visitor-modal" tabindex="-1" aria-labelledby="visitor-modal-title" aria-hidden="true">
+    <div class="modal" id="visitor-modal" tabindex="-1" aria-labelledby="visitor-modal-title" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
           <div class="modal-header">
@@ -147,33 +147,38 @@
               {% csrf_token %}
               <input type="hidden" name="submission_token" id="visitor-submission-token" />
               <div class="col-md-6">
-                <label class="form-label">First name</label>
-                <input class="form-control form-control-lg" name="first_name" maxlength="120" required />
+                <label class="form-label" for="visitor-first_name">First name</label>
+                <input class="form-control form-control-lg" id="visitor-first_name" name="first_name" maxlength="120" required />
               </div>
               <div class="col-md-6">
-                <label class="form-label">Last name</label>
-                <input class="form-control form-control-lg" name="last_name" maxlength="120" required />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Phone (optional)</label>
-                <input class="form-control form-control-lg" name="phone" maxlength="30" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Email (optional)</label>
-                <input class="form-control form-control-lg" name="email" type="email" maxlength="254" />
+                <label class="form-label" for="visitor-last_name">Last name</label>
+                <input class="form-control form-control-lg" id="visitor-last_name" name="last_name" maxlength="120" required />
               </div>
               <div class="col-12">
-                <div class="d-flex gap-2 flex-wrap">
-                  <button class="btn btn-primary btn-lg" type="submit" name="action" value="print_single">Print Name Tag</button>
-                  <button class="btn btn-outline-primary btn-lg" type="submit" name="action" value="check_in_only">Check in only</button>
-                </div>
+                <details id="visitor-contact">
+                  <summary>Add contact details <span class="text-muted">(optional)</span></summary>
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                      <label class="form-label" for="visitor-phone">Phone (optional)</label>
+                      <input class="form-control form-control-lg" id="visitor-phone" name="phone" type="tel" autocomplete="tel" maxlength="30" />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label" for="visitor-email">Email (optional)</label>
+                      <input class="form-control form-control-lg" id="visitor-email" name="email" type="email" autocomplete="email" maxlength="254" />
+                    </div>
+                  </div>
+                </details>
               </div>
             </form>
+          </div>
+          <div class="modal-footer visitor-actions">
+            <button class="btn btn-primary btn-lg" type="submit" form="visitor-form" name="action" value="print_single">Print Name Tag</button>
+            <button class="btn btn-outline-primary btn-lg" type="submit" form="visitor-form" name="action" value="check_in_only">Check in only</button>
           </div>
         </div>
       </div>
     </div>
-    <div class="modal fade" id="search-results-modal" tabindex="-1" aria-labelledby="search-results-title" aria-hidden="true">
+    <div class="modal" id="search-results-modal" tabindex="-1" aria-labelledby="search-results-title" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
           <div class="modal-header">
@@ -193,7 +198,14 @@
               <a id="search-login" href="/kiosk/" class="btn btn-primary btn-lg" hidden>Sign in again</a>
             </div>
             <div id="search-results-list" class="d-flex flex-column gap-3"></div>
-            <p id="search-results-empty" class="text-muted mb-0 d-none">No matches found. Add as a new visitor below.</p>
+            <div id="search-results-empty" class="d-none">
+              <p>No matches found. Try another search, or register if you are new here.</p>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-primary btn-lg" type="button" data-empty-action="name">Try another name</button>
+                <button class="btn btn-outline-primary btn-lg" type="button" data-empty-action="phone">Search by phone</button>
+                <button class="btn btn-primary btn-lg" type="button" data-empty-action="visitor">Register a visitor</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -310,7 +322,7 @@
       const setVisitorSubmitting = (submitting) => {
         visitorSubmissionInFlight = submitting;
         if (!visitorForm) return;
-        visitorForm.querySelectorAll("button[type='submit']").forEach((button) => {
+        visitorModalEl.querySelectorAll("button[type='submit']").forEach((button) => {
           button.disabled = submitting;
         });
       };
@@ -318,11 +330,29 @@
       const resetVisitorForm = () => {
         if (!visitorForm) return;
         visitorForm.reset();
+        document.getElementById("visitor-contact").open = false;
         if (visitorSubmissionToken) {
           visitorSubmissionToken.value = createVisitorSubmissionToken();
         }
         setVisitorSubmitting(false);
       };
+
+      visitorForm.addEventListener("invalid", (event) => {
+        if (event.target.closest("#visitor-contact")) document.getElementById("visitor-contact").open = true;
+      }, true);
+      const fitVisitorViewport = () => {
+        const viewport = window.visualViewport;
+        visitorModalEl.style.setProperty("--visitor-height", `${viewport ? viewport.height : window.innerHeight}px`);
+        visitorModalEl.style.setProperty("--visitor-top", `${viewport ? viewport.offsetTop : 0}px`);
+        if (visitorModalEl.contains(document.activeElement) && document.activeElement.matches("input, textarea, select")) {
+          requestAnimationFrame(() => document.activeElement.scrollIntoView({ block: "nearest" }));
+        }
+      };
+      window.visualViewport?.addEventListener("resize", fitVisitorViewport);
+      window.visualViewport?.addEventListener("scroll", fitVisitorViewport);
+      window.addEventListener("resize", fitVisitorViewport);
+      visitorModal.onShown(fitVisitorViewport);
+      fitVisitorViewport();
 
       if (!hasBootstrapModal) {
         document.querySelectorAll("[data-bs-dismiss='modal']").forEach((button) => {
@@ -446,7 +476,7 @@
           const count = resultsList.querySelectorAll(`.result-person-checkbox[data-group="${line.dataset.selectionCount}"]:checked`).length;
           line.textContent = `${count} ${count === 1 ? "person" : "people"} selected`;
         });
-        resultsList.querySelectorAll(".reprint-one-btn, .result-person-checkbox").forEach((control) => {
+        resultsList.querySelectorAll(".reprint-one-btn, .result-person-checkbox, .selection-toggle").forEach((control) => {
           control.disabled = attendanceSubmissionInFlight;
         });
       };
@@ -489,18 +519,23 @@
           )
           .join("");
         return `
-          <div class="list-group-item">
-            <div class="d-flex flex-column gap-3">
+          <section class="list-group-item family-result" aria-label="${familyLabel}">
+            <div class="fw-semibold">${familyLabel}</div>
+            <div class="family-members d-flex flex-column gap-2" tabindex="0" role="group" aria-label="People in ${familyLabel}">${members}</div>
+            <div class="family-actions">
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div><div class="fw-semibold">${familyLabel}</div><p class="selection-count" data-selection-count="${groupIndex}" role="status"></p></div>
-                <div class="d-flex gap-2 flex-wrap">
-                  <button class="btn btn-success btn-lg result-action-btn" type="button" data-action="print_selected" data-group="${groupIndex}" data-primary-id="${group.primary_id}">Print Nametags</button>
-                  <button class="btn btn-outline-primary btn-lg result-action-btn" type="button" data-action="check_in_selected" data-group="${groupIndex}" data-primary-id="${group.primary_id}" data-family-name="${familyLabel}" data-has-family="${group.family_name ? "1" : "0"}" ${allCheckedIn ? "disabled" : ""}>Check in only</button>
+                <p class="selection-count" data-selection-count="${groupIndex}" role="status"></p>
+                <div class="d-flex flex-wrap gap-2">
+                  <button class="btn btn-outline-secondary selection-toggle" type="button" data-group="${groupIndex}" data-select="all">Select all</button>
+                  <button class="btn btn-outline-secondary selection-toggle" type="button" data-group="${groupIndex}" data-select="none">Clear selection</button>
                 </div>
               </div>
-              <div class="d-flex flex-column gap-2">${members}</div>
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <button class="btn btn-success btn-lg result-action-btn" type="button" data-action="print_selected" data-group="${groupIndex}" data-primary-id="${group.primary_id}">Print Nametags</button>
+                <button class="btn btn-outline-primary btn-lg result-action-btn" type="button" data-action="check_in_selected" data-group="${groupIndex}" data-primary-id="${group.primary_id}" data-family-name="${familyLabel}" data-has-family="${group.family_name ? "1" : "0"}" ${allCheckedIn ? "disabled" : ""}>Check in only</button>
+              </div>
             </div>
-          </div>
+          </section>
         `;
       };
 
@@ -762,6 +797,14 @@
         resultsList.addEventListener("change", updateSelectionControls);
         resultsList.addEventListener("click", (event) => {
           if (attendanceSubmissionInFlight) return;
+          const selectionToggle = event.target.closest(".selection-toggle");
+          if (selectionToggle) {
+            resultsList.querySelectorAll(`.result-person-checkbox[data-group="${selectionToggle.dataset.group}"]`).forEach(checkbox => {
+              checkbox.checked = selectionToggle.dataset.select === "all";
+            });
+            updateSelectionControls();
+            return;
+          }
           const reprintButton = event.target.closest(".reprint-one-btn");
           if (reprintButton) {
             const personId = reprintButton.getAttribute("data-person-id");
@@ -882,6 +925,29 @@
       modeButtons.forEach(button => button.addEventListener("click", () => setSearchMode(button.dataset.searchMode)));
       input.addEventListener("input", syncSearch);
       setSearchMode(searchMode);
+      let afterResultsClose = null;
+      resultsModal.onHidden(() => {
+        const action = afterResultsClose;
+        afterResultsClose = null;
+        if (action) action();
+      });
+      document.querySelectorAll("[data-empty-action]").forEach(button => {
+        button.addEventListener("click", () => {
+          if (attendanceSubmissionInFlight) return;
+          afterResultsClose = () => {
+            if (button.dataset.emptyAction === "visitor") {
+              resetVisitorForm();
+              visitorModal.show();
+            } else {
+              setSearchMode(button.dataset.emptyAction);
+              input.value = "";
+              input.dispatchEvent(new Event("input"));
+            }
+          };
+          resultsModal.hide();
+        });
+      });
+
 
       if (keyboard) {
         const erase = () => {

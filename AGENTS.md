@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Current version: `0.9.14-beta`
+Current version: `0.9.15-beta`
 
 ## Project Direction
 

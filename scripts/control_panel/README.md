@@ -1,6 +1,6 @@
 # Welcome System Control Panel
 
-For Welcome System `0.9.14-beta`. See the [Leader Guide](../../WELCOME_LEADER_README.md) for kiosk operation and the [Mac](../../MAC_DEPLOYMENT.md) or [Windows](../../WINDOWS_DEPLOYMENT.md) installation guide for setup details.
+For Welcome System `0.9.15-beta`. See the [Leader Guide](../../WELCOME_LEADER_README.md) for kiosk operation and the [Mac](../../MAC_DEPLOYMENT.md) or [Windows](../../WINDOWS_DEPLOYMENT.md) installation guide for setup details.
 
 This folder contains the simple weekly controls for the church server. Staff should use the Control Panel instead of typing server commands.
 
