@@ -1,10 +1,22 @@
 # Windows Deployment
 
-Applies to Welcome System `0.9.13-beta`. For Mac, use [Mac Setup and Usage](MAC_DEPLOYMENT.md). For routine check-in on either platform, use the [Leader Guide](WELCOME_LEADER_README.md).
+Applies to Welcome System `0.9.14-beta`. For Mac, use [Mac Setup and Usage](MAC_DEPLOYMENT.md). For routine check-in on either platform, use the [Leader Guide](WELCOME_LEADER_README.md).
 
 These instructions deploy Welcome System on the church Windows PC and make it available to other devices on the local network.
 
 Repository: [Jthe4th/cats-church-app](https://github.com/Jthe4th/cats-church-app)
+
+## Recommended Setup and Launch
+
+After downloading the project and installing Python 3.10 or newer, double-click **Start Welcome System.cmd** in the top-level project folder. Use this same file every time.
+
+- If setup is incomplete, the launcher offers to install dependencies, back up an existing database, apply migrations, prepare static files, and create an administrator when needed. Initial setup needs internet access.
+- If ready, it starts the server and waits for a successful health check before opening the Control Panel. An already-running server is left running.
+- Accept the desktop shortcut offer to launch from **Welcome System** next time. The shortcut points to this folder; recreate it if you move the project.
+- Continue with network, user permissions, and printer configuration below. Git is needed for Control Panel updates.
+- After completing setup, the launcher also offers optional automatic startup at sign-in. You can enable it later using the instructions below.
+
+Follow the installation steps below once; use the launcher or desktop shortcut for subsequent starts.
 
 ## Requirements
 
@@ -25,21 +37,20 @@ Open PowerShell and run:
 cd C:\
 git clone https://github.com/Jthe4th/cats-church-app.git WelcomeSystem
 cd C:\WelcomeSystem
-.\scripts\control_panel\SETUP_WELCOME_SYSTEM_WINDOWS.cmd
+& ".\Start Welcome System.cmd"
 ```
 
-The deployment script will:
+Accept **Run setup now?** when prompted. The launcher creates the virtual environment, installs requirements, initializes configuration when needed, backs up an existing database before migrations, prepares static files, and checks the application. If no active superuser exists, it runs the administrator-creation prompts.
 
-- Create a Python virtual environment.
-- Install the required packages.
-- Initialize `.env` when absent (unless the secret is already provided by the environment), with a random secret, debug disabled, and local allowed hosts.
-- Apply database migrations.
-- Offer to create an administrator account.
-- Collect static files.
-- Check the application configuration.
-- Prepare the computer for the Welcome System Control Panel.
+It then starts the server, waits until it responds, offers a desktop shortcut and optional sign-in startup, and opens the Control Panel. If a step fails, resolve the reported error and reopen the same launcher. If you downloaded a ZIP instead of cloning, extract it into a permanent folder first, then double-click **Start Welcome System.cmd**.
 
-When setup completes, double-click `scripts\control_panel\OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd` and click **Start Welcome System**. Keep the server PC powered on while the kiosk is being used.
+## Everyday Startup
+
+Double-click the **Welcome System** desktop shortcut, or **Start Welcome System.cmd** in the project folder. An already-running server is left running; otherwise the launcher starts it before opening the controls. Keep the server PC powered on while kiosks are in use. Use **Stop Welcome System** in the panel after all kiosks are finished; closing the panel does not stop the server.
+
+### Optional Automatic Startup
+
+Accept the sign-in-startup offer after launcher setup, or double-click `scripts\control_panel\INSTALL_AUTOSTART_WINDOWS.cmd` later. This starts the server when the configured Windows account signs in, not before sign-in. You can still use the desktop shortcut to open the controls.
 
 ## Configure the Server Address and Accounts
 
@@ -119,7 +130,7 @@ If local tracked files differ or the installation is already current, the panel 
 
    Stop if either command fails. Resolve the reported issue before starting the updated app.
 
-4. Start the server with the Control Panel, or run:
+4. Double-click **Start Welcome System.cmd** to start the server and open the controls. The legacy server-only alternative is:
 
    ```powershell
    .\scripts\start_windows.cmd
@@ -159,9 +170,9 @@ Printer settings are read from the database on requests. Refresh the kiosk and u
 
 Use **Open Logs Folder** in the Control Panel. Log names depend on how the server was started:
 
-- Control Panel: `logs/welcome-system-server.log` and `logs/welcome-system-server-error.log`.
+- Launcher or Control Panel: `logs/welcome-system-server.log` and `logs/welcome-system-server-error.log`.
 - Manual Windows start script: `logs/waitress-out.log` and `logs/waitress-error.log`.
-- Windows deployment: `logs/deploy-windows.log`.
+- Legacy Windows deployment script: `logs/deploy-windows.log`. The new launcher shows setup progress and errors in its terminal window.
 
 Review the error log for the startup method you used if the application does not start.
 

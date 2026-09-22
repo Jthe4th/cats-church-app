@@ -1,8 +1,14 @@
 # Welcome System
 
-Version: `0.9.13-beta`
+Version: `0.9.14-beta`
 
 Welcome System is a lightweight, local-network check-in system for churches. It supports kiosk-based sign-in, attendance history, and printable name tags.
+
+## Start here
+
+In the project folder, double-click **Start Welcome System.command** on Mac or **Start Welcome System.cmd** on Windows. The same launcher handles first-time setup and everyday startup, waits for the server to be ready, and opens the Control Panel. If the server is already running, it opens the controls without restarting it.
+
+On first use, accept the desktop shortcut offer to start from **Welcome System** next time. Python 3.10 or newer is required; initial setup also needs internet access. Setup asks before installing dependencies or preparing the database and backs up an existing database before migrations. Network access and printer configuration are covered in the platform guides below.
 
 For weekly operation, use the [Leader Guide](WELCOME_LEADER_README.md). For installation, use [Mac Setup and Usage](MAC_DEPLOYMENT.md) or [Windows Deployment](WINDOWS_DEPLOYMENT.md). The [Control Panel guide](scripts/control_panel/README.md) covers the shared controls. Future work is tracked in the [Roadmap](ROADMAP.md); releases are recorded in the [Changelog](CHANGELOG.md).
 
@@ -11,8 +17,8 @@ For weekly operation, use the [Leader Guide](WELCOME_LEADER_README.md). For inst
 | Task | Mac | Windows |
 | --- | --- | --- |
 | First-time setup | [Mac installation steps](MAC_DEPLOYMENT.md#first-time-installation) | [Windows installation steps](WINDOWS_DEPLOYMENT.md#first-installation) |
-| Open the Control Panel | Double-click `scripts/control_panel/OPEN_WELCOME_SYSTEM_CONTROL_PANEL.command` | Double-click `scripts\control_panel\OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd` |
-| Start and stop | **Start Welcome System** / **Stop Welcome System** in the panel | Same panel actions |
+| Open the Control Panel | Double-click `Start Welcome System.command` | Double-click `Start Welcome System.cmd` |
+| Start and stop | Launcher starts automatically; **Stop Welcome System** in the panel | Same behavior |
 | Daily check-in | [Leader Guide](WELCOME_LEADER_README.md) | [Leader Guide](WELCOME_LEADER_README.md) |
 | Install updates | [Mac updates and recovery](MAC_DEPLOYMENT.md#updates) | [Windows updates and recovery](WINDOWS_DEPLOYMENT.md#installing-updates) |
 
@@ -73,21 +79,21 @@ python3 manage.py createsuperuser
 python3 manage.py runserver 0.0.0.0:8000
 ```
 
-## Convenience Scripts
+## Development and Legacy Helper Scripts
 
-Cross-platform helpers that create a venv, install deps, run migrations, and start the server:
+The helpers below are alternatives for development or manual recovery. For everyday setup and startup, use the top-level launcher. Stop any running server and back up existing data before using helpers that apply migrations:
 
 - macOS/Linux: `./scripts/run_dev.sh`
 - Windows (PowerShell): `scripts\run_dev.ps1`
-- Windows Waitress helper: `scripts\run_prod.ps1` (does not collect static files; run `python manage.py collectstatic --noinput` first). For full setup, prefer `scripts\control_panel\SETUP_WELCOME_SYSTEM_WINDOWS.cmd`.
+- Windows Waitress helper: `scripts\run_prod.ps1` (does not collect static files; run `python manage.py collectstatic --noinput` first). For normal setup and startup, use `Start Welcome System.cmd` in the project root.
 
 ## Easy Weekly Server Controls
 
-Use the tracked [Welcome System Control Panel](scripts/control_panel/README.md) for weekly Start, Stop, Restart, Backup, Update, Admin, Kiosk, and Logs actions on either Windows or Mac. It manages the production Waitress server without staff needing to type commands.
+Open the top-level launcher or desktop shortcut to start the server and open the [Welcome System Control Panel](scripts/control_panel/README.md) for weekly Start, Stop, Restart, Backup, Update, Admin, Kiosk, and Logs actions on either Windows or Mac. It manages the production Waitress server without staff needing to type commands.
 
 ## Manual Server Commands
 
-For normal weekly use, start and stop the server from the [Welcome System Control Panel](scripts/control_panel/README.md). Use these commands only for local development or recovery when the panel is unavailable.
+For normal weekly use, start with the launcher or desktop shortcut and stop with **Stop Welcome System** in the [Control Panel](scripts/control_panel/README.md). Use these commands only for local development or recovery when the panel is unavailable.
 
 - Development (macOS/Linux): `source .venv/bin/activate` then `python3 manage.py runserver 0.0.0.0:8000`
 - Development (Windows): `.\.venv\Scripts\activate` then `python manage.py runserver 0.0.0.0:8000`
@@ -218,9 +224,9 @@ Ensure Windows Firewall allows inbound traffic on the chosen port (default `8000
 
 Use Waitress through the Control Panel for live church use on Windows or Mac.
 
-## Windows Production Setup (Waitress)
+## Manual Windows Production Setup (Waitress)
 
-Use this for church-host deployment and longer runtime stability.
+The recommended production setup is **Start Welcome System.cmd**, which uses Waitress and guides administrator creation. The commands below are an advanced alternative. Stop the server and back up existing data before applying migrations.
 
 ```powershell
 cd C:\path\to\cats-app
@@ -232,7 +238,7 @@ python manage.py collectstatic --noinput
 python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application
 ```
 
-You can also use:
+Legacy manual alternatives:
 
 - `scripts\deploy_windows.cmd` (double-click friendly Windows setup; keeps the PowerShell window open)
 - `scripts\deploy_windows.ps1` (full first-time Windows setup, optional admin-user prompt, static files, checks, then starts Waitress)
@@ -243,7 +249,7 @@ Verification:
 - On host machine: `curl -I http://127.0.0.1:8000/admin/`
 - On LAN kiosk: open `http://<host-ip>:8000/kiosk/`
 
-Keep a manually started Waitress terminal open while it is in use. Optional sign-in startup is provided by the Control Panel setup guide; it starts the server when the staff account signs in, not before sign-in.
+Keep a manually started Waitress terminal open while it is in use. The launcher offers optional sign-in startup after setup; it can also be enabled later using the Control Panel guide. Automatic startup starts the server when the staff account signs in, not before sign-in.
 Static files are served by WhiteNoise under Waitress.
 
 ## License

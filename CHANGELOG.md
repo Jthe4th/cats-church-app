@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.14-beta] - 2026-09-22
+
+- Improved tablet kiosk layout with intact keyboard rows, separate name/phone modes, four-digit phone entry, punctuation keys, hold-to-delete, larger family selection rows, live selection counts, and readable checked-in badges.
+
+- Aligned Mac/Windows installation, weekly operation, shortcut, and troubleshooting instructions with the new top-level launchers; marked older setup and panel-only scripts as manual alternatives.
+
+- Added top-level Mac and Windows launchers with setup checks, guided preparation, automatic server startup, and optional desktop shortcuts. Existing databases are backed up before launcher-driven migrations.
+
 - Kiosk search supports short names, matches the final four phone digits across formatting, and excludes inactive people from matches and family groups.
 - Search failures show explicit errors and Retry instead of no matches, with session-expiry guidance and a connection timeout.
 - Bundled Bootstrap 5.3.3 locally for kiosk login/check-in; optional Google Fonts load without blocking the system-font fallback.

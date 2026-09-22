@@ -1,7 +1,7 @@
 .kiosk-body {
   background: radial-gradient(circle at top, #ffffff 0%, var(--kiosk-bg-light, var(--brand-bg)) 60%);
   min-height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
   --kiosk-scale: 1.12;
   font-size: calc(16px * var(--kiosk-scale));
 }
@@ -257,14 +257,6 @@ input.form-control-lg {
   border-radius: 0.75rem;
 }
 
-#search-results-modal .result-member-row.member-checked-in {
-  opacity: 0.7;
-}
-
-#search-results-modal .result-member-row.member-checked-in > span:first-of-type {
-  text-decoration: line-through;
-}
-
 #search-results-modal .result-member-actions .btn {
   font-size: calc(0.95rem * var(--kiosk-scale));
 }
@@ -319,4 +311,63 @@ input.form-control-lg {
   .kb-clear {
     min-width: calc(6.25rem * var(--kiosk-scale));
   }
+}
+
+/* Tablet check-in: preserve keyboard rows and allow scrolling as a fallback. */
+.kiosk-checkin {
+  max-width: 1080px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+}
+.kiosk-checkin .kiosk-heading { margin-bottom: 0.5rem !important; }
+.kiosk-checkin .kiosk-logo { max-height: 80px; width: auto !important; object-fit: contain; margin: 0 !important; }
+.kiosk-checkin #kiosk-title { font-size: clamp(26px, 4vh, 42px); margin: 0; }
+.kiosk-checkin .kiosk-heading .lead { display: none; }
+.kiosk-checkin #search-form { margin-bottom: 0.5rem !important; }
+.search-modes { display: flex; gap: 0.5rem; margin-bottom: 0.4rem; }
+.search-modes .btn { flex: 1; min-height: 48px; }
+.kiosk-checkin .btn, .kiosk-checkin .form-control, .kiosk-checkin .form-label {
+  font-size: clamp(18px, calc(21px * var(--kiosk-scale)), 28px);
+}
+.kiosk-checkin .search-hint { font-size: 16px; margin: 0.25rem 0 0; }
+.kiosk-checkin .form-label { margin-bottom: 0.2rem; }
+.kiosk-checkin .kiosk-keyboard { gap: 6px; margin-bottom: 0.75rem !important; }
+#name-keyboard { display: grid; gap: 6px; }
+#name-keyboard[hidden], #phone-keyboard[hidden], #phone-slots[hidden] { display: none; }
+.kiosk-checkin .kb-row { flex-wrap: nowrap; gap: 6px; }
+.kiosk-checkin .kb-key {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  height: clamp(48px, 6.5vh, 70px);
+  padding: 4px 2px;
+  font-size: clamp(20px, calc(24px * var(--kiosk-scale)), 30px);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.kiosk-checkin .kb-space { flex-grow: 4; }
+.kiosk-checkin .keyboard-actions .kb-key { font-size: clamp(18px, calc(20px * var(--kiosk-scale)), 26px); }
+.kiosk-checkin .keyboard-actions .search-submit { background: #286240; border-color: #286240; color: white; flex-grow: 1.3; }
+.kiosk-checkin .kb-key:disabled { opacity: 0.5; }
+.phone-keyboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 520px; width: 100%; margin: auto; }
+.phone-keyboard .kb-key:last-child { grid-column: 2; }
+.phone-slots { display: flex; justify-content: center; gap: 10px; margin-top: 6px; }
+.phone-slots span { border-bottom: 2px solid currentColor; width: 36px; text-align: center; font-size: 24px; }
+#search-results-modal .result-member-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px; border: 1px solid #a9b4bb; border-radius: 10px; }
+#search-results-modal .result-member-choice { display: flex; align-items: center; gap: 12px; flex: 1 1 220px; min-height: 56px; padding: 8px; cursor: pointer; overflow-wrap: anywhere; }
+#search-results-modal .result-person-checkbox { flex-shrink: 0; width: 28px; height: 28px; margin: 0; }
+#search-results-modal .result-member-actions { flex-wrap: wrap; padding: 4px; }
+#search-results-modal .selection-count { font-size: 18px; margin: 4px 0 0; }
+#search-results-modal .badge { white-space: normal; }
+#search-results-modal .btn-close { min-width: 44px; min-height: 44px; padding: 0; }
+@media (max-height: 820px) {
+  .kiosk-checkin .kiosk-logo { max-height: 48px; }
+  .kiosk-checkin #kiosk-title { font-size: 26px; }
+  .kiosk-checkin > .d-flex { margin-bottom: 4px !important; }
+  .kiosk-checkin .kb-key { height: 48px; }
+}
+@media (max-width: 600px) {
+  .kiosk-checkin .kb-row { gap: 3px; }
+  .kiosk-checkin .kb-key { font-size: 18px; }
 }

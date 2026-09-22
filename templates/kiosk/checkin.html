@@ -13,13 +13,13 @@
     <link rel="stylesheet" href="{{ font_href }}" media="print" onload="this.media='all'" />
   {% endfor %}
   <link rel="stylesheet" href="/static/css/theme.css" />
-  <link rel="stylesheet" href="/static/css/kiosk.css?v=13" />
+  <link rel="stylesheet" href="/static/css/kiosk.css?v=14" />
 </head>
 <body
   class="kiosk-body"
   style="--kiosk-bg-light: {{ kiosk_background_color }}; --kiosk-bg-dark: {{ kiosk_background_color_darkmode }};"
 >
-  <main class="container py-3">
+  <main class="container py-3 kiosk-checkin">
     {% if kiosk_mode %}
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center gap-2">
@@ -68,7 +68,7 @@
         </div>
       </div>
     {% endif %}
-    <div class="text-center mb-3">
+    <div class="text-center mb-3 kiosk-heading">
       <img
         class="kiosk-logo mb-3"
         src="{{ kiosk_logo_path }}"
@@ -83,6 +83,11 @@
       <div class="alert alert-danger" role="alert">{{ message }}</div>
     {% endfor %}
     <form class="mb-4" method="get" id="search-form">
+      <div class="search-modes" role="group" aria-label="Search by">
+        <button type="button" class="btn btn-primary" data-search-mode="name" aria-pressed="true">Last name</button>
+        <button type="button" class="btn btn-outline-primary" data-search-mode="phone" aria-pressed="false">Phone digits</button>
+      </div>
+      <label for="search-input" id="search-label" class="form-label">Enter your last name</label>
       <div class="input-group input-group-lg">
         <input
           class="form-control"
@@ -90,62 +95,33 @@
           name="q"
           id="search-input"
           value="{{ query }}"
-          placeholder="Enter last name or last 4 phone digits..."
+          placeholder="Last name" aria-describedby="search-hint"
           {% if kiosk_mode %}readonly inputmode="none" enterkeyhint="search" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-readonly="true"{% endif %}
           autofocus
         />
-        <button class="btn btn-primary" type="submit">Search</button>
+        <button class="btn btn-primary search-submit" type="submit">Search</button>
       </div>
+      <div id="phone-slots" class="phone-slots" aria-hidden="true" hidden><span>–</span><span>–</span><span>–</span><span>–</span></div>
+      <p id="search-hint" class="search-hint">Type with the keyboard below, then tap Search.</p>
     </form>
     <div class="kiosk-keyboard mb-4" id="kiosk-keyboard" aria-label="On-screen keyboard">
-      <div class="kb-row">
-        <button class="kb-key" type="button" data-key="1">1</button>
-        <button class="kb-key" type="button" data-key="2">2</button>
-        <button class="kb-key" type="button" data-key="3">3</button>
-        <button class="kb-key" type="button" data-key="4">4</button>
-        <button class="kb-key" type="button" data-key="5">5</button>
-        <button class="kb-key" type="button" data-key="6">6</button>
-        <button class="kb-key" type="button" data-key="7">7</button>
-        <button class="kb-key" type="button" data-key="8">8</button>
-        <button class="kb-key" type="button" data-key="9">9</button>
-        <button class="kb-key" type="button" data-key="0">0</button>
+      <div id="name-keyboard">
+<div class="kb-row"><button class="kb-key" type="button" data-key="Q">Q</button><button class="kb-key" type="button" data-key="W">W</button><button class="kb-key" type="button" data-key="E">E</button><button class="kb-key" type="button" data-key="R">R</button><button class="kb-key" type="button" data-key="T">T</button><button class="kb-key" type="button" data-key="Y">Y</button><button class="kb-key" type="button" data-key="U">U</button><button class="kb-key" type="button" data-key="I">I</button><button class="kb-key" type="button" data-key="O">O</button><button class="kb-key" type="button" data-key="P">P</button></div>
+<div class="kb-row"><button class="kb-key" type="button" data-key="A">A</button><button class="kb-key" type="button" data-key="S">S</button><button class="kb-key" type="button" data-key="D">D</button><button class="kb-key" type="button" data-key="F">F</button><button class="kb-key" type="button" data-key="G">G</button><button class="kb-key" type="button" data-key="H">H</button><button class="kb-key" type="button" data-key="J">J</button><button class="kb-key" type="button" data-key="K">K</button><button class="kb-key" type="button" data-key="L">L</button></div>
+<div class="kb-row"><button class="kb-key" type="button" data-key="Z">Z</button><button class="kb-key" type="button" data-key="X">X</button><button class="kb-key" type="button" data-key="C">C</button><button class="kb-key" type="button" data-key="V">V</button><button class="kb-key" type="button" data-key="B">B</button><button class="kb-key" type="button" data-key="N">N</button><button class="kb-key" type="button" data-key="M">M</button></div>
+        <div class="kb-row">
+          <button class="kb-key" type="button" data-key="'" aria-label="Apostrophe">'</button>
+          <button class="kb-key" type="button" data-key="-" aria-label="Hyphen">-</button>
+          <button class="kb-key kb-space" type="button" data-key=" ">Space</button>
+        </div>
       </div>
-      <div class="kb-row">
-        <button class="kb-key" type="button" data-key="Q">Q</button>
-        <button class="kb-key" type="button" data-key="W">W</button>
-        <button class="kb-key" type="button" data-key="E">E</button>
-        <button class="kb-key" type="button" data-key="R">R</button>
-        <button class="kb-key" type="button" data-key="T">T</button>
-        <button class="kb-key" type="button" data-key="Y">Y</button>
-        <button class="kb-key" type="button" data-key="U">U</button>
-        <button class="kb-key" type="button" data-key="I">I</button>
-        <button class="kb-key" type="button" data-key="O">O</button>
-        <button class="kb-key" type="button" data-key="P">P</button>
+      <div id="phone-keyboard" class="phone-keyboard" hidden>
+<button class="kb-key" type="button" data-key="1">1</button><button class="kb-key" type="button" data-key="2">2</button><button class="kb-key" type="button" data-key="3">3</button><button class="kb-key" type="button" data-key="4">4</button><button class="kb-key" type="button" data-key="5">5</button><button class="kb-key" type="button" data-key="6">6</button><button class="kb-key" type="button" data-key="7">7</button><button class="kb-key" type="button" data-key="8">8</button><button class="kb-key" type="button" data-key="9">9</button><button class="kb-key" type="button" data-key="0">0</button>
       </div>
-      <div class="kb-row">
-        <button class="kb-key" type="button" data-key="A">A</button>
-        <button class="kb-key" type="button" data-key="S">S</button>
-        <button class="kb-key" type="button" data-key="D">D</button>
-        <button class="kb-key" type="button" data-key="F">F</button>
-        <button class="kb-key" type="button" data-key="G">G</button>
-        <button class="kb-key" type="button" data-key="H">H</button>
-        <button class="kb-key" type="button" data-key="J">J</button>
-        <button class="kb-key" type="button" data-key="K">K</button>
-        <button class="kb-key" type="button" data-key="L">L</button>
-      </div>
-      <div class="kb-row">
-        <button class="kb-key" type="button" data-key="Z">Z</button>
-        <button class="kb-key" type="button" data-key="X">X</button>
-        <button class="kb-key" type="button" data-key="C">C</button>
-        <button class="kb-key" type="button" data-key="V">V</button>
-        <button class="kb-key" type="button" data-key="B">B</button>
-        <button class="kb-key" type="button" data-key="N">N</button>
-        <button class="kb-key" type="button" data-key="M">M</button>
-        <button class="kb-key kb-backspace" type="button" data-action="backspace">Backspace</button>
-      </div>
-      <div class="kb-row">
-        <button class="kb-key kb-space" type="button" data-key=" ">Space</button>
+      <div class="kb-row keyboard-actions">
+        <button class="kb-key kb-backspace" type="button" data-action="backspace" aria-label="Backspace">⌫ Delete</button>
         <button class="kb-key kb-clear" type="button" data-action="clear">Clear</button>
+        <button class="kb-key btn-primary search-submit" type="submit" form="search-form">Search</button>
       </div>
     </div>
 
@@ -417,6 +393,7 @@
             visitorModal.hide();
           }
           input.value = "";
+          input.dispatchEvent(new Event("input"));
           input.focus();
         }
       });
@@ -465,6 +442,10 @@
           button.disabled = attendanceSubmissionInFlight || !selected.length ||
             (button.dataset.action === "check_in_selected" && alreadyCheckedIn);
         });
+        resultsList.querySelectorAll("[data-selection-count]").forEach((line) => {
+          const count = resultsList.querySelectorAll(`.result-person-checkbox[data-group="${line.dataset.selectionCount}"]:checked`).length;
+          line.textContent = `${count} ${count === 1 ? "person" : "people"} selected`;
+        });
         resultsList.querySelectorAll(".reprint-one-btn, .result-person-checkbox").forEach((control) => {
           control.disabled = attendanceSubmissionInFlight;
         });
@@ -491,9 +472,11 @@
         const members = group.members
           .map(
             (member) =>
-              `<label class="d-flex align-items-center gap-2 result-member-row ${member.checked_in ? "member-checked-in" : ""}">
+              `<div class="result-member-row ${member.checked_in ? "member-checked-in" : ""}">
+              <label class="result-member-choice">
                 <input class="form-check-input result-person-checkbox" type="checkbox" value="${member.id}" data-group="${groupIndex}" data-checked-in="${member.checked_in}" checked />
                 <span>${escapeMarkup(member.name)}</span>
+              </label>
                 ${
                   member.checked_in
                     ? `<span class="result-member-actions ms-auto d-flex align-items-center gap-2">
@@ -502,14 +485,14 @@
                       </span>`
                     : ""
                 }
-              </label>`
+              </div>`
           )
           .join("");
         return `
           <div class="list-group-item">
             <div class="d-flex flex-column gap-3">
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div class="fw-semibold">${familyLabel}</div>
+                <div><div class="fw-semibold">${familyLabel}</div><p class="selection-count" data-selection-count="${groupIndex}" role="status"></p></div>
                 <div class="d-flex gap-2 flex-wrap">
                   <button class="btn btn-success btn-lg result-action-btn" type="button" data-action="print_selected" data-group="${groupIndex}" data-primary-id="${group.primary_id}">Print Nametags</button>
                   <button class="btn btn-outline-primary btn-lg result-action-btn" type="button" data-action="check_in_selected" data-group="${groupIndex}" data-primary-id="${group.primary_id}" data-family-name="${familyLabel}" data-has-family="${group.family_name ? "1" : "0"}" ${allCheckedIn ? "disabled" : ""}>Check in only</button>
@@ -587,6 +570,7 @@
           resetVisitorForm();
         }
         input.value = "";
+        input.dispatchEvent(new Event("input"));
         moveCursorToEnd();
         return true;
       };
@@ -856,6 +840,7 @@
                   resultsModal.hide();
                 }
                 input.value = "";
+                input.dispatchEvent(new Event("input"));
                 moveCursorToEnd();
               }
             })
@@ -863,25 +848,85 @@
         });
       }
 
+      let searchMode = /^\d+$/.test(input.value) ? "phone" : "name";
+      const drafts = { name: searchMode === "name" ? input.value : "", phone: searchMode === "phone" ? input.value : "" };
+      const modeButtons = document.querySelectorAll("[data-search-mode]");
+      const syncSearch = () => {
+        const phone = searchMode === "phone";
+        const valid = phone ? /^\d{4}$/.test(input.value) : !!input.value.trim();
+        document.querySelectorAll(".search-submit").forEach(button => { button.disabled = !valid; });
+        document.querySelectorAll("#phone-slots span").forEach((slot, index) => {
+          slot.textContent = input.value[index] || "–";
+        });
+      };
+      const setSearchMode = (mode) => {
+        drafts[searchMode] = input.value;
+        searchMode = mode;
+        input.value = drafts[mode];
+        const phone = mode === "phone";
+        document.getElementById("name-keyboard").hidden = phone;
+        document.getElementById("phone-keyboard").hidden = !phone;
+        document.getElementById("phone-slots").hidden = !phone;
+        document.getElementById("search-label").textContent = phone ? "Enter the last 4 phone digits" : "Enter your last name";
+        document.getElementById("search-hint").textContent = phone ? "Enter four digits, then tap Search." : "Type with the keyboard below, then tap Search.";
+        input.placeholder = phone ? "Last 4 digits" : "Last name";
+        input.maxLength = phone ? 4 : 120;
+        modeButtons.forEach(button => {
+          const selected = button.dataset.searchMode === mode;
+          button.setAttribute("aria-pressed", String(selected));
+          button.classList.toggle("btn-primary", selected);
+          button.classList.toggle("btn-outline-primary", !selected);
+        });
+        input.dispatchEvent(new Event("input"));
+      };
+      modeButtons.forEach(button => button.addEventListener("click", () => setSearchMode(button.dataset.searchMode)));
+      input.addEventListener("input", syncSearch);
+      setSearchMode(searchMode);
+
       if (keyboard) {
+        const erase = () => {
+          input.value = input.value.slice(0, -1);
+          input.dispatchEvent(new Event("input"));
+        };
+        let deleteDelay;
+        let deleteRepeat;
+        let repeatedDelete = false;
+        const stopDelete = () => {
+          clearTimeout(deleteDelay);
+          clearInterval(deleteRepeat);
+        };
+        keyboard.addEventListener("pointerdown", (event) => {
+          if (!event.target.closest('[data-action="backspace"]')) return;
+          stopDelete();
+          repeatedDelete = false;
+          deleteDelay = setTimeout(() => {
+            repeatedDelete = true;
+            erase();
+            deleteRepeat = setInterval(erase, 90);
+          }, 450);
+        });
+        document.addEventListener("pointerup", stopDelete);
+        document.addEventListener("pointercancel", stopDelete);
+        window.addEventListener("blur", stopDelete);
+        document.addEventListener("visibilitychange", stopDelete);
+        keyboard.addEventListener("pointerleave", stopDelete);
         keyboard.addEventListener("click", (event) => {
-          const target = event.target;
-          if (!(target instanceof HTMLElement)) return;
+          const target = event.target.closest("button");
+          if (!target) return;
           const key = target.getAttribute("data-key");
           const action = target.getAttribute("data-action");
           if (key !== null) {
-            input.value = `${input.value}${key}`;
-            moveCursorToEnd();
-            input.dispatchEvent(new Event("input"));
+            if (searchMode === "phone" && (!/^\d$/.test(key) || input.value.length >= 4)) return;
+            if (input.value.length >= input.maxLength) return;
+            input.value += key;
           } else if (action === "backspace") {
-            input.value = input.value.slice(0, -1);
-            moveCursorToEnd();
-            input.dispatchEvent(new Event("input"));
+            if (!repeatedDelete) erase();
+            repeatedDelete = false;
           } else if (action === "clear") {
             input.value = "";
-            moveCursorToEnd();
-            input.dispatchEvent(new Event("input"));
           }
+          moveCursorToEnd();
+          input.dispatchEvent(new Event("input"));
         });
       }
 

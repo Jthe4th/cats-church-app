@@ -15,6 +15,11 @@ if not exist "%PYTHON%" (
 )
 
 schtasks /create /tn "Welcome System Server" /sc onlogon /rl limited /f /tr "\"%PYTHON%\" \"%PANEL%\" --start-server"
+if errorlevel 1 (
+  echo Automatic startup could not be installed. Use the launcher for now.
+  pause
+  exit /b 1
+)
 echo.
 echo Automatic startup has been installed for this Windows account.
 pause

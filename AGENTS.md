@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Current version: `0.9.13-beta`
+Current version: `0.9.14-beta`
 
 ## Project Direction
 
@@ -27,6 +27,14 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - `static/` — CSS assets (including label print styles)
 - `manage.py` — Django CLI entrypoint
 - `requirements.txt` — Python dependencies
+
+## Setup and Everyday Startup
+
+- Recommended entry points: top-level `Start Welcome System.command` (Mac) and `Start Welcome System.cmd` (Windows).
+- `scripts/control_panel/launch_welcome_system.py` checks readiness, offers setup, backs up existing SQLite data before migrations, prompts for an administrator if none is active, starts Waitress, and opens the controls after a health check.
+- A running server is reused. Desktop shortcuts are optional; `--shortcut` retries creation without overwriting existing desktop items. After setup, optional sign-in startup is offered.
+- Legacy `OPEN_WELCOME_SYSTEM_CONTROL_PANEL...` files open controls only; legacy setup scripts remain manual alternatives.
+- Keep platform guides and the Leader Guide aligned with this flow. Development commands below are not the recommended weekly startup path.
 
 ## Build, Test, and Development Commands
 
@@ -82,7 +90,7 @@ Welcome System is a lightweight, local-network, web-based check-in system. The p
 - Large text, high contrast, and oversized touch targets for older users.
 - Single-screen primary flow; avoid multi-step wizards.
 - Kiosk Bootstrap assets are bundled locally. Optional Google Fonts load without blocking the page, with system-font fallbacks.
-- Kiosk uses an on-screen keyboard with letters + number row.
+- Kiosk has Last name and Phone digits modes: a QWERTY keyboard with apostrophe/hyphen and a separate four-digit number pad. Delete supports press-and-hold; family results show selection counts and checked-in badges.
 - Missing-members report defaults to the latest closed service (or latest service if none is closed), excluding members created after that service date.
 - New rows in Attendees/First-Time lists are highlighted briefly to show real-time check-ins.
 

@@ -1,6 +1,6 @@
 # Welcome System Roadmap
 
-Reviewed against `0.9.13-beta` on 2026-09-07. This roadmap separates shipped behavior from proposed work; priorities are planning guidance, not release commitments.
+Reviewed against `0.9.14-beta` on 2026-09-22. This roadmap separates shipped behavior from proposed work; priorities are planning guidance, not release commitments.
 
 ## Vision
 
@@ -19,6 +19,8 @@ Provide fast, reliable church check-in for kiosks and staff while keeping local-
 - Windows/Mac Control Panel for start, stop, restart, backups, GitHub update checks, and updates.
 - Explicit service-action permissions, installation-specific secret/host configuration, and photo serving with debug disabled.
 - Validated database backups/restores with request coordination and session invalidation after restore.
+
+- Top-level Mac/Windows launchers with setup checks, automatic server startup, desktop shortcut offers, and optional sign-in startup after setup.
 
 ## Next Priorities
 
@@ -52,7 +54,7 @@ Provide fast, reliable church check-in for kiosks and staff while keeping local-
 
 ### Server installers (deferred)
 
-Installer creation is future development and is not part of the current work. Continue using the documented setup scripts and Control Panel for now.
+Installer creation is future development and is not part of the current work. Use the top-level launchers and Control Panel for now; they still require an installed Python runtime.
 
 - Create a Windows installer first, followed by a Mac installer, bundling a tested Python runtime and application dependencies.
 - Provide administrator setup, application shortcuts, server-address configuration, and optional sign-in startup. Kiosk devices continue using a browser and do not need the server installer.

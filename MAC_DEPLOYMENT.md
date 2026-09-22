@@ -1,12 +1,24 @@
 # Mac Setup and Usage
 
-Applies to Welcome System `0.9.13-beta`. For Windows, use [Windows Deployment](WINDOWS_DEPLOYMENT.md). The [Leader Guide](WELCOME_LEADER_README.md) covers check-in on either platform.
+Applies to Welcome System `0.9.14-beta`. For Windows, use [Windows Deployment](WINDOWS_DEPLOYMENT.md). The [Leader Guide](WELCOME_LEADER_README.md) covers check-in on either platform.
+
+## Recommended Setup and Launch
+
+After downloading the project and installing Python 3.10 or newer, double-click **Start Welcome System.command** in the top-level project folder. Use this same file every time.
+
+- If setup is incomplete, the launcher offers to install dependencies, back up an existing database, apply migrations, prepare static files, and create an administrator when needed. Initial setup needs internet access.
+- If ready, it starts the server and waits for a successful health check before opening the Control Panel. An already-running server is left running.
+- Accept the desktop shortcut offer to launch from **Welcome System** next time. The shortcut points to this folder; recreate it if you move the project.
+- Continue with network, user permissions, and printer configuration below. Git is needed for Control Panel updates.
+- After completing setup, the launcher also offers optional automatic startup at sign-in. You can enable it later using the instructions below.
+
+Follow the installation steps below once; use the launcher or desktop shortcut for subsequent starts.
 
 ## Before Setup
 
 Use one Mac as the server; kiosks connect to it through their browsers. Keep the server awake and connected to the church network while check-in is in use.
 
-The setup script requires `python3` with pip and venv, and Git. Check them in Terminal:
+The launcher requires Python 3.10 or newer with pip and venv. Git is needed to clone the project and install updates. Check them in Terminal:
 
 ```bash
 python3 --version
@@ -24,12 +36,13 @@ mkdir -p "$HOME/Applications"
 cd "$HOME/Applications"
 git clone https://github.com/Jthe4th/cats-church-app.git WelcomeSystem
 cd WelcomeSystem
-chmod +x scripts/control_panel/*.sh scripts/control_panel/*.command
-./scripts/control_panel/SETUP_WELCOME_SYSTEM_MAC.sh
-.venv/bin/python manage.py createsuperuser
+chmod +x "Start Welcome System.command"
+./"Start Welcome System.command"
 ```
 
-Stop and resolve any error before running the next command. The setup script creates `.venv`, installs requirements, applies database migrations, collects static files, and checks the application. It does not start the server or create an administrator automatically; the final command above creates that account.
+Accept **Run setup now?** when prompted. The launcher creates `.venv`, installs requirements, backs up an existing database before migrations, prepares static files, and checks the application. If no active superuser exists, it runs the administrator-creation prompts. It then starts the server, waits until it responds, offers a desktop shortcut and optional sign-in startup, and opens the Control Panel. If a step fails, resolve the reported error and reopen the same launcher.
+
+If you downloaded a ZIP instead of cloning, extract it into a permanent folder first. If Finder cannot execute the launcher, open Terminal in that folder and run `bash "Start Welcome System.command"`; `chmod +x "Start Welcome System.command"` enables future double-click use.
 
 The first Django command creates a private `.env` file when needed. It contains an installation-specific secret, debug disabled, and allowed local hostnames/addresses. Keep the generated secret. Do not overwrite it with the placeholder in `.env.example`.
 
@@ -49,8 +62,8 @@ If the macOS firewall blocks incoming connections, allow the server's Python app
 
 ## Start and Use the System
 
-1. In Finder, open the project folder and double-click `scripts/control_panel/OPEN_WELCOME_SYSTEM_CONTROL_PANEL.command`. Alternatively, run `./scripts/control_panel/OPEN_WELCOME_SYSTEM_CONTROL_PANEL.sh` from the project folder in Terminal.
-2. Click **Start Welcome System**, or select that action in the Terminal menu. The server uses Waitress.
+1. Double-click the **Welcome System** desktop shortcut, or **Start Welcome System.command** in the project folder.
+2. Wait for the Control Panel and confirm that the server is running. The launcher starts Waitress if needed; it does not restart an already-running server. If you stopped the server while the panel was open, use **Start Welcome System** to start it again.
 3. Open **Admin** at `http://127.0.0.1:8000/admin/` and sign in with the administrator account.
 4. Configure Greeter/Staff accounts and permissions using [Accounts and Permissions](README.md#accounts-and-permissions), then confirm the current service is open.
 5. On each kiosk, open `http://SERVER-IP:8000/kiosk/?kiosk=kiosk1`, changing the ID to `kiosk2`, `kiosk3`, and so on. Replace `SERVER-IP` with the Mac's LAN address. Do not use `127.0.0.1` on another device.
@@ -60,10 +73,10 @@ If the macOS firewall blocks incoming connections, allow the server's Python app
 
 ### Optional Automatic Startup
 
-After setup and account configuration, run from the project folder:
+Accept the optional sign-in-startup offer after launcher setup, or enable it later from the project folder:
 
 ```bash
-./scripts/control_panel/INSTALL_AUTOSTART_MAC.sh
+bash scripts/control_panel/INSTALL_AUTOSTART_MAC.sh
 ```
 
 This installs a LaunchAgent that starts the server when this Mac user signs in. It also loads the agent immediately, so the server may start as soon as installation finishes. The Mac must still be awake and signed in; this is not startup before login.

@@ -1,6 +1,6 @@
 # Welcome System Leader Guide
 
-For Welcome System `0.9.13-beta`.
+For Welcome System `0.9.14-beta`.
 
 This guide is for starting the Welcome System on Sabbath and getting the three kiosks ready for check-in.
 
@@ -10,21 +10,21 @@ The system is already installed on the local server computer. These steps apply 
 
 1. Turn on the server computer.
 2. Make sure the server computer is connected to the church network.
-3. Open the Welcome System Control Panel and confirm the server is running.
+3. Double-click the **Welcome System** desktop shortcut (or the top-level **Start Welcome System** launcher) and wait for the Control Panel to confirm the server is running.
 4. Open all three kiosk screens.
 5. Log in to each kiosk with the Greeter account.
 6. Print one test name tag if printers are being used.
 
 ## Start The Server
 
-On the server computer, open the Welcome System Control Panel first:
+On the server computer, double-click the **Welcome System** desktop shortcut. If it has not been created, open the project folder and use:
 
-- Windows: double-click `scripts\control_panel\OPEN_WELCOME_SYSTEM_CONTROL_PANEL.cmd`.
-- Mac: double-click `scripts/control_panel/OPEN_WELCOME_SYSTEM_CONTROL_PANEL.command` in Finder.
+- Windows: double-click `Start Welcome System.cmd`.
+- Mac: double-click `Start Welcome System.command` in Finder.
 
-Press **Start Welcome System** if the status does not already say it is running. Use the green status message's kiosk address on the kiosk devices.
+The launcher starts the server if needed and opens the Control Panel after it is ready. If you stopped it while the panel was open, press **Start Welcome System**. Use the green status message's kiosk address on the kiosk devices.
 
-If the Control Panel cannot be opened, start the server manually. Open Terminal or PowerShell in the project folder and run:
+If the desktop window is unavailable, use the launcher's numbered Terminal menu. If the launcher itself fails, read its error message and consult the platform setup guide. For a configured installation, the manual server-start fallback is below. Open Terminal or PowerShell in the project folder and run:
 
 ```bash
 .venv/bin/python -m waitress --listen=0.0.0.0:8000 cats.wsgi:application
@@ -136,8 +136,8 @@ This is the browser-based option for a printer connected to the kiosk.
 
 For existing people:
 
-1. Search by last name or last 4 phone digits.
-2. Select the correct person or family members.
+1. Choose **Last name** for the letter keyboard, or **Phone digits** for the number pad. Enter a name or exactly four phone digits, then tap **Search**. Apostrophe and hyphen keys are available for names; hold **Delete** to erase repeatedly.
+2. Tap the person rows to select or deselect family members. Everyone is selected initially; check the selected-person count before continuing. **Already checked in** badges identify people who can have their nametags reprinted.
 3. Tap `Print Nametags` or `Check in only`. Both buttons are disabled if nobody is selected; check-in-only is disabled when all selected people are already checked in.
 4. Wait while check-in is saving. The buttons temporarily disable to prevent repeated submissions.
 
